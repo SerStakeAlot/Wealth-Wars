@@ -1,10 +1,26 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Inter, Orbitron } from 'next/font/google';
+import { Connection, PublicKey, clusterApiUrl } from '@solana/web3.js';
 
 const inter = Inter({ subsets: ['latin'] });
 const orbitron = Orbitron({ subsets: ['latin'], weight: ['600', '800'] });
+
+/* ---------- Build a connection locally (no external helper) ---------- */
+const RPC_URL =
+  process.env.NEXT_PUBLIC_SOLANA_RPC_URL ||
+  clusterApiUrl(
+    (process.env.NEXT_PUBLIC_SOLANA_CLUSTER as 'devnet' | 'testnet' | 'mainnet-beta') || 'devnet'
+  );
+
+function useSolanaConnection() {
+  const ref = useRef<Connection | null>(null);
+  if (!ref.current) {
+    ref.current = new Connection(RPC_URL, 'confirmed');
+  }
+  return ref.current;
+}
 
 /* ---------- Phantom wallet types ---------- */
 type SolanaProvider = {
@@ -23,7 +39,7 @@ declare global {
 
 const shorten = (pk = '') => (pk ? `${pk.slice(0, 4)}…${pk.slice(-4)}` : '');
 
-/* ---------- Small reusable wallet avatar ---------- */
+/* ---------- Reusable Wallet Avatar ---------- */
 function WalletAvatar({
   connected,
   pubkey,
@@ -52,34 +68,21 @@ function WalletAvatar({
       <div className="badge">{connected ? shorten(pubkey) : 'Connect'}</div>
 
       <style jsx>{`
-        .walletWrap {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-        }
+        .walletWrap { display: inline-flex; align-items: center; gap: 8px; }
         .avatar {
-          border-radius: 999px;
-          display: grid;
-          place-items: center;
-          color: #0b1220;
-          background: linear-gradient(180deg, #fde68a, #fbbf24); /* gold-ish */
-          border: 1px solid rgba(0,0,0,0.06);
-          box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
-          cursor: pointer;
-          transition: transform 120ms, filter 120ms;
+          border-radius: 999px; display: grid; place-items: center; color: #0b1220;
+          background: linear-gradient(180deg, #fde68a, #fbbf24);
+          border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+          cursor: pointer; transition: transform 120ms, filter 120ms;
         }
         .avatar:hover { transform: translateY(-1px); filter: brightness(1.03); }
         .dot {
-          position: absolute;
-          transform: translate(12px, -12px);
-          width: 9px; height: 9px; border-radius: 999px;
-          background: #22c55e; box-shadow: 0 0 0 2px #fff inset;
+          position: absolute; transform: translate(12px, -12px);
+          width: 9px; height: 9px; border-radius: 999px; background: #22c55e; box-shadow: 0 0 0 2px #fff inset;
         }
         .badge {
-          font-size: 12px; letter-spacing: 0.06em;
-          padding: 6px 10px; border-radius: 10px;
-          border: 1px solid #e5e7eb; background: #fff; color: #0f172a;
-          box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+          font-size: 12px; letter-spacing: 0.06em; padding: 6px 10px; border-radius: 10px;
+          border: 1px solid #e5e7eb; background: #fff; color: #0f172a; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
           user-select: none;
         }
       `}</style>
@@ -87,7 +90,6 @@ function WalletAvatar({
   );
 }
 
-/* ---------- Game types ---------- */
 type Asset = {
   id: string;
   name: string;
@@ -98,9 +100,13 @@ type Asset = {
 };
 
 export default function GamePage() {
-  /* ===== Wallet state (shared for HUD + Drawer) ===== */
+  const connection = useSolanaConnection();
+
+  /* ---------- Wallet state ---------- */
   const [provider, setProvider] = useState<SolanaProvider | null>(null);
   const [pubkey, setPubkey] = useState('');
+  const [sol, setSol] = useState(0);
+  const connected = !!pubkey;
 
   useEffect(() => {
     const p = typeof window !== 'undefined' ? window.solana : undefined;
@@ -111,7 +117,7 @@ export default function GamePage() {
           const k = (args?.publicKey?.toString?.() ?? p.publicKey?.toString?.() ?? '') as string;
           if (k) setPubkey(k);
         });
-        p.on?.('disconnect', () => setPubkey(''));
+        p.on?.('disconnect', () => { setPubkey(''); setSol(0); });
         const maybe = p.publicKey?.toString?.();
         if (maybe) setPubkey(maybe);
       } catch {}
@@ -129,10 +135,11 @@ export default function GamePage() {
       if (!pubkey) {
         const res = await provider.connect();
         const key = res?.publicKey?.toString?.();
-        if (key) setPubkey(key);
+        if (key) { setPubkey(key); await refreshBalance(key); }
       } else {
         await provider.disconnect();
         setPubkey('');
+        setSol(0);
       }
     } catch (e: any) {
       console.error(e);
@@ -140,9 +147,33 @@ export default function GamePage() {
     }
   }
 
-  const connected = !!pubkey;
+  async function refreshBalance(key?: string) {
+    try {
+      const k = key ?? pubkey;
+      if (!k) return;
+      const lamports = await connection.getBalance(new PublicKey(k));
+      setSol(lamports / 1e9);
+    } catch (e) {
+      console.error(e);
+    }
+  }
 
-  /* ===== Placeholder game state (same as your draft) ===== */
+  async function airdrop1Sol() {
+    try {
+      if (!pubkey) return alert('Connect your wallet first.');
+      const sig = await connection.requestAirdrop(new PublicKey(pubkey), 1e9); // 1 SOL
+      await connection.confirmTransaction(sig, 'confirmed');
+      await refreshBalance();
+      alert('Airdropped 1 SOL on devnet.');
+    } catch (e: any) {
+      console.error(e);
+      alert(e?.message ?? 'Airdrop failed (devnet can rate-limit). Try again soon.');
+    }
+  }
+
+  useEffect(() => { if (pubkey) refreshBalance(); }, [pubkey]);
+
+  /* ---------- Game state (placeholder) ---------- */
   const [level, setLevel] = useState(1);
   const [xp, setXp] = useState(20);
   const [wealth, setWealth] = useState(150);
@@ -158,17 +189,12 @@ export default function GamePage() {
 
   const lowLiquidity = liquidity < 0.12;
   const anyWeakAsset = assets.some(a => a.condition < 35);
-
-  function clamp(n: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, n)); }
+  const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
   function collect(id: string) {
     const a = assets.find(x => x.id === id)!;
     setWealth(w => w + a.yieldPerTick);
-    setXp(x => {
-      const nx = x + 5;
-      if (nx >= 100) { setLevel(l => l + 1); return 0; }
-      return nx;
-    });
+    setXp(x => { const nx = x + 5; if (nx >= 100) { setLevel(l => l + 1); return 0; } return nx; });
     setLiquidity(q => clamp(q + (Math.random() - 0.5) * 0.03, 0.05, 0.6));
   }
 
@@ -206,13 +232,13 @@ export default function GamePage() {
         <div className="stats">
           <div className="stat"><span className="k">Level</span><span className={`${orbitron.className} v`}>{level}</span></div>
           <div className="stat"><span className="k">XP</span><span className={`${orbitron.className} v`}>{xp}/100</span></div>
+          <div className="stat"><span className="k">SOL</span><span className={`${orbitron.className} v`}>{sol.toFixed(2)}</span></div>
           <div className="stat"><span className="k">$WEALTH</span><span className={`${orbitron.className} v`}>{wealth}</span></div>
           <div className="stat"><span className="k">Liquidity</span><span className={`${orbitron.className} v`}>{Math.round(liquidity*100)}%</span></div>
         </div>
 
         <div className="actions">
           <button className="profileBtn" onClick={() => setProfileOpen(true)}>View Profile</button>
-          {/* Wallet avatar in HUD */}
           <WalletAvatar connected={connected} pubkey={pubkey} onClick={handleWalletClick} />
         </div>
       </header>
@@ -267,9 +293,10 @@ export default function GamePage() {
         </div>
 
         <div className="profileRows">
-          <div className="pRow"><span className="pKey">Gamer Tag</span><span className="pVal">Commander</span></div>
+          <div className="pRow"><span className="pKey">Wallet</span><span className="pVal">{connected ? shorten(pubkey) : 'Not connected'}</span></div>
           <div className="pRow"><span className="pKey">Level</span><span className="pVal">{level}</span></div>
           <div className="pRow"><span className="pKey">XP</span><span className="pVal">{xp}/100</span></div>
+          <div className="pRow"><span className="pKey">SOL (devnet)</span><span className="pVal">{sol.toFixed(2)}</span></div>
           <div className="pRow"><span className="pKey">$WEALTH</span><span className="pVal">{wealth}</span></div>
           <div className="pRow"><span className="pKey">Liquidity</span><span className="pVal">{Math.round(liquidity*100)}%</span></div>
         </div>
@@ -285,13 +312,14 @@ export default function GamePage() {
           </ul>
         </div>
 
-        {/* Wallet avatar pinned bottom-right of the drawer */}
+        {/* wallet tools pinned bottom-right */}
         <div className="drawerWallet">
           <WalletAvatar connected={connected} pubkey={pubkey} onClick={handleWalletClick} size={44} />
+          <button className="airBtn" onClick={airdrop1Sol}>Devnet Airdrop 1 SOL</button>
+          <button className="airBtn ghost" onClick={() => refreshBalance()}>Refresh</button>
         </div>
       </aside>
 
-      {/* overlay when profile open */}
       {profileOpen && <div className="mask" onClick={() => setProfileOpen(false)} />}
 
       {/* STYLES */}
@@ -358,19 +386,23 @@ export default function GamePage() {
         .nftTitle { margin: 0 0 8px 0; }
         .nftList { margin: 0; padding-left: 16px; color: #334155; }
 
-        /* wallet avatar pinned bottom-right inside drawer */
         .drawerWallet {
           position: absolute; right: 14px; bottom: 14px;
           display: flex; align-items: center; gap: 10px;
-          background: rgba(255,255,255,0.9);
+          background: rgba(255,255,255,0.92);
           padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 12px;
           box-shadow: 0 6px 18px rgba(15,23,42,0.08);
         }
+        .airBtn {
+          border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a;
+          padding: 8px 10px; border-radius: 8px; cursor: pointer;
+        }
+        .airBtn.ghost { background: #fff; }
 
         .mask { position: fixed; inset: 0; background: rgba(15,23,42,0.25); z-index: 10; }
 
         @media (max-width: 640px) {
-          .stats { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+          .stats { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(110px, 1fr)); }
           .hud { grid-template-columns: 1fr; gap: 8px; }
           .actions { justify-self: start; }
         }
