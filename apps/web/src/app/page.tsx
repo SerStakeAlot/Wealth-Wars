@@ -1,103 +1,272 @@
-import Image from "next/image";
+'use client';
+
+import Link from 'next/link';
+import { Orbitron } from 'next/font/google';
+import { useEffect, useMemo, useState } from 'react';
+
+const orbitron = Orbitron({ subsets: ['latin'], weight: ['600', '800'] });
+
+/* ---------- Phantom types ---------- */
+type SolanaProvider = {
+  isPhantom?: boolean;
+  publicKey?: { toString: () => string };
+  connect: () => Promise<{ publicKey: { toString: () => string } }>;
+  disconnect: () => Promise<void>;
+  on?: (event: string, handler: (...args: any[]) => void) => void;
+};
+declare global {
+  interface Window {
+    solana?: SolanaProvider;
+  }
+}
+const shorten = (pk = '') => (pk ? `${pk.slice(0, 4)}…${pk.slice(-4)}` : '');
+
+/* ---------- Background sprinkles ---------- */
+function DollarSprinkles() {
+  const spots = useMemo(
+    () => [
+      { top: '12%', left: '8%',  size: 52, rot: -8,  dur: 10 },
+      { top: '22%', right: '10%', size: 64, rot: 6,   dur: 12 },
+      { bottom: '18%', left: '14%', size: 58, rot: 3, dur: 11 },
+      { bottom: '10%', right: '12%', size: 66, rot: -5, dur: 13 },
+      { top: '48%', left: '50%', size: 50, rot: 0,    dur: 9  },
+    ],
+    []
+  );
+
+  return (
+    <div className="sprinkles" aria-hidden="true">
+      {spots.map((s, i) => (
+        <div
+          key={i}
+          className="dollar"
+          style={{
+            position: 'absolute',
+            ...('top' in s ? { top: s.top } : {}),
+            ...('bottom' in s ? { bottom: s.bottom } : {}),
+            ...('left' in s ? { left: s.left } : {}),
+            ...('right' in s ? { right: s.right } : {}),
+            fontSize: s.size,
+            transform: `rotate(${s.rot}deg)`,
+            animationDuration: `${s.dur}s`,
+          }}
+        >
+          $
+        </div>
+      ))}
+
+      <style jsx>{`
+        .sprinkles { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+        .dollar {
+          color: rgba(34, 197, 94, 0.12);
+          font-weight: 800;
+          text-shadow: 0 2px 10px rgba(34, 197, 94, 0.08);
+          animation: floaty ease-in-out infinite alternate;
+        }
+        @keyframes floaty {
+          from { transform: translateY(-3px); }
+          to   { transform: translateY(6px); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* ---------- Tiny tiled $ pattern ---------- */
+function BackgroundPattern() {
+  const svg = encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
+       <text x="6" y="16" font-size="14" font-weight="700" fill="rgba(34,197,94,0.08)">$</text>
+     </svg>`
+  );
+  return (
+    <div
+      className="pattern"
+      aria-hidden="true"
+      style={{ backgroundImage: `url("data:image/svg+xml,${svg}")` }}
+    >
+      <style jsx>{`
+        .pattern {
+          position: absolute; inset: 0;
+          background-repeat: repeat; background-size: 24px 24px;
+          z-index: 0; pointer-events: none;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* ---------- Wallet avatar (top-right) ---------- */
+function WalletAvatar({
+  connected,
+  onClick,
+  pubkey,
+}: {
+  connected: boolean;
+  onClick: () => void;
+  pubkey: string;
+}) {
+  return (
+    <div className="walletWrap">
+      <button className="avatar" onClick={onClick} aria-label={connected ? 'Disconnect Wallet' : 'Connect Wallet'}>
+        {/* simple wallet glyph */}
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H18a1 1 0 1 1 0 2H5.5A.5.5 0 0 0 5 7.5V17a.5.5 0 0 0 .5.5H19a2 2 0 0 0 2-2V11a1 1 0 1 0-2 0v3.5a.5.5 0 0 1-.5.5H6a2 2 0 0 1-2-2V7.5Z" fill="currentColor"/>
+          <circle cx="18" cy="12" r="1.3" fill="currentColor"/>
+        </svg>
+        {connected && <span className="dot" />}
+      </button>
+      <div className="badge">{connected ? shorten(pubkey) : 'Connect'}</div>
+
+      <style jsx>{`
+        .walletWrap {
+          position: absolute; top: 16px; right: 16px;
+          display: flex; align-items: center; gap: 10px;
+          z-index: 9;
+        }
+        .avatar {
+          width: 40px; height: 40px; border-radius: 999px;
+          display: grid; place-items: center;
+          color: #0b1220;
+          background: linear-gradient(180deg, #fde68a, #fbbf24); /* gold-ish */
+          border: 1px solid rgba(0,0,0,0.06);
+          box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+          cursor: pointer;
+          transition: transform 120ms, filter 120ms;
+        }
+        .avatar:hover { transform: translateY(-1px); filter: brightness(1.02); }
+        .dot {
+          position: absolute; top: 4px; right: 4px;
+          width: 9px; height: 9px; border-radius: 999px;
+          background: #22c55e; box-shadow: 0 0 0 2px #fff inset;
+        }
+        .badge {
+          font-size: 12px; letter-spacing: 0.06em;
+          padding: 6px 10px; border-radius: 10px;
+          border: 1px solid #e5e7eb; background: #fff; color: #0f172a;
+          box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+          user-select: none;
+        }
+      `}</style>
+    </div>
+  );
+}
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  /* ---- wallet state ---- */
+  const [provider, setProvider] = useState<SolanaProvider | null>(null);
+  const [pubkey, setPubkey] = useState('');
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
+  useEffect(() => {
+    const p = typeof window !== 'undefined' ? window.solana : undefined;
+    if (p?.isPhantom) {
+      setProvider(p);
+      try {
+        p.on?.('connect', (args: any) => {
+          const k =
+            (args?.publicKey?.toString?.() ??
+              p.publicKey?.toString?.() ??
+              '') as string;
+          if (k) setPubkey(k);
+        });
+        p.on?.('disconnect', () => setPubkey(''));
+        const maybe = p.publicKey?.toString?.();
+        if (maybe) setPubkey(maybe);
+      } catch {}
+    } else {
+      setProvider(null);
+    }
+  }, []);
+
+  async function handleAvatarClick() {
+    try {
+      if (!provider) {
+        alert('Phantom wallet not found. Install Phantom from https://phantom.app and try again.');
+        return;
+      }
+      if (!pubkey) {
+        const res = await provider.connect();
+        const key = res?.publicKey?.toString?.();
+        if (key) setPubkey(key);
+      } else {
+        await provider.disconnect();
+        setPubkey('');
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert(e?.message ?? 'Wallet action canceled.');
+    }
+  }
+
+  const connected = !!pubkey;
+
+  return (
+    <div className="page">
+      {/* background layers */}
+      <BackgroundPattern />
+      <DollarSprinkles />
+
+      {/* wallet avatar (top-right) */}
+      <WalletAvatar connected={connected} onClick={handleAvatarClick} pubkey={pubkey} />
+
+      {/* centered content */}
+      <main className="content">
+        <h1 className={`${orbitron.className} logo`}>WEALTH WARS</h1>
+
+        <Link href="/game">
+          <button className="playBtn" aria-label="Play Now">▶ PLAY NOW</button>
+        </Link>
+
+        <p className="alpha">Alpha • v0.1</p>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+      {/* global base */}
+      <style jsx global>{`
+        html, body, #__next { height: 100%; margin: 0; padding: 0; background: #fff; }
+        * { box-sizing: border-box; }
+      `}</style>
+
+      {/* local styles */}
+      <style jsx>{`
+        .page {
+          position: relative; width: 100%; height: 100svh; overflow: hidden; color: #0f172a;
+        }
+        .content {
+          position: relative; z-index: 5;
+          height: 100%; display: grid; place-items: center; text-align: center;
+        }
+        .logo {
+          font-size: clamp(42px, 8vw, 100px);
+          margin: 0 0 28px 0; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 800;
+          background: linear-gradient(
+            180deg,
+            #fff6c7 0%,
+            #ffe89a 14%,
+            #f9c742 28%,
+            #b07c24 42%,
+            #f2d271 58%,
+            #ffd34a 72%,
+            #9b6a1a 86%,
+            #ffd98c 100%
+          );
+          -webkit-background-clip: text; background-clip: text; color: transparent;
+          text-shadow: 0 2px 0 rgba(0,0,0,0.12), 0 10px 24px rgba(255,199,84,0.18);
+        }
+        .playBtn {
+          border: none; padding: 18px 36px; font-size: 20px; font-weight: 800;
+          text-transform: uppercase; letter-spacing: 0.12em; border-radius: 12px; cursor: pointer;
+          background: linear-gradient(180deg, #22c55e, #166534); color: #fff;
+          box-shadow: 0 8px 20px rgba(22,101,52,0.35), 0 0 0 2px rgba(0,0,0,0.04) inset;
+          transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+        }
+        .playBtn:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(22,101,52,0.45), 0 0 0 2px rgba(0,0,0,0.06) inset; filter: brightness(1.03); }
+        .playBtn:active { transform: translateY(2px); box-shadow: 0 6px 16px rgba(22,101,52,0.25), 0 0 0 2px rgba(0,0,0,0.04) inset; }
+        .alpha {
+          margin-top: 16px; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b;
+          animation: blink 1400ms steps(2, start) infinite;
+        }
+        @keyframes blink { 0%, 49% { opacity: 0.8; } 50%, 100% { opacity: 0.4; } }
+      `}</style>
     </div>
   );
 }
