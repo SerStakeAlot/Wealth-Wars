@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Inter, Orbitron } from 'next/font/google';
 import { Connection, PublicKey, clusterApiUrl } from '@solana/web3.js';
+import toast from 'react-hot-toast'; // <-- Add this import
 
 const inter = Inter({ subsets: ['latin'] });
 const orbitron = Orbitron({ subsets: ['latin'], weight: ['600', '800'] });
@@ -33,7 +34,7 @@ type SolanaProvider = {
 
 declare global {
   interface Window {
-    solana?: SolanaProvider;
+    solana?: any;
   }
 }
 
@@ -135,7 +136,11 @@ export default function GamePage() {
       if (!pubkey) {
         const res = await provider.connect();
         const key = res?.publicKey?.toString?.();
-        if (key) { setPubkey(key); await refreshBalance(key); }
+        if (key) {
+          setPubkey(key);
+          await refreshBalance(key);
+          toast.success('💸 Wallet Connected!'); // <-- Show toast on connect
+        }
       } else {
         await provider.disconnect();
         setPubkey('');

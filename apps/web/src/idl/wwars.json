@@ -1,0 +1,27 @@
+{
+  "address": "3MuF3DSnsg166e1EuYdF4Dc86Z1nzD8dESbqpmFVmQYd",
+  "metadata": {
+    "name": "wwars",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor",
+    "address": "3MuF3DSnsg166e1EuYdF4Dc86Z1nzD8dESbqpmFVmQYd"
+  },
+  "instructions": [
+    {
+      "name": "initialize",
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [],
+      "args": []
+    }
+  ]
+}

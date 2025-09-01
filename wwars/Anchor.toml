@@ -6,14 +6,14 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-wwars = "ndepDTGfiqyxcBdN7zR4mA7qTh9vspygcqy6puQfo4g"
+wwars = "3MuF3DSnsg166e1EuYdF4Dc86Z1nzD8dESbqpmFVmQYd"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
-wallet = '~\.config\solana\id.json'
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
