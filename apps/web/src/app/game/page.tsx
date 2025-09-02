@@ -3,7 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Inter, Orbitron } from 'next/font/google';
 import { Connection, PublicKey, clusterApiUrl } from '@solana/web3.js';
-import toast from 'react-hot-toast'; // <-- Add this import
+import toast from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
+import { useGame } from '../lib/store';
+import { BusinessRow } from '../../components/BusinessRow';
+import { BulkBar } from '../../components/BulkBar';
+import { AvatarButton } from '../../components/AvatarButton';
+import { MenuSheet } from '../../components/MenuSheet';
 
 const inter = Inter({ subsets: ['latin'] });
 const orbitron = Orbitron({ subsets: ['latin'], weight: ['600', '800'] });
@@ -39,6 +45,8 @@ declare global {
 }
 
 const shorten = (pk = '') => (pk ? `${pk.slice(0, 4)}…${pk.slice(-4)}` : '');
+
+
 
 /* ---------- Reusable Wallet Avatar ---------- */
 function WalletAvatar({
@@ -91,17 +99,11 @@ function WalletAvatar({
   );
 }
 
-type Asset = {
-  id: string;
-  name: string;
-  level: number;
-  yieldPerTick: number;
-  upgradeCost: number;
-  condition: number; // 0..100
-};
+
 
 export default function GamePage() {
   const connection = useSolanaConnection();
+  const router = useRouter();
 
   /* ---------- Wallet state ---------- */
   const [provider, setProvider] = useState<SolanaProvider | null>(null);
@@ -178,73 +180,48 @@ export default function GamePage() {
 
   useEffect(() => { if (pubkey) refreshBalance(); }, [pubkey]);
 
-  /* ---------- Game state (placeholder) ---------- */
-  const [level, setLevel] = useState(1);
-  const [xp, setXp] = useState(20);
-  const [wealth, setWealth] = useState(150);
-  const [liquidity, setLiquidity] = useState(0.22);
+  /* ---------- Game state ---------- */
+  const { level, xp, wealth, liquidity, assets, collect, upgrade, defend, prestige, clanEligible, derived, tick } = useGame();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [bulkQty, setBulkQty] = useState(1);
 
-  const [assets, setAssets] = useState<Asset[]>([
-    { id: 'farm',   name: 'Crypto Mining Farm', level: 1, yieldPerTick: 24, upgradeCost: 80,  condition: 72 },
-    { id: 'reit',   name: 'REIT Tower',         level: 1, yieldPerTick: 18, upgradeCost: 60,  condition: 65 },
-    { id: 'startup',name: 'Fintech Startup',    level: 1, yieldPerTick: 14, upgradeCost: 55,  condition: 58 },
-    { id: 'mine',   name: 'Rare Metals Mine',   level: 1, yieldPerTick: 28, upgradeCost: 95,  condition: 50 },
-  ]);
+  // AdCap timer for auto-collection
+  useEffect(() => {
+    const interval = setInterval(() => {
+      tick();
+    }, 250); // Update every 250ms for smooth progress bars
+
+    return () => clearInterval(interval);
+  }, [tick]);
 
   const lowLiquidity = liquidity < 0.12;
   const anyWeakAsset = assets.some(a => a.condition < 35);
-  const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
-
-  function collect(id: string) {
-    const a = assets.find(x => x.id === id)!;
-    setWealth(w => w + a.yieldPerTick);
-    setXp(x => { const nx = x + 5; if (nx >= 100) { setLevel(l => l + 1); return 0; } return nx; });
-    setLiquidity(q => clamp(q + (Math.random() - 0.5) * 0.03, 0.05, 0.6));
-  }
-
-  function upgrade(id: string) {
-    const asset = assets.find(a => a.id === id)!;
-    if (wealth < asset.upgradeCost) return;
-    setWealth(w => w - asset.upgradeCost);
-    setAssets(prev => prev.map(a => a.id !== id ? a : ({
-      ...a,
-      level: a.level + 1,
-      yieldPerTick: Math.round(a.yieldPerTick * 1.25),
-      upgradeCost: Math.round(a.upgradeCost * 1.35),
-      condition: clamp(a.condition + 6, 0, 100),
-    })));
-    setXp(x => (x + 18 >= 100 ? (setLevel(l => l + 1), 0) : x + 18));
-    setLiquidity(q => clamp(q + (Math.random() - 0.5) * 0.02, 0.05, 0.6));
-  }
-
-  function defend(id: string) {
-    const fee = 12;
-    if (wealth < fee) return;
-    setWealth(w => w - fee);
-    setAssets(prev => prev.map(a => a.id === id ? { ...a, condition: clamp(a.condition + 10, 0, 100) } : a));
-    setLiquidity(q => clamp(q - 0.02, 0.05, 0.6));
-  }
+  const profitPerSecond = derived.profitPerSecond || 0;
 
   return (
     <div className={`${inter.className} page`}>
-      {/* HEADER / HUD */}
-      <header className="hud">
-        <div className="brand">
-          <span className={`${orbitron.className} logo`}>WEALTH WARS</span>
+      {/* TOP BAR - Player Status & Settings */}
+      <header className="topBar">
+        <div className="playerSection">
+          <AvatarButton onClick={() => setProfileOpen(true)} />
         </div>
 
-        <div className="stats">
-          <div className="stat"><span className="k">Level</span><span className={`${orbitron.className} v`}>{level}</span></div>
-          <div className="stat"><span className="k">XP</span><span className={`${orbitron.className} v`}>{xp}/100</span></div>
-          <div className="stat"><span className="k">SOL</span><span className={`${orbitron.className} v`}>{sol.toFixed(2)}</span></div>
-          <div className="stat"><span className="k">$WEALTH</span><span className={`${orbitron.className} v`}>{wealth}</span></div>
-          <div className="stat"><span className="k">Liquidity</span><span className={`${orbitron.className} v`}>{Math.round(liquidity*100)}%</span></div>
+        <div className="profitSection">
+          <div className="totalWealth">
+            <span className="wealthLabel">$WEALTH</span>
+            <span className={`${orbitron.className} wealthValue`}>{wealth.toLocaleString()}</span>
+          </div>
+          <div className="profitRate">
+            <span className="rateLabel">Profit/sec</span>
+            <span className={`${orbitron.className} rateValue`}>{profitPerSecond.toFixed(1)}</span>
+          </div>
         </div>
 
-        <div className="actions">
-          <button className="profileBtn" onClick={() => setProfileOpen(true)}>View Profile</button>
-          <WalletAvatar connected={connected} pubkey={pubkey} onClick={handleWalletClick} />
+        <div className="menuSection">
+          <button className="menuBtn" onClick={() => setMenuOpen(true)}>
+            <span className="menuIcon">☰</span>
+          </button>
         </div>
       </header>
 
@@ -260,33 +237,10 @@ export default function GamePage() {
         </div>
       </section>
 
-      {/* ASSET GRID */}
-      <main className="grid">
+      {/* BUSINESS LIST */}
+      <main className="businessList">
         {assets.map(a => (
-          <article className="card" key={a.id}>
-            <header className="cardHead">
-              <h3 className={`${orbitron.className} title`}>{a.name}</h3>
-              <span className="sub">Lv {a.level}</span>
-            </header>
-
-            <div className="rows">
-              <div className="row"><span className="label">Yield</span><span className="val">{a.yieldPerTick} tokens/collect</span></div>
-              <div className="row"><span className="label">Next Upgrade</span><span className="val">{a.upgradeCost} $WEALTH</span></div>
-            </div>
-
-            <div className="condWrap">
-              <div className="condBar" style={{ width: `${a.condition}%`, background: a.condition < 35 ? '#ef4444' : a.condition < 70 ? '#f59e0b' : '#22c55e' }} />
-            </div>
-            <div className="condText">Condition: {a.condition}%</div>
-
-            <div className="buttons">
-              <button className="btn primary" onClick={() => collect(a.id)}>Collect Income</button>
-              <button className="btn dark" disabled={wealth < a.upgradeCost} onClick={() => upgrade(a.id)} style={{ opacity: wealth < a.upgradeCost ? 0.55 : 1 }}>
-                Upgrade
-              </button>
-              <button className="btn ghost" onClick={() => defend(a.id)}>Defend</button>
-            </div>
-          </article>
+          <BusinessRow key={a.id} asset={a} />
         ))}
       </main>
 
@@ -304,7 +258,25 @@ export default function GamePage() {
           <div className="pRow"><span className="pKey">SOL (devnet)</span><span className="pVal">{sol.toFixed(2)}</span></div>
           <div className="pRow"><span className="pKey">$WEALTH</span><span className="pVal">{wealth}</span></div>
           <div className="pRow"><span className="pKey">Liquidity</span><span className="pVal">{Math.round(liquidity*100)}%</span></div>
+          <div className="pRow"><span className="pKey">Prestige</span><span className="pVal">{prestige}</span></div>
         </div>
+
+        <div className="sep" />
+
+        <div className="navTabs">
+          <button className="navBtn active" onClick={() => router.push('/game')}>Play Mode</button>
+          <button className="navBtn" onClick={() => router.push('/trade')}>Trade Mode</button>
+        </div>
+
+        <div className="sep" />
+
+        {clanEligible && (
+          <div className="clanCta">
+            <h5>Clan Invitation</h5>
+            <p>You've reached the minimum level to join a clan!</p>
+            <button className="btn primary">Join Clan</button>
+          </div>
+        )}
 
         <div className="sep" />
 
@@ -325,54 +297,69 @@ export default function GamePage() {
         </div>
       </aside>
 
-      {profileOpen && <div className="mask" onClick={() => setProfileOpen(false)} />}
+      {/* MENU SHEET */}
+      <MenuSheet isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
+
+      {/* BOTTOM BAR */}
+      <BulkBar bulkQty={bulkQty} setBulkQty={setBulkQty} />
 
       {/* STYLES */}
       <style jsx>{`
-        .page { min-height: 100vh; background: #f6f8fb; color: #0f172a; display: grid; grid-template-rows: auto auto 1fr; }
+        .page { min-height: 100vh; background: #f6f8fb; color: #0f172a; display: flex; flex-direction: column; }
 
-        .hud {
-          display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
-          gap: 12px; padding: 16px 20px; background: #fff; border-bottom: 1px solid #e5e7eb;
-          position: sticky; top: 0; z-index: 5;
+        .topBar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 16px 20px;
+          background: #fff;
+          border-bottom: 2px solid #e5e7eb;
+          box-shadow: 0 2px 8px rgba(15,23,42,0.08);
+          z-index: 10;
         }
-        .brand { font-weight: 800; }
-        .logo {
-          letter-spacing: 0.12em; text-transform: uppercase;
-          background: linear-gradient(180deg,#fff6c7,#ffd34a 72%,#9b6a1a);
-          -webkit-background-clip: text; background-clip: text; color: transparent;
+
+        .playerSection { display: flex; align-items: center; }
+        .profitSection { display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .menuSection { display: flex; align-items: center; }
+
+        .totalWealth { display: flex; flex-direction: column; align-items: center; }
+        .wealthLabel { font-size: 12px; color: #6b7280; letter-spacing: 0.08em; text-transform: uppercase; }
+        .wealthValue { font-size: 24px; font-weight: 800; color: #0f172a; }
+
+        .profitRate { display: flex; flex-direction: column; align-items: center; margin-top: 4px; }
+        .rateLabel { font-size: 11px; color: #64748b; letter-spacing: 0.06em; text-transform: uppercase; }
+        .rateValue { font-size: 16px; font-weight: 600; color: #0ea5e9; }
+
+        .menuBtn {
+          border: 1px solid #cbd5e1;
+          background: #f8fafc;
+          color: #0f172a;
+          padding: 10px;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s;
         }
-        .stats { display: grid; grid-auto-flow: column; gap: 12px; }
-        .stat { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 8px 12px; text-align: center; min-width: 110px; }
-        .k { font-size: 11px; color: #6b7280; letter-spacing: 0.08em; text-transform: uppercase; }
-        .v { font-size: 18px; font-weight: 800; color: #0f172a; }
-        .actions { justify-self: end; display: flex; align-items: center; gap: 10px; }
-        .profileBtn { border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; padding: 8px 12px; border-radius: 8px; cursor: pointer; }
+        .menuBtn:hover { background: #e2e8f0; }
+        .menuIcon { font-size: 16px; }
 
         .banner { display: flex; align-items: center; gap: 10px; margin: 10px 16px; padding: 12px 14px; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; }
         .dot { width: 10px; height: 10px; border-radius: 999px; background: #22c55e; }
         .dot.bad { background: #ef4444; }
         .msg { font-weight: 600; }
 
-        .grid { display: grid; gap: 14px; padding: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-        .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 14px; box-shadow: 0 6px 24px rgba(15,23,42,.04); }
-        .cardHead { display: flex; justify-content: space-between; align-items: baseline; }
-        .title { margin: 0; font-size: 18px; letter-spacing: 0.08em; text-transform: uppercase; }
-        .sub { color: #64748b; }
-        .rows { margin: 8px 0; }
-        .row { display: flex; justify-content: space-between; color: #475569; padding: 4px 0; }
-        .label { color: #6b7280; }
-        .val { font-weight: 600; color: #0f172a; }
+        .businessList {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          padding: 16px;
+          padding-bottom: 120px; /* Space for bottom bar */
+          max-width: 800px;
+          margin: 0 auto;
+          width: 100%;
+        }
 
-        .condWrap { height: 9px; width: 100%; background: #f1f5f9; border-radius: 999px; overflow: hidden; margin-top: 6px; }
-        .condBar { height: 100%; border-radius: 999px; }
-        .condText { margin-top: 6px; color: #475569; font-size: 13px; }
 
-        .buttons { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-        .btn { border-radius: 10px; padding: 9px 12px; cursor: pointer; }
-        .primary { border: 1px solid #2b3b61; background: #172554; color: #fff; }
-        .dark { border: 1px solid #334155; background: #0f172a; color: #fff; }
-        .ghost { border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; }
 
         .drawer {
           position: fixed; top: 0; right: 0; height: 100vh; width: 360px; background: #ffffff;
@@ -391,6 +378,10 @@ export default function GamePage() {
         .nftTitle { margin: 0 0 8px 0; }
         .nftList { margin: 0; padding-left: 16px; color: #334155; }
 
+        .navTabs { display: flex; gap: 8px; }
+        .navBtn { flex: 1; padding: 10px; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; border-radius: 8px; cursor: pointer; }
+        .navBtn.active { background: #172554; color: #fff; border-color: #172554; }
+
         .drawerWallet {
           position: absolute; right: 14px; bottom: 14px;
           display: flex; align-items: center; gap: 10px;
@@ -404,12 +395,16 @@ export default function GamePage() {
         }
         .airBtn.ghost { background: #fff; }
 
-        .mask { position: fixed; inset: 0; background: rgba(15,23,42,0.25); z-index: 10; }
+        @media (max-width: 768px) {
+          .topBar { flex-direction: column; gap: 12px; padding: 12px 16px; }
+          .profitSection { order: -1; }
+          .businessList { padding: 12px; padding-bottom: 140px; }
+        }
 
-        @media (max-width: 640px) {
-          .stats { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(110px, 1fr)); }
-          .hud { grid-template-columns: 1fr; gap: 8px; }
-          .actions { justify-self: start; }
+        @media (max-width: 480px) {
+          .topBar { padding: 10px 12px; }
+          .wealthValue { font-size: 20px; }
+          .businessList { padding: 10px; padding-bottom: 140px; }
         }
       `}</style>
     </div>
