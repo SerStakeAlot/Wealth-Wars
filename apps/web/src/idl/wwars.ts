@@ -1,5 +1,11 @@
-{
-  "address": "9A2bft4ehF3zGTid1o6TC828Ww2mmNhmqGC3PzHd4EXw",
+/**
+ * Program IDL in camelCase format in order to be used in JS/TS.
+ *
+ * Note that this is only a type helper and is not the actual IDL. The original
+ * IDL can be found at `target/idl/wwars.json`.
+ */
+export type Wwars = {
+  "address": "3MuF3DSnsg166e1EuYdF4Dc86Z1nzD8dESbqpmFVmQYd",
   "metadata": {
     "name": "wwars",
     "version": "0.1.0",
@@ -8,7 +14,7 @@
   },
   "instructions": [
     {
-      "name": "add_asset_class",
+      "name": "addAssetClass",
       "discriminator": [
         103,
         110,
@@ -25,14 +31,14 @@
           "writable": true,
           "signer": true,
           "relations": [
-            "game_config"
+            "gameConfig"
           ]
         },
         {
-          "name": "game_config"
+          "name": "gameConfig"
         },
         {
-          "name": "asset_class",
+          "name": "assetClass",
           "writable": true,
           "pda": {
             "seeds": [
@@ -48,13 +54,13 @@
               },
               {
                 "kind": "arg",
-                "path": "class_id"
+                "path": "classId"
               }
             ]
           }
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         }
       ],
@@ -63,14 +69,14 @@
           "name": "params",
           "type": {
             "defined": {
-              "name": "AddAssetClassParams"
+              "name": "addAssetClassParams"
             }
           }
         }
       ]
     },
     {
-      "name": "buy_asset",
+      "name": "buyAsset",
       "discriminator": [
         197,
         37,
@@ -111,10 +117,10 @@
           }
         },
         {
-          "name": "game_config"
+          "name": "gameConfig"
         },
         {
-          "name": "asset_class",
+          "name": "assetClass",
           "pda": {
             "seeds": [
               {
@@ -129,7 +135,7 @@
               },
               {
                 "kind": "arg",
-                "path": "class_id"
+                "path": "classId"
               }
             ]
           }
@@ -157,17 +163,17 @@
               },
               {
                 "kind": "account",
-                "path": "asset_class"
+                "path": "assetClass"
               }
             ]
           }
         },
         {
-          "name": "buyer_token_account",
+          "name": "buyerTokenAccount",
           "writable": true
         },
         {
-          "name": "treasury_vault",
+          "name": "treasuryVault",
           "writable": true,
           "pda": {
             "seeds": [
@@ -183,23 +189,23 @@
               },
               {
                 "kind": "account",
-                "path": "game_config"
+                "path": "gameConfig"
               }
             ]
           }
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
         {
-          "name": "class_id",
+          "name": "classId",
           "type": "u64"
         }
       ]
@@ -249,10 +255,10 @@
           ]
         },
         {
-          "name": "game_config"
+          "name": "gameConfig"
         },
         {
-          "name": "asset_class",
+          "name": "assetClass",
           "pda": {
             "seeds": [
               {
@@ -267,7 +273,7 @@
               },
               {
                 "kind": "arg",
-                "path": "class_id"
+                "path": "classId"
               }
             ]
           }
@@ -295,17 +301,17 @@
               },
               {
                 "kind": "account",
-                "path": "asset_class"
+                "path": "assetClass"
               }
             ]
           }
         },
         {
-          "name": "owner_token_account",
+          "name": "ownerTokenAccount",
           "writable": true
         },
         {
-          "name": "treasury_vault",
+          "name": "treasuryVault",
           "writable": true,
           "pda": {
             "seeds": [
@@ -321,29 +327,29 @@
               },
               {
                 "kind": "account",
-                "path": "game_config"
+                "path": "gameConfig"
               }
             ]
           }
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
       ],
       "args": [
         {
-          "name": "class_id",
+          "name": "classId",
           "type": "u64"
         },
         {
-          "name": "spend_amount",
+          "name": "spendAmount",
           "type": "u64"
         }
       ]
     },
     {
-      "name": "finish_upgrade",
+      "name": "finishUpgrade",
       "discriminator": [
         41,
         200,
@@ -387,10 +393,10 @@
           ]
         },
         {
-          "name": "game_config"
+          "name": "gameConfig"
         },
         {
-          "name": "asset_class",
+          "name": "assetClass",
           "pda": {
             "seeds": [
               {
@@ -405,7 +411,7 @@
               },
               {
                 "kind": "arg",
-                "path": "class_id"
+                "path": "classId"
               }
             ]
           }
@@ -433,7 +439,7 @@
               },
               {
                 "kind": "account",
-                "path": "asset_class"
+                "path": "assetClass"
               }
             ]
           }
@@ -441,13 +447,13 @@
       ],
       "args": [
         {
-          "name": "class_id",
+          "name": "classId",
           "type": "u64"
         }
       ]
     },
     {
-      "name": "initialize_game",
+      "name": "initializeGame",
       "discriminator": [
         44,
         62,
@@ -465,10 +471,10 @@
           "signer": true
         },
         {
-          "name": "wealth_mint"
+          "name": "wealthMint"
         },
         {
-          "name": "game_config",
+          "name": "gameConfig",
           "writable": true,
           "pda": {
             "seeds": [
@@ -487,7 +493,7 @@
           }
         },
         {
-          "name": "treasury_vault",
+          "name": "treasuryVault",
           "writable": true,
           "pda": {
             "seeds": [
@@ -503,17 +509,17 @@
               },
               {
                 "kind": "account",
-                "path": "game_config"
+                "path": "gameConfig"
               }
             ]
           }
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         },
         {
@@ -526,14 +532,14 @@
           "name": "params",
           "type": {
             "defined": {
-              "name": "InitializeGameParams"
+              "name": "initializeGameParams"
             }
           }
         }
       ]
     },
     {
-      "name": "join_game",
+      "name": "joinGame",
       "discriminator": [
         107,
         112,
@@ -574,7 +580,7 @@
           }
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         }
       ],
@@ -598,11 +604,11 @@
           "writable": true,
           "signer": true,
           "relations": [
-            "game_config"
+            "gameConfig"
           ]
         },
         {
-          "name": "game_config",
+          "name": "gameConfig",
           "writable": true
         }
       ],
@@ -614,7 +620,7 @@
       ]
     },
     {
-      "name": "queue_upgrade",
+      "name": "queueUpgrade",
       "discriminator": [
         114,
         107,
@@ -658,10 +664,10 @@
           ]
         },
         {
-          "name": "game_config"
+          "name": "gameConfig"
         },
         {
-          "name": "asset_class",
+          "name": "assetClass",
           "pda": {
             "seeds": [
               {
@@ -676,7 +682,7 @@
               },
               {
                 "kind": "arg",
-                "path": "class_id"
+                "path": "classId"
               }
             ]
           }
@@ -704,17 +710,17 @@
               },
               {
                 "kind": "account",
-                "path": "asset_class"
+                "path": "assetClass"
               }
             ]
           }
         },
         {
-          "name": "owner_token_account",
+          "name": "ownerTokenAccount",
           "writable": true
         },
         {
-          "name": "treasury_vault",
+          "name": "treasuryVault",
           "writable": true,
           "pda": {
             "seeds": [
@@ -730,25 +736,25 @@
               },
               {
                 "kind": "account",
-                "path": "game_config"
+                "path": "gameConfig"
               }
             ]
           }
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
       ],
       "args": [
         {
-          "name": "class_id",
+          "name": "classId",
           "type": "u64"
         }
       ]
     },
     {
-      "name": "set_params",
+      "name": "setParams",
       "discriminator": [
         27,
         234,
@@ -765,11 +771,11 @@
           "writable": true,
           "signer": true,
           "relations": [
-            "game_config"
+            "gameConfig"
           ]
         },
         {
-          "name": "game_config",
+          "name": "gameConfig",
           "writable": true
         }
       ],
@@ -778,7 +784,7 @@
           "name": "args",
           "type": {
             "defined": {
-              "name": "SetParamsArgs"
+              "name": "setParamsArgs"
             }
           }
         }
@@ -803,7 +809,7 @@
           "signer": true
         },
         {
-          "name": "attacker_player",
+          "name": "attackerPlayer",
           "writable": true,
           "pda": {
             "seeds": [
@@ -826,13 +832,13 @@
           }
         },
         {
-          "name": "target_player"
+          "name": "targetPlayer"
         },
         {
-          "name": "game_config"
+          "name": "gameConfig"
         },
         {
-          "name": "asset_class",
+          "name": "assetClass",
           "pda": {
             "seeds": [
               {
@@ -847,13 +853,13 @@
               },
               {
                 "kind": "arg",
-                "path": "class_id"
+                "path": "classId"
               }
             ]
           }
         },
         {
-          "name": "target_holding",
+          "name": "targetHolding",
           "writable": true,
           "pda": {
             "seeds": [
@@ -871,21 +877,21 @@
               },
               {
                 "kind": "arg",
-                "path": "target_player"
+                "path": "targetPlayer"
               },
               {
                 "kind": "account",
-                "path": "asset_class"
+                "path": "assetClass"
               }
             ]
           }
         },
         {
-          "name": "attacker_token_account",
+          "name": "attackerTokenAccount",
           "writable": true
         },
         {
-          "name": "treasury_vault",
+          "name": "treasuryVault",
           "writable": true,
           "pda": {
             "seeds": [
@@ -901,23 +907,23 @@
               },
               {
                 "kind": "account",
-                "path": "game_config"
+                "path": "gameConfig"
               }
             ]
           }
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
       ],
       "args": [
         {
-          "name": "target_player",
+          "name": "targetPlayer",
           "type": "pubkey"
         },
         {
-          "name": "class_id",
+          "name": "classId",
           "type": "u64"
         }
       ]
@@ -925,7 +931,7 @@
   ],
   "accounts": [
     {
-      "name": "AssetClass",
+      "name": "assetClass",
       "discriminator": [
         52,
         33,
@@ -938,7 +944,7 @@
       ]
     },
     {
-      "name": "GameConfig",
+      "name": "gameConfig",
       "discriminator": [
         45,
         146,
@@ -951,7 +957,7 @@
       ]
     },
     {
-      "name": "Holding",
+      "name": "holding",
       "discriminator": [
         23,
         96,
@@ -964,7 +970,7 @@
       ]
     },
     {
-      "name": "Player",
+      "name": "player",
       "discriminator": [
         205,
         222,
@@ -979,7 +985,7 @@
   ],
   "events": [
     {
-      "name": "AssetBought",
+      "name": "assetBought",
       "discriminator": [
         46,
         228,
@@ -992,7 +998,7 @@
       ]
     },
     {
-      "name": "Defended",
+      "name": "defended",
       "discriminator": [
         148,
         217,
@@ -1005,7 +1011,7 @@
       ]
     },
     {
-      "name": "PlayerJoined",
+      "name": "playerJoined",
       "discriminator": [
         39,
         144,
@@ -1018,7 +1024,7 @@
       ]
     },
     {
-      "name": "TakenOver",
+      "name": "takenOver",
       "discriminator": [
         133,
         195,
@@ -1031,7 +1037,7 @@
       ]
     },
     {
-      "name": "UpgradeFinished",
+      "name": "upgradeFinished",
       "discriminator": [
         18,
         120,
@@ -1044,7 +1050,7 @@
       ]
     },
     {
-      "name": "UpgradeQueued",
+      "name": "upgradeQueued",
       "discriminator": [
         254,
         102,
@@ -1060,88 +1066,88 @@
   "errors": [
     {
       "code": 6000,
-      "name": "MathOverflow",
+      "name": "mathOverflow",
       "msg": "Math operation overflow"
     },
     {
       "code": 6001,
-      "name": "GamePaused",
+      "name": "gamePaused",
       "msg": "Game is paused"
     },
     {
       "code": 6002,
-      "name": "Unauthorized",
+      "name": "unauthorized",
       "msg": "Unauthorized access"
     },
     {
       "code": 6003,
-      "name": "InsufficientFunds",
+      "name": "insufficientFunds",
       "msg": "Insufficient funds"
     },
     {
       "code": 6004,
-      "name": "CooldownNotExpired",
+      "name": "cooldownNotExpired",
       "msg": "Cooldown not expired"
     },
     {
       "code": 6005,
-      "name": "UpgradeInProgress",
+      "name": "upgradeInProgress",
       "msg": "Upgrade in progress"
     },
     {
       "code": 6006,
-      "name": "AssetNotAtRisk",
+      "name": "assetNotAtRisk",
       "msg": "Asset not at risk"
     },
     {
       "code": 6007,
-      "name": "InvalidParameters",
+      "name": "invalidParameters",
       "msg": "Invalid parameters"
     }
   ],
   "types": [
     {
-      "name": "AddAssetClassParams",
+      "name": "addAssetClassParams",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "class_id",
+            "name": "classId",
             "type": "u64"
           },
           {
-            "name": "base_price",
+            "name": "basePrice",
             "type": "u64"
           },
           {
-            "name": "price_scale_num",
+            "name": "priceScaleNum",
             "type": "u64"
           },
           {
-            "name": "price_scale_den",
+            "name": "priceScaleDen",
             "type": "u64"
           },
           {
-            "name": "base_yield",
+            "name": "baseYield",
             "type": "u64"
           },
           {
-            "name": "upgrade_cd",
+            "name": "upgradeCd",
             "type": "i64"
           },
           {
-            "name": "defend_cd",
+            "name": "defendCd",
             "type": "i64"
           },
           {
-            "name": "base_risk_growth_per_sec",
+            "name": "baseRiskGrowthPerSec",
             "type": "u32"
           }
         ]
       }
     },
     {
-      "name": "AssetBought",
+      "name": "assetBought",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1165,40 +1171,40 @@
       }
     },
     {
-      "name": "AssetClass",
+      "name": "assetClass",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "class_id",
+            "name": "classId",
             "type": "u64"
           },
           {
-            "name": "base_price",
+            "name": "basePrice",
             "type": "u64"
           },
           {
-            "name": "price_scale_num",
+            "name": "priceScaleNum",
             "type": "u64"
           },
           {
-            "name": "price_scale_den",
+            "name": "priceScaleDen",
             "type": "u64"
           },
           {
-            "name": "base_yield",
+            "name": "baseYield",
             "type": "u64"
           },
           {
-            "name": "upgrade_cd",
+            "name": "upgradeCd",
             "type": "i64"
           },
           {
-            "name": "defend_cd",
+            "name": "defendCd",
             "type": "i64"
           },
           {
-            "name": "base_risk_growth_per_sec",
+            "name": "baseRiskGrowthPerSec",
             "type": "u32"
           },
           {
@@ -1209,7 +1215,7 @@
       }
     },
     {
-      "name": "Defended",
+      "name": "defended",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1226,18 +1232,18 @@
             "type": "u64"
           },
           {
-            "name": "risk_after",
+            "name": "riskAfter",
             "type": "u32"
           },
           {
-            "name": "shield_after",
+            "name": "shieldAfter",
             "type": "u32"
           }
         ]
       }
     },
     {
-      "name": "GameConfig",
+      "name": "gameConfig",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1246,15 +1252,15 @@
             "type": "pubkey"
           },
           {
-            "name": "wealth_mint",
+            "name": "wealthMint",
             "type": "pubkey"
           },
           {
-            "name": "treasury_vault",
+            "name": "treasuryVault",
             "type": "pubkey"
           },
           {
-            "name": "fee_bps",
+            "name": "feeBps",
             "type": "u16"
           },
           {
@@ -1262,38 +1268,38 @@
             "type": "bool"
           },
           {
-            "name": "bump_config",
+            "name": "bumpConfig",
             "type": "u8"
           },
           {
-            "name": "bump_vault",
+            "name": "bumpVault",
             "type": "u8"
           },
           {
-            "name": "default_upgrade_cd",
+            "name": "defaultUpgradeCd",
             "type": "i64"
           },
           {
-            "name": "default_defend_cd",
+            "name": "defaultDefendCd",
             "type": "i64"
           },
           {
-            "name": "risk_threshold",
+            "name": "riskThreshold",
             "type": "u32"
           },
           {
-            "name": "risk_growth_per_sec",
+            "name": "riskGrowthPerSec",
             "type": "u32"
           },
           {
-            "name": "defend_risk_reduction_per_token",
+            "name": "defendRiskReductionPerToken",
             "type": "u32"
           }
         ]
       }
     },
     {
-      "name": "Holding",
+      "name": "holding",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1314,23 +1320,23 @@
             "type": "u32"
           },
           {
-            "name": "last_claim_ts",
+            "name": "lastClaimTs",
             "type": "i64"
           },
           {
-            "name": "upgrade_end_ts",
+            "name": "upgradeEndTs",
             "type": "i64"
           },
           {
-            "name": "last_defend_ts",
+            "name": "lastDefendTs",
             "type": "i64"
           },
           {
-            "name": "last_risk_ts",
+            "name": "lastRiskTs",
             "type": "i64"
           },
           {
-            "name": "risk_score",
+            "name": "riskScore",
             "type": "u32"
           },
           {
@@ -1341,39 +1347,39 @@
       }
     },
     {
-      "name": "InitializeGameParams",
+      "name": "initializeGameParams",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "fee_bps",
+            "name": "feeBps",
             "type": "u16"
           },
           {
-            "name": "default_upgrade_cd",
+            "name": "defaultUpgradeCd",
             "type": "i64"
           },
           {
-            "name": "default_defend_cd",
+            "name": "defaultDefendCd",
             "type": "i64"
           },
           {
-            "name": "risk_threshold",
+            "name": "riskThreshold",
             "type": "u32"
           },
           {
-            "name": "risk_growth_per_sec",
+            "name": "riskGrowthPerSec",
             "type": "u32"
           },
           {
-            "name": "defend_risk_reduction_per_token",
+            "name": "defendRiskReductionPerToken",
             "type": "u32"
           }
         ]
       }
     },
     {
-      "name": "Player",
+      "name": "player",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1382,7 +1388,7 @@
             "type": "pubkey"
           },
           {
-            "name": "last_defend_ts",
+            "name": "lastDefendTs",
             "type": "i64"
           },
           {
@@ -1393,7 +1399,7 @@
       }
     },
     {
-      "name": "PlayerJoined",
+      "name": "playerJoined",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1405,42 +1411,42 @@
       }
     },
     {
-      "name": "SetParamsArgs",
+      "name": "setParamsArgs",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "fee_bps",
+            "name": "feeBps",
             "type": {
               "option": "u16"
             }
           },
           {
-            "name": "default_upgrade_cd",
+            "name": "defaultUpgradeCd",
             "type": {
               "option": "i64"
             }
           },
           {
-            "name": "default_defend_cd",
+            "name": "defaultDefendCd",
             "type": {
               "option": "i64"
             }
           },
           {
-            "name": "risk_threshold",
+            "name": "riskThreshold",
             "type": {
               "option": "u32"
             }
           },
           {
-            "name": "risk_growth_per_sec",
+            "name": "riskGrowthPerSec",
             "type": {
               "option": "u32"
             }
           },
           {
-            "name": "defend_risk_reduction_per_token",
+            "name": "defendRiskReductionPerToken",
             "type": {
               "option": "u32"
             }
@@ -1449,16 +1455,16 @@
       }
     },
     {
-      "name": "TakenOver",
+      "name": "takenOver",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "from_player",
+            "name": "fromPlayer",
             "type": "pubkey"
           },
           {
-            "name": "to_player",
+            "name": "toPlayer",
             "type": "pubkey"
           },
           {
@@ -1477,7 +1483,7 @@
       }
     },
     {
-      "name": "UpgradeFinished",
+      "name": "upgradeFinished",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1490,14 +1496,14 @@
             "type": "pubkey"
           },
           {
-            "name": "new_level",
+            "name": "newLevel",
             "type": "u16"
           }
         ]
       }
     },
     {
-      "name": "UpgradeQueued",
+      "name": "upgradeQueued",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1510,11 +1516,11 @@
             "type": "pubkey"
           },
           {
-            "name": "end_ts",
+            "name": "endTs",
             "type": "i64"
           }
         ]
       }
     }
   ]
-}
+};
