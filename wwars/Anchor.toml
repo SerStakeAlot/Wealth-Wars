@@ -1,12 +1,14 @@
 [toolchain]
+anchor_version = "0.31.1"
+solana_version = "2.2.1"
 package_manager = "yarn"
 
 [features]
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-wwars = "3MuF3DSnsg166e1EuYdF4Dc86Z1nzD8dESbqpmFVmQYd"
+[programs.devnet]
+wwars = "9A2bft4ehF3zGTid1o6TC828Ww2mmNhmqGC3PzHd4EXw"
 
 [registry]
 url = "https://api.apr.dev"

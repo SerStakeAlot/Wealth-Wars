@@ -1,72 +1,61 @@
 use anchor_lang::prelude::*;
+use instructions::*;
 
-// ⬅️ Replace with YOUR real program id
+mod state;
+mod math;
+mod errors;
+mod events;
+mod instructions;
+
 declare_id!("3MuF3DSnsg166e1EuYdF4Dc86Z1nzD8dESbqpmFVmQYd");
 
 #[program]
 pub mod wwars {
     use super::*;
 
-    pub fn init_player(ctx: Context<InitPlayer>) -> Result<()> {
-        let p = &mut ctx.accounts.player;
-        p.authority = ctx.accounts.authority.key();
-        p.wealth = 0;
-        p.xp = 0;
-        p.bump = ctx.bumps.player;
-        Ok(())
+    pub fn initialize_game(
+        ctx: Context<InitializeGame>,
+        params: InitializeGameParams,
+    ) -> Result<()> {
+        instructions::initialize_game::initialize_game(ctx, params)
     }
 
-    pub fn collect_income(ctx: Context<CollectIncome>) -> Result<()> {
-        let p = &mut ctx.accounts.player;
-        p.wealth = p.wealth.saturating_add(10);
-        p.xp = p.xp.saturating_add(1);
-        Ok(())
+    pub fn join_game(ctx: Context<JoinGame>) -> Result<()> {
+        instructions::join_game::join_game(ctx)
     }
-}
 
-// -------- Accounts --------
+    pub fn add_asset_class(
+        ctx: Context<AddAssetClass>,
+        params: AddAssetClassParams,
+    ) -> Result<()> {
+        instructions::add_asset_class::add_asset_class(ctx, params)
+    }
 
-#[derive(Accounts)]
-pub struct InitPlayer<'info> {
-    #[account(mut)]
-    pub authority: Signer<'info>,
+    pub fn buy_asset(ctx: Context<BuyAsset>, class_id: u64) -> Result<()> {
+        instructions::buy_asset::buy_asset(ctx, class_id)
+    }
 
-    #[account(
-        init,
-        payer = authority,
-        space = Player::SPACE,
-        seeds = [b"player", authority.key().as_ref()],
-        bump
-    )]
-    pub player: Account<'info, Player>,
+    pub fn queue_upgrade(ctx: Context<QueueUpgrade>, class_id: u64) -> Result<()> {
+        instructions::queue_upgrade::queue_upgrade(ctx, class_id)
+    }
 
-    pub system_program: Program<'info, System>,
-}
+    pub fn finish_upgrade(ctx: Context<FinishUpgrade>, class_id: u64) -> Result<()> {
+        instructions::finish_upgrade::finish_upgrade(ctx, class_id)
+    }
 
-#[derive(Accounts)]
-pub struct CollectIncome<'info> {
-    pub authority: Signer<'info>,
+    pub fn defend(ctx: Context<Defend>, class_id: u64, spend_amount: u64) -> Result<()> {
+        instructions::defend::defend(ctx, class_id, spend_amount)
+    }
 
-    #[account(
-        mut,
-        seeds = [b"player", authority.key().as_ref()],
-        bump = player.bump,
-        constraint = player.authority == authority.key()
-    )]
-    pub player: Account<'info, Player>,
-}
+    pub fn takeover(ctx: Context<Takeover>, target_player: Pubkey, class_id: u64) -> Result<()> {
+        instructions::takeover::takeover(ctx, target_player, class_id)
+    }
 
-// -------- State --------
+    pub fn set_params(ctx: Context<SetParams>, args: SetParamsArgs) -> Result<()> {
+        instructions::set_params::set_params(ctx, args)
+    }
 
-#[account]
-pub struct Player {
-    pub authority: Pubkey, // 32
-    pub wealth: u64,       // 8
-    pub xp: u32,           // 4
-    pub bump: u8,          // 1
-}
-
-impl Player {
-    // 8 (disc) + 32 + 8 + 4 + 1 = 53 → pad a little for future safety
-    pub const SPACE: usize = 8 + 32 + 8 + 4 + 1 + 16;
+    pub fn pause(ctx: Context<Pause>, paused: bool) -> Result<()> {
+        instructions::set_params::pause(ctx, paused)
+    }
 }
