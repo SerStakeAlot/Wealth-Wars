@@ -1,0 +1,13 @@
+{
+  "name": "wealth-wars",
+  "version": "1.0.0",
+  "description": "A strategy game where players build financial empires on Solana Blockchain",
+  "scripts": {
+    "build:program": "anchor build",
+    "test:program": "anchor test",
+    "dev:validator": "solana-test-validator -r --reset"
+  },
+  "workspaces": [
+    "apps/web"
+  ]
+}
