@@ -53,6 +53,13 @@ export function MenuSheet({ isOpen, onClose }: MenuSheetProps) {
               <span className="itemIcon">📈</span>
               <span className="itemText">Trade Mode</span>
             </button>
+            <button
+              className="menuItem"
+              onClick={() => handleNavigation('/about')}
+            >
+              <span className="itemIcon">ℹ️</span>
+              <span className="itemText">About</span>
+            </button>
           </div>
 
           <div className="menuSection">
