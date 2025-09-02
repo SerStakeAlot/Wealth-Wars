@@ -28,7 +28,6 @@ pub mod wwars {
 
 #[derive(Accounts)]
 pub struct InitPlayer<'info> {
-    // IMPORTANT: declare authority FIRST since we reference it below
     #[account(mut)]
     pub authority: Signer<'info>,
 
@@ -52,7 +51,7 @@ pub struct CollectIncome<'info> {
         mut,
         seeds = [b"player", authority.key().as_ref()],
         bump = player.bump,
-        has_one = authority
+        constraint = player.authority == authority.key()
     )]
     pub player: Account<'info, Player>,
 }
