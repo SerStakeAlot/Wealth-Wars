@@ -27,6 +27,7 @@ export interface Player {
   liquidity: number;
   prestige: number;
   clanEligible: boolean;
+  username: string;
 }
 
 export interface Derived {

@@ -14,11 +14,70 @@ interface GameState extends Player {
   buyOutlet: (id: string, qty: number) => void;
   toggleManager: (id: string, on: boolean) => void;
   tick: () => void;
+  // Username management
+  setUsername: (username: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
 const COOLDOWN_MS = 5000; // 5 seconds cooldown for actions
+
+// Username management utilities
+const USERNAMES_KEY = 'wealth-wars-usernames';
+const USER_PROFILES_KEY = 'wealth-wars-user-profiles';
+
+const getUsernames = (): Set<string> => {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const stored = localStorage.getItem(USERNAMES_KEY);
+    return new Set(stored ? JSON.parse(stored) : []);
+  } catch {
+    return new Set();
+  }
+};
+
+const saveUsernames = (usernames: Set<string>) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(USERNAMES_KEY, JSON.stringify([...usernames]));
+  } catch {
+    // Ignore localStorage errors
+  }
+};
+
+const isUsernameAvailable = (username: string): boolean => {
+  const usernames = getUsernames();
+  return !usernames.has(username.toLowerCase());
+};
+
+const reserveUsername = (oldUsername: string, newUsername: string): boolean => {
+  const usernames = getUsernames();
+  if (oldUsername) {
+    usernames.delete(oldUsername.toLowerCase());
+  }
+  if (usernames.has(newUsername.toLowerCase())) {
+    return false;
+  }
+  usernames.add(newUsername.toLowerCase());
+  saveUsernames(usernames);
+  return true;
+};
+
+const validateUsername = (username: string): { valid: boolean; error?: string } => {
+  if (!username.trim()) {
+    return { valid: false, error: 'Username is required' };
+  }
+  if (username.length < 3) {
+    return { valid: false, error: 'Username must be at least 3 characters' };
+  }
+  if (username.length > 20) {
+    return { valid: false, error: 'Username must be less than 20 characters' };
+  }
+  if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+    return { valid: false, error: 'Username can only contain letters, numbers, underscores, and hyphens' };
+  }
+  return { valid: true };
+};
 
 export const useGame = create<GameState>((set, get) => ({
   // Player state
@@ -28,6 +87,7 @@ export const useGame = create<GameState>((set, get) => ({
   liquidity: 0.22,
   prestige: 0,
   clanEligible: false,
+  username: '',
 
   assets: [
     {
@@ -288,5 +348,26 @@ export const useGame = create<GameState>((set, get) => ({
         }
       };
     });
+  },
+
+  setUsername: async (username: string) => {
+    const { valid, error } = validateUsername(username);
+    if (!valid) {
+      return { success: false, error };
+    }
+
+    const currentState = get();
+    const oldUsername = currentState.username;
+
+    if (!isUsernameAvailable(username) && username.toLowerCase() !== oldUsername.toLowerCase()) {
+      return { success: false, error: 'Username is already taken' };
+    }
+
+    if (reserveUsername(oldUsername, username)) {
+      set({ username });
+      return { success: true };
+    } else {
+      return { success: false, error: 'Failed to reserve username' };
+    }
   },
 }));

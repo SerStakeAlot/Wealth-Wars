@@ -10,6 +10,7 @@ import { BusinessRow } from '../../components/BusinessRow';
 import { BulkBar } from '../../components/BulkBar';
 import { AvatarButton } from '../../components/AvatarButton';
 import { MenuSheet } from '../../components/MenuSheet';
+import { UsernameInput } from '../../components/UsernameInput';
 
 const inter = Inter({ subsets: ['latin'] });
 const orbitron = Orbitron({ subsets: ['latin'], weight: ['600', '800'] });
@@ -260,6 +261,8 @@ export default function GamePage() {
           <div className="pRow"><span className="pKey">Liquidity</span><span className="pVal">{Math.round(liquidity*100)}%</span></div>
           <div className="pRow"><span className="pKey">Prestige</span><span className="pVal">{prestige}</span></div>
         </div>
+
+        <UsernameInput />
 
         <div className="sep" />
 
