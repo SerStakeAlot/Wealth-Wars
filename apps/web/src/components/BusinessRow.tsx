@@ -108,57 +108,58 @@ export function BusinessRow({ asset }: BusinessRowProps) {
           ))}
         </div>
       )}
+
+      <style jsx>{`
+        .businessRow {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 16px;
+          background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 14px;
+          padding: 20px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+          margin-bottom: 16px;
+          position: relative;
+          backdrop-filter: blur(8px) saturate(1.2);
+        }
+        .identity { display: flex; flex-direction: column; gap: 8px; }
+        .nameSection { display: flex; align-items: center; gap: 8px; }
+        .businessName { margin: 0; font-size: 18px; letter-spacing: 0.08em; text-transform: uppercase; color: #e6edf5; }
+        .levelBadge { background: #172554; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+        .outletInfo { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #9aa7bd; }
+        .outletCount { font-weight: 600; color: #e6edf5; }
+        .milestoneHint { font-size: 12px; color: #9aa7bd; }
+
+        .progress { display: flex; flex-direction: column; gap: 8px; }
+        .cycleBar {
+          height: 12px; width: 100%;
+          background: rgba(255,255,255,0.12);
+          border-radius: 999px; overflow: hidden; position: relative;
+        }
+        .cycleFill { height: 100%; background: linear-gradient(90deg, #22c55e, #16a34a); transition: width 120ms linear; }
+        .tapHint, .timer { position: absolute; inset: 0; font-size: 11px; color: #e6edf5; display: grid; place-items: center; pointer-events: none; }
+        .profitInfo { font-weight: 700; color: #e6edf5; }
+
+        .conditionBar { height: 8px; width: 100%; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; }
+        .conditionFill { height: 100%; }
+
+        .actions { display: grid; grid-template-columns: 1fr; gap: 8px; align-self: stretch; }
+        .btn.large { padding: 12px 10px; font-size: 14px; border-radius: 10px; }
+        .collectBtn { background: linear-gradient(180deg, #22c55e, #16a34a); border: 1px solid rgba(0,0,0,0.28); color: #fff; }
+        .collectBtn:disabled { opacity: 0.6; filter: grayscale(0.2); }
+        .upgradeBtn { background: linear-gradient(180deg, #101628, #0a0f1f); color: #f8fafc; border: 1px solid rgba(255,255,255,0.12); }
+        .defendBtn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.16); color: #e6edf5; }
+
+        .milestones { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .milestone { border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); border-radius: 999px; padding: 4px 8px; font-size: 11px; color: #9aa7bd; }
+        .milestone.achieved { background: rgba(190,242,100,0.18); border-color: rgba(163,230,53,0.6); color: #d9f99d; font-weight: 700; }
+
+        @media (max-width: 860px) {
+          .businessRow { grid-template-columns: 1fr; gap: 12px; padding: 14px; }
+          .actions { grid-template-columns: repeat(3, 1fr); }
+        }
+      `}</style>
     </div>
   );
 }
-
-<style jsx>{`
-  .businessRow {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 16px;
-    background: #fff;
-    border: 2px solid #e5e7eb;
-    border-radius: 14px;
-    padding: 20px;
-    box-shadow: 0 6px 24px rgba(15,23,42,.04);
-    margin-bottom: 16px;
-    position: relative;
-  }
-  .identity { display: flex; flex-direction: column; gap: 8px; }
-  .nameSection { display: flex; align-items: center; gap: 8px; }
-  .businessName { margin: 0; font-size: 18px; letter-spacing: 0.08em; text-transform: uppercase; color: #0f172a; }
-  .levelBadge { background: #172554; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: 600; }
-  .outletInfo { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #6b7280; }
-  .outletCount { font-weight: 600; color: #0f172a; }
-  .milestoneHint { font-size: 12px; color: #64748b; }
-
-  .progress { display: flex; flex-direction: column; gap: 8px; }
-  .cycleBar {
-    height: 12px; width: 100%;
-    background: #e2e8f0;
-    border-radius: 999px; overflow: hidden; position: relative;
-  }
-  .cycleFill { height: 100%; background: linear-gradient(90deg, #22c55e, #16a34a); transition: width 120ms linear; }
-  .tapHint, .timer { position: absolute; inset: 0; font-size: 11px; color: #0f172a; display: grid; place-items: center; pointer-events: none; }
-  .profitInfo { font-weight: 700; color: #0f172a; }
-
-  .conditionBar { height: 8px; width: 100%; background: #f1f5f9; border-radius: 999px; overflow: hidden; }
-  .conditionFill { height: 100%; }
-
-  .actions { display: grid; grid-template-columns: 1fr; gap: 8px; align-self: stretch; }
-  .btn.large { padding: 12px 10px; font-size: 14px; border-radius: 10px; }
-  .collectBtn { background: #16a34a; border: 1px solid #0f7a34; color: #fff; }
-  .collectBtn:disabled { opacity: 0.6; filter: grayscale(0.2); }
-  .upgradeBtn { background: #0f172a; color: #fff; border-color: #0f172a; }
-  .defendBtn { background: #f8fafc; border: 1px solid #cbd5e1; color: #0f172a; }
-
-  .milestones { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .milestone { border: 1px solid #e5e7eb; background: #fff; border-radius: 999px; padding: 4px 8px; font-size: 11px; color: #334155; }
-  .milestone.achieved { background: #ecfccb; border-color: #bef264; color: #365314; font-weight: 700; }
-
-  @media (max-width: 860px) {
-    .businessRow { grid-template-columns: 1fr; gap: 12px; padding: 14px; }
-    .actions { grid-template-columns: repeat(3, 1fr); }
-  }
-`}</style>
