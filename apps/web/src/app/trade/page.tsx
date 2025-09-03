@@ -173,7 +173,7 @@ export default function TradePage() {
       <section className="chart">
         <h3 className={`${orbitron.className} chartTitle`}>Equity Chart</h3>
         <div className="chartPlaceholder">
-          <p>PnL Series: {Array.isArray(pnl) ? pnl.join(', ') : 'N/A'}</p>
+          <p>PnL Series: {pnl && Array.isArray(pnl) ? pnl.map(v => v.toFixed(2)).join(', ') : 'Loading...'}</p>
           <p>Chart will be integrated here using Lightweight Charts.</p>
         </div>
       </section>

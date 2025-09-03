@@ -92,7 +92,7 @@ function WalletAvatar({
         }
         .badge {
           font-size: 12px; letter-spacing: 0.06em; padding: 6px 10px; border-radius: 10px;
-          border: 1px solid #e5e7eb; background: #fff; color: #0f172a; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+          border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: #e6edf5; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
           user-select: none;
         }
       `}</style>
@@ -139,7 +139,6 @@ export default function GamePage() {
   }, [pubkey]); // Removed setWalletAddress from deps since it's stable from Zustand
   const [profileOpen, setProfileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [bulkQty, setBulkQty] = useState(1);
 
   // AdCap timer for auto-collection
   useEffect(() => {
@@ -210,6 +209,10 @@ export default function GamePage() {
       {/* TOP BAR - Player Status & Settings */}
       <header className="topBar">
         <div className="playerSection">
+          <div className="brand">
+            <span className={`${orbitron.className} logo`}>WEALTH WARS</span>
+            <span className="mode">GAME MODE</span>
+          </div>
           <AvatarButton onClick={() => setProfileOpen(true)} />
         </div>
 
@@ -309,48 +312,74 @@ export default function GamePage() {
       <MenuSheet isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
 
       {/* BOTTOM BAR */}
-      <BulkBar bulkQty={bulkQty} setBulkQty={setBulkQty} />
+      <BulkBar />
 
       {/* STYLES */}
       <style jsx>{`
-        .page { min-height: 100vh; background: #f6f8fb; color: #0f172a; display: flex; flex-direction: column; }
+        .page { min-height: 100vh; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #e6edf5; display: flex; flex-direction: column; }
 
         .topBar {
           display: flex;
-          justify-content: space-between;
+          justify-content: center;
           align-items: center;
           padding: 16px 20px;
-          background: #fff;
-          border-bottom: 2px solid #e5e7eb;
-          box-shadow: 0 2px 8px rgba(15,23,42,0.08);
+          background: rgba(255,255,255,0.06);
+          border-bottom: 1px solid rgba(255,255,255,0.12);
+          backdrop-filter: blur(8px);
           z-index: 10;
+          position: relative;
         }
 
-        .playerSection { display: flex; align-items: center; }
-        .profitSection { display: flex; flex-direction: column; align-items: center; text-align: center; }
-        .menuSection { display: flex; align-items: center; }
+        .playerSection {
+          position: absolute;
+          left: 20px;
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+        .profitSection {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          flex: 1;
+        }
+        .menuSection {
+          position: absolute;
+          right: 20px;
+          display: flex;
+          align-items: center;
+        }
+
+        .brand { font-weight: 800; display: flex; flex-direction: column; align-items: flex-start; }
+        .logo {
+          letter-spacing: 0.12em; text-transform: uppercase;
+          background: linear-gradient(180deg,#fff6c7,#ffd34a 72%,#9b6a1a);
+          -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        .mode { font-size: 12px; color: #9aa7bd; letter-spacing: 0.08em; text-transform: uppercase; }
 
         .totalWealth { display: flex; flex-direction: column; align-items: center; }
-        .wealthLabel { font-size: 12px; color: #6b7280; letter-spacing: 0.08em; text-transform: uppercase; }
-        .wealthValue { font-size: 24px; font-weight: 800; color: #0f172a; }
+        .wealthLabel { font-size: 12px; color: #9aa7bd; letter-spacing: 0.08em; text-transform: uppercase; }
+        .wealthValue { font-size: 24px; font-weight: 800; color: #e6edf5; }
 
         .profitRate { display: flex; flex-direction: column; align-items: center; margin-top: 4px; }
-        .rateLabel { font-size: 11px; color: #64748b; letter-spacing: 0.06em; text-transform: uppercase; }
-        .rateValue { font-size: 16px; font-weight: 600; color: #0ea5e9; }
+        .rateLabel { font-size: 11px; color: #9aa7bd; letter-spacing: 0.06em; text-transform: uppercase; }
+        .rateValue { font-size: 16px; font-weight: 600; color: #3b82f6; }
 
         .menuBtn {
-          border: 1px solid #cbd5e1;
-          background: #f8fafc;
-          color: #0f172a;
+          border: 1px solid rgba(255,255,255,0.12);
+          background: rgba(255,255,255,0.06);
+          color: #e6edf5;
           padding: 10px;
           border-radius: 8px;
           cursor: pointer;
           transition: all 0.2s;
         }
-        .menuBtn:hover { background: #e2e8f0; }
+        .menuBtn:hover { background: rgba(255,255,255,0.12); }
         .menuIcon { font-size: 16px; }
 
-        .banner { display: flex; align-items: center; gap: 10px; margin: 10px 16px; padding: 12px 14px; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; }
+        .banner { display: flex; align-items: center; gap: 10px; margin: 10px 16px; padding: 12px 14px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; }
         .dot { width: 10px; height: 10px; border-radius: 999px; background: #22c55e; }
         .dot.bad { background: #ef4444; }
         .msg { font-weight: 600; }
@@ -370,47 +399,67 @@ export default function GamePage() {
 
 
         .drawer {
-          position: fixed; top: 0; right: 0; height: 100vh; width: 360px; background: #ffffff;
-          border-left: 1px solid #e5e7eb; transform: translateX(100%); transition: transform 200ms ease;
-          z-index: 20; box-shadow: -8px 0 24px rgba(15,23,42,0.08); padding: 16px;
+          position: fixed; top: 0; right: 0; height: 100vh; width: 360px; background: rgba(255,255,255,0.06);
+          border-left: 1px solid rgba(255,255,255,0.12); transform: translateX(100%); transition: transform 200ms ease;
+          z-index: 20; box-shadow: -8px 0 24px rgba(0,0,0,0.3); padding: 16px; backdrop-filter: blur(8px);
         }
         .drawer.open { transform: translateX(0); }
         .drawerHead { display: flex; justify-content: space-between; align-items: center; }
         .drawerTitle { margin: 0; letter-spacing: 0.1em; text-transform: uppercase; }
-        .x { border: 1px solid #e5e7eb; background: #f8fafc; border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+        .x { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 10px; cursor: pointer; color: var(--text); }
         .profileRows { margin-top: 12px; display: grid; gap: 8px; }
         .pRow { display: flex; justify-content: space-between; }
-        .pKey { color: #6b7280; }
-        .pVal { font-weight: 700; }
-        .sep { height: 1px; background: #e5e7eb; margin: 14px 0; }
+        .pKey { color: #9aa7bd; }
+        .pVal { font-weight: 700; color: #e6edf5; }
+        .sep { height: 1px; background: var(--line); margin: 14px 0; }
         .nftTitle { margin: 0 0 8px 0; }
-        .nftList { margin: 0; padding-left: 16px; color: #334155; }
+        .nftList { margin: 0; padding-left: 16px; color: #9aa7bd; }
 
         .navTabs { display: flex; gap: 8px; }
-        .navBtn { flex: 1; padding: 10px; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; border-radius: 8px; cursor: pointer; }
-        .navBtn.active { background: #172554; color: #fff; border-color: #172554; }
+        .navBtn { flex: 1; padding: 10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: #e6edf5; border-radius: 8px; cursor: pointer; }
+        .navBtn.active { background: linear-gradient(180deg, #1e2a4d, #172554); color: #fff; border-color: rgba(255,255,255,0.16); }
 
         .drawerWallet {
           position: absolute; right: 14px; bottom: 14px;
           display: flex; align-items: center; gap: 10px;
-          background: rgba(255,255,255,0.92);
-          padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 12px;
-          box-shadow: 0 6px 18px rgba(15,23,42,0.08);
+          background: var(--panel);
+          padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px;
+          box-shadow: var(--shadow);
+          backdrop-filter: blur(8px) saturate(1.2);
         }
         .airBtn {
-          border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a;
+          border: 1px solid var(--line); background: rgba(255,255,255,0.06); color: var(--text);
           padding: 8px 10px; border-radius: 8px; cursor: pointer;
+          transition: all 0.2s;
         }
-        .airBtn.ghost { background: #fff; }
+        .airBtn:hover { background: rgba(255,255,255,0.12); transform: translateY(-1px); }
+        .airBtn.ghost { background: rgba(255,255,255,0.03); }
 
         @media (max-width: 768px) {
-          .topBar { flex-direction: column; gap: 12px; padding: 12px 16px; }
-          .profitSection { order: -1; }
+          .topBar {
+            flex-direction: column;
+            gap: 12px;
+            padding: 12px 16px;
+            position: static;
+          }
+          .playerSection {
+            position: static;
+            order: 1;
+          }
+          .profitSection {
+            order: 2;
+          }
+          .menuSection {
+            position: static;
+            order: 3;
+          }
           .businessList { padding: 12px; padding-bottom: 140px; }
         }
 
         @media (max-width: 480px) {
           .topBar { padding: 10px 12px; }
+          .playerSection { left: 12px; }
+          .menuSection { right: 12px; }
           .wealthValue { font-size: 20px; }
           .businessList { padding: 10px; padding-bottom: 140px; }
         }
@@ -446,6 +495,7 @@ export default function GamePage() {
 
         /* BusinessRow card: three-column grid with clear areas (AdCap vibe) */
         .businessRow {
+          display: grid;
           grid-template-columns: 1.1fr 1.2fr 0.9fr; /* identity | progress | actions */
           align-items: center;
           padding: 16px 16px;
@@ -477,7 +527,7 @@ export default function GamePage() {
           position: absolute;
           inset: 0;
           font-size: 11px;
-          color: #0f172a;
+          color: #e6edf5;
           display: grid;
           place-items: center;
           mix-blend-mode: multiply;
@@ -485,7 +535,7 @@ export default function GamePage() {
         }
         .profitInfo {
           font-weight: 700;
-          color: #0f172a;
+          color: #e6edf5;
         }
         .conditionBar {
           height: 8px;
@@ -518,14 +568,14 @@ export default function GamePage() {
           filter: grayscale(0.2);
         }
         .upgradeBtn {
-          background: #0f172a;
+          background: linear-gradient(180deg, #1e2a4d, #172554);
           color: #fff;
-          border-color: #0f172a;
+          border-color: rgba(255,255,255,0.16);
         }
         .defendBtn {
-          background: #f8fafc;
-          border: 1px solid #cbd5e1;
-          color: #0f172a;
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.12);
+          color: #e6edf5;
         }
 
         /* Milestones row: tighter chips */
@@ -537,12 +587,12 @@ export default function GamePage() {
           margin-top: 8px;
         }
         .milestone {
-          border: 1px solid #e5e7eb;
-          background: #fff;
+          border: 1px solid rgba(255,255,255,0.12);
+          background: rgba(255,255,255,0.06);
           border-radius: 999px;
           padding: 4px 8px;
           font-size: 11px;
-          color: #334155;
+          color: #9aa7bd;
         }
         .milestone.achieved {
           background: #ecfccb;
@@ -631,24 +681,10 @@ export default function GamePage() {
         .banner .msg { color: var(--text); }
         .dot { box-shadow: 0 0 0 3px rgba(0,0,0,0.25) inset; }
 
-        /* "WEALTH" numbers shimmer like coins */
         .page .wealthValue {
-          background: linear-gradient(180deg, var(--gold-1), var(--gold-2) 70%, var(--gold-3)) !important;
-          -webkit-background-clip: text !important; 
-          background-clip: text !important; 
-          color: var(--gold-2) !important; /* Fallback color in case background-clip doesn't work */
-          -webkit-text-fill-color: transparent !important; /* Better browser support */
-          position: relative;
-          font-weight: 800 !important;
+          color: #e6edf5;
+          font-weight: 800;
         }
-        .wealthValue::after {
-          content: "";
-          position: absolute; inset: 0; pointer-events: none;
-          background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.6) 14%, transparent 28%);
-          transform: translateX(-120%);
-          animation: shine 2.6s ease-in-out infinite;
-        }
-        @keyframes shine { to { transform: translateX(120%); } }
 
         .rateValue { color: #6bdcff; text-shadow: 0 0 14px rgba(107,220,255,0.35); }
 

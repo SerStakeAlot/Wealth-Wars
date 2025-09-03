@@ -127,10 +127,10 @@ function WalletAvatar({
         .avatar {
           width: 40px; height: 40px; border-radius: 999px;
           display: grid; place-items: center;
-          color: #0b1220;
+          color: #e6edf5;
           background: linear-gradient(180deg, #fde68a, #fbbf24); /* gold-ish */
-          border: 1px solid rgba(0,0,0,0.06);
-          box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+          border: 1px solid rgba(255,255,255,0.12);
+          box-shadow: 0 6px 16px rgba(0,0,0,0.3);
           cursor: pointer;
           transition: transform 120ms, filter 120ms;
         }
@@ -138,13 +138,13 @@ function WalletAvatar({
         .dot {
           position: absolute; top: 4px; right: 4px;
           width: 9px; height: 9px; border-radius: 999px;
-          background: #22c55e; box-shadow: 0 0 0 2px #fff inset;
+          background: #22c55e; box-shadow: 0 0 0 2px rgba(255,255,255,0.9) inset;
         }
         .badge {
           font-size: 12px; letter-spacing: 0.06em;
           padding: 6px 10px; border-radius: 10px;
-          border: 1px solid #e5e7eb; background: #fff; color: #0f172a;
-          box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+          border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: #e6edf5;
+          box-shadow: 0 4px 14px rgba(0,0,0,0.3);
           user-select: none;
         }
       `}</style>
@@ -222,14 +222,14 @@ export default function Home() {
 
       {/* global base */}
       <style jsx global>{`
-        html, body, #__next { height: 100%; margin: 0; padding: 0; background: #fff; }
+        html, body, #__next { height: 100%; margin: 0; padding: 0; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
         * { box-sizing: border-box; }
       `}</style>
 
       {/* local styles */}
       <style jsx>{`
         .page {
-          position: relative; width: 100%; height: 100svh; overflow: hidden; color: #0f172a;
+          position: relative; width: 100%; height: 100svh; overflow: hidden; color: #e6edf5;
         }
         .content {
           position: relative; z-index: 5;
