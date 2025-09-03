@@ -632,10 +632,14 @@ export default function GamePage() {
         .dot { box-shadow: 0 0 0 3px rgba(0,0,0,0.25) inset; }
 
         /* "WEALTH" numbers shimmer like coins */
-        .wealthValue {
-          background: linear-gradient(180deg, var(--gold-1), var(--gold-2) 70%, var(--gold-3));
-          -webkit-background-clip: text; background-clip: text; color: transparent;
+        .page .wealthValue {
+          background: linear-gradient(180deg, var(--gold-1), var(--gold-2) 70%, var(--gold-3)) !important;
+          -webkit-background-clip: text !important; 
+          background-clip: text !important; 
+          color: var(--gold-2) !important; /* Fallback color in case background-clip doesn't work */
+          -webkit-text-fill-color: transparent !important; /* Better browser support */
           position: relative;
+          font-weight: 800 !important;
         }
         .wealthValue::after {
           content: "";
