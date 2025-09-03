@@ -16,6 +16,8 @@ interface GameState extends Player {
   tick: () => void;
   // Username management
   setUsername: (username: string) => Promise<{ success: boolean; error?: string }>;
+  setWalletAddress: (address: string) => void;
+  walletAddress: string;
 }
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
@@ -26,41 +28,46 @@ const COOLDOWN_MS = 5000; // 5 seconds cooldown for actions
 const USERNAMES_KEY = 'wealth-wars-usernames';
 const USER_PROFILES_KEY = 'wealth-wars-user-profiles';
 
-const getUsernames = (): Set<string> => {
-  if (typeof window === 'undefined') return new Set();
+const getUserProfiles = (): Record<string, string> => {
+  if (typeof window === 'undefined') return {};
   try {
-    const stored = localStorage.getItem(USERNAMES_KEY);
-    return new Set(stored ? JSON.parse(stored) : []);
+    const stored = localStorage.getItem(USER_PROFILES_KEY);
+    return stored ? JSON.parse(stored) : {};
   } catch {
-    return new Set();
+    return {};
   }
 };
 
-const saveUsernames = (usernames: Set<string>) => {
+const saveUserProfiles = (profiles: Record<string, string>) => {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(USERNAMES_KEY, JSON.stringify([...usernames]));
+    localStorage.setItem(USER_PROFILES_KEY, JSON.stringify(profiles));
   } catch {
     // Ignore localStorage errors
   }
 };
 
-const isUsernameAvailable = (username: string): boolean => {
-  const usernames = getUsernames();
-  return !usernames.has(username.toLowerCase());
+const isUsernameAvailable = (username: string, walletAddress: string): boolean => {
+  const profiles = getUserProfiles();
+  const lowerUsername = username.toLowerCase();
+  for (const [addr, uname] of Object.entries(profiles)) {
+    if (addr !== walletAddress && uname.toLowerCase() === lowerUsername) {
+      return false;
+    }
+  }
+  return true;
 };
 
-const reserveUsername = (oldUsername: string, newUsername: string): boolean => {
-  const usernames = getUsernames();
-  if (oldUsername) {
-    usernames.delete(oldUsername.toLowerCase());
-  }
-  if (usernames.has(newUsername.toLowerCase())) {
-    return false;
-  }
-  usernames.add(newUsername.toLowerCase());
-  saveUsernames(usernames);
+const reserveUsername = (walletAddress: string, username: string): boolean => {
+  const profiles = getUserProfiles();
+  profiles[walletAddress] = username;
+  saveUserProfiles(profiles);
   return true;
+};
+
+const getUsernameForWallet = (walletAddress: string): string => {
+  const profiles = getUserProfiles();
+  return profiles[walletAddress] || '';
 };
 
 const validateUsername = (username: string): { valid: boolean; error?: string } => {
@@ -88,6 +95,7 @@ export const useGame = create<GameState>((set, get) => ({
   prestige: 0,
   clanEligible: false,
   username: '',
+  walletAddress: '',
 
   assets: [
     {
@@ -357,17 +365,28 @@ export const useGame = create<GameState>((set, get) => ({
     }
 
     const currentState = get();
+    const walletAddress = currentState.walletAddress;
+    
+    if (!walletAddress) {
+      return { success: false, error: 'Please connect your wallet first' };
+    }
+
     const oldUsername = currentState.username;
 
-    if (!isUsernameAvailable(username) && username.toLowerCase() !== oldUsername.toLowerCase()) {
+    if (!isUsernameAvailable(username, walletAddress) && username.toLowerCase() !== oldUsername.toLowerCase()) {
       return { success: false, error: 'Username is already taken' };
     }
 
-    if (reserveUsername(oldUsername, username)) {
+    if (reserveUsername(walletAddress, username)) {
       set({ username });
       return { success: true };
     } else {
       return { success: false, error: 'Failed to reserve username' };
     }
+  },
+
+  setWalletAddress: (address: string) => {
+    const username = address ? getUsernameForWallet(address) : '';
+    set({ walletAddress: address, username });
   },
 }));

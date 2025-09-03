@@ -123,15 +123,18 @@ export function BusinessRow({ asset }: BusinessRowProps) {
       <style jsx>{`
         .businessRow {
           display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
+          grid-template-columns: 1.1fr 1.2fr 0.9fr; /* identity | progress | actions */
+          align-items: center;
           gap: 16px;
-          background: #fff;
-          border: 2px solid #e5e7eb;
+          background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+          border: 1px solid rgba(255,255,255,0.12);
           border-radius: 14px;
-          padding: 20px;
-          box-shadow: 0 6px 24px rgba(15,23,42,.04);
-          margin-bottom: 16px;
+          padding: 16px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+          backdrop-filter: blur(8px) saturate(1.2);
+          margin-bottom: 12px;
           position: relative;
+          color: #e6edf5;
         }
 
         .identity {
@@ -151,7 +154,7 @@ export function BusinessRow({ asset }: BusinessRowProps) {
           font-size: 18px;
           letter-spacing: 0.08em;
           text-transform: uppercase;
-          color: #0f172a;
+          color: #e6edf5;
         }
 
         .levelBadge {
@@ -168,12 +171,12 @@ export function BusinessRow({ asset }: BusinessRowProps) {
           align-items: center;
           gap: 8px;
           font-size: 14px;
-          color: #6b7280;
+          color: #9aa7bd;
         }
 
         .outletCount {
           font-weight: 600;
-          color: #0f172a;
+          color: #e6edf5;
         }
 
         .milestoneHint {
@@ -188,9 +191,9 @@ export function BusinessRow({ asset }: BusinessRowProps) {
         }
 
         .cycleBar {
-          height: 12px;
+          height: 14px;
           width: 100%;
-          background: #e2e8f0;
+          background: rgba(255,255,255,0.12);
           border-radius: 999px;
           overflow: hidden;
           position: relative;
@@ -198,9 +201,11 @@ export function BusinessRow({ asset }: BusinessRowProps) {
 
         .cycleFill {
           height: 100%;
-          background: #0ea5e9;
-          border-radius: 999px;
-          transition: width 0.3s;
+          background:
+            repeating-linear-gradient(135deg, rgba(255,255,255,0.25) 0 8px, rgba(255,255,255,0.05) 8px 16px),
+            linear-gradient(90deg, #22c55e, #16a34a);
+          box-shadow: 0 0 12px rgba(34,197,94,0.35);
+          transition: width 120ms linear;
         }
 
         .tapHint, .timer {
@@ -211,6 +216,25 @@ export function BusinessRow({ asset }: BusinessRowProps) {
           color: #fff;
           font-size: 10px;
           font-weight: 600;
+        }
+
+        .profitInfo {
+          font-size: 12px;
+          color: #9aa7bd;
+          text-align: center;
+        }
+
+        .conditionBar {
+          height: 8px;
+          width: 100%;
+          background: rgba(255,255,255,0.08);
+          border-radius: 999px;
+          overflow: hidden;
+        }
+
+        .conditionFill {
+          height: 100%;
+          box-shadow: inset 0 0 8px rgba(0,0,0,0.2);
         }
 
         .profitInfo {
@@ -240,28 +264,42 @@ export function BusinessRow({ asset }: BusinessRowProps) {
 
         .btn {
           border-radius: 10px;
-          padding: 10px 14px;
+          padding: 12px 10px;
           cursor: pointer;
-          font-size: 13px;
+          font-size: 14px;
+          font-weight: 600;
           transition: all 0.2s;
+          border: 1px solid;
         }
 
         .primary {
-          border: 1px solid #2b3b61;
-          background: #172554;
+          background: #16a34a;
+          border-color: #0f7a34;
           color: #fff;
+        }
+
+        .primary:hover:not(:disabled) {
+          background: #15803d;
         }
 
         .dark {
-          border: 1px solid #334155;
           background: #0f172a;
+          border-color: #0f172a;
           color: #fff;
         }
 
+        .dark:hover:not(:disabled) {
+          background: #1e293b;
+        }
+
         .ghost {
-          border: 1px solid #cbd5e1;
           background: #f8fafc;
+          border-color: #cbd5e1;
           color: #0f172a;
+        }
+
+        .ghost:hover:not(:disabled) {
+          background: #f1f5f9;
         }
 
         .btn:disabled {
@@ -272,37 +310,43 @@ export function BusinessRow({ asset }: BusinessRowProps) {
         .milestones {
           grid-column: 1 / -1;
           display: flex;
-          gap: 8px;
+          flex-wrap: wrap;
+          gap: 6px;
           margin-top: 8px;
         }
 
         .milestone {
+          border: 1px solid #e5e7eb;
+          background: #fff;
+          border-radius: 999px;
+          padding: 4px 8px;
           font-size: 11px;
-          padding: 2px 6px;
-          border-radius: 4px;
-          background: #f1f5f9;
-          color: #64748b;
+          color: #334155;
+          font-weight: 500;
         }
 
         .milestone.achieved {
-          background: #22c55e;
-          color: #fff;
+          background: #ecfccb;
+          border-color: #bef264;
+          color: #365314;
+          font-weight: 700;
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 860px) {
           .businessRow {
             grid-template-columns: 1fr;
             gap: 12px;
+            padding: 14px;
           }
 
           .actions {
-            flex-direction: row;
-            flex-wrap: wrap;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
           }
 
           .btn {
-            flex: 1;
-            min-width: 120px;
+            padding: 10px 8px;
+            font-size: 12px;
           }
         }
       `}</style>

@@ -62,28 +62,31 @@ export function ResponsiveDemo() {
           text-align: center;
           margin-bottom: 32px;
           padding: 20px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
+          background: linear-gradient(135deg, #1e2a4d 0%, #172554 100%);
+          color: #e6edf5;
           border-radius: 12px;
+          border: 1px solid rgba(255,255,255,0.12);
         }
 
         .demo-card {
-          background: white;
-          border: 1px solid #e5e7eb;
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.12);
           border-radius: 12px;
           padding: 20px;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
+          backdrop-filter: blur(8px);
         }
 
         .demo-card:hover {
           transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+          border-color: rgba(255,255,255,0.16);
         }
 
         .demo-card h3 {
           margin: 0 0 16px 0;
-          color: #1f2937;
+          color: #e6edf5;
           font-size: 18px;
         }
 
@@ -94,13 +97,13 @@ export function ResponsiveDemo() {
 
         .demo-card li {
           margin-bottom: 8px;
-          color: #4b5563;
+          color: #9aa7bd;
         }
 
         .demo-card p {
           margin: 16px 0 0 0;
           font-weight: 600;
-          color: #1f2937;
+          color: #e6edf5;
         }
 
         /* Mobile-specific styles */

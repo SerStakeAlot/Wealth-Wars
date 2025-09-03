@@ -112,6 +112,9 @@ export default function GamePage() {
   const [sol, setSol] = useState(0);
   const connected = !!pubkey;
 
+  /* ---------- Game state ---------- */
+  const { level, xp, wealth, liquidity, assets, collect, upgrade, defend, prestige, clanEligible, derived, tick, setWalletAddress } = useGame();
+
   useEffect(() => {
     const p = typeof window !== 'undefined' ? window.solana : undefined;
     if (p?.isPhantom) {
@@ -129,6 +132,27 @@ export default function GamePage() {
       setProvider(null);
     }
   }, []);
+
+  // Update wallet address in store when pubkey changes
+  useEffect(() => {
+    setWalletAddress(pubkey);
+  }, [pubkey]); // Removed setWalletAddress from deps since it's stable from Zustand
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [bulkQty, setBulkQty] = useState(1);
+
+  // AdCap timer for auto-collection
+  useEffect(() => {
+    const interval = setInterval(() => {
+      tick();
+    }, 250); // Update every 250ms for smooth progress bars
+
+    return () => clearInterval(interval);
+  }, [tick]);
+
+  const lowLiquidity = liquidity < 0.12;
+  const anyWeakAsset = assets.some(a => a.condition < 35);
+  const profitPerSecond = derived.profitPerSecond || 0;
 
   async function handleWalletClick() {
     try {
@@ -180,25 +204,6 @@ export default function GamePage() {
   }
 
   useEffect(() => { if (pubkey) refreshBalance(); }, [pubkey]);
-
-  /* ---------- Game state ---------- */
-  const { level, xp, wealth, liquidity, assets, collect, upgrade, defend, prestige, clanEligible, derived, tick } = useGame();
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [bulkQty, setBulkQty] = useState(1);
-
-  // AdCap timer for auto-collection
-  useEffect(() => {
-    const interval = setInterval(() => {
-      tick();
-    }, 250); // Update every 250ms for smooth progress bars
-
-    return () => clearInterval(interval);
-  }, [tick]);
-
-  const lowLiquidity = liquidity < 0.12;
-  const anyWeakAsset = assets.some(a => a.condition < 35);
-  const profitPerSecond = derived.profitPerSecond || 0;
 
   return (
     <div className={`${inter.className} page`}>
@@ -408,6 +413,340 @@ export default function GamePage() {
           .topBar { padding: 10px 12px; }
           .wealthValue { font-size: 20px; }
           .businessList { padding: 10px; padding-bottom: 140px; }
+        }
+
+        /* ====== AdCap-style layout polish (layout-only; no logic changes) ====== */
+
+        /* Top bar: compact, sticky feel */
+        .topBar {
+          position: sticky;
+          top: 0;
+          backdrop-filter: saturate(1.2) blur(2px);
+        }
+        .profitSection .wealthValue {
+          font-size: clamp(22px, 3.6vw, 32px);
+          line-height: 1.08;
+        }
+        .profitSection .rateValue {
+          font-weight: 800;
+        }
+
+        /* Banner: slimmer and unobtrusive */
+        .banner {
+          margin-top: 8px;
+          border-width: 1px;
+          box-shadow: none;
+        }
+
+        /* Business List: vertical stack, denser rhythm, centered column */
+        .businessList {
+          max-width: 860px;
+          gap: 12px;
+        }
+
+        /* BusinessRow card: three-column grid with clear areas (AdCap vibe) */
+        .businessRow {
+          grid-template-columns: 1.1fr 1.2fr 0.9fr; /* identity | progress | actions */
+          align-items: center;
+          padding: 16px 16px;
+          border-width: 1px;
+          box-shadow: 0 4px 16px rgba(15,23,42,0.04);
+        }
+
+        /* Identity column */
+        .businessName {
+          letter-spacing: 0.12em;
+        }
+        .levelBadge {
+          transform: translateY(-1px);
+        }
+        .outletInfo {
+          gap: 10px;
+        }
+
+        /* Progress column */
+        .cycleBar {
+          height: 14px;
+          background: #e5e7eb;
+        }
+        .cycleFill {
+          background: linear-gradient(90deg, #22c55e, #16a34a);
+          transition: width 120ms linear;
+        }
+        .tapHint, .timer {
+          position: absolute;
+          inset: 0;
+          font-size: 11px;
+          color: #0f172a;
+          display: grid;
+          place-items: center;
+          mix-blend-mode: multiply;
+          pointer-events: none;
+        }
+        .profitInfo {
+          font-weight: 700;
+          color: #0f172a;
+        }
+        .conditionBar {
+          height: 8px;
+          width: 100%;
+          background: #f1f5f9;
+          border-radius: 999px;
+          overflow: hidden;
+        }
+        .conditionFill { height: 100%; }
+
+        /* Actions column: big tap targets, consistent sizes */
+        .actions {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 8px;
+          align-self: stretch;
+        }
+        .actions .btn.large {
+          padding: 12px 10px;
+          font-size: 14px;
+          border-radius: 10px;
+        }
+        .collectBtn {
+          background: #16a34a;
+          border: 1px solid #0f7a34;
+          color: #fff;
+        }
+        .collectBtn:disabled {
+          opacity: 0.6;
+          filter: grayscale(0.2);
+        }
+        .upgradeBtn {
+          background: #0f172a;
+          color: #fff;
+          border-color: #0f172a;
+        }
+        .defendBtn {
+          background: #f8fafc;
+          border: 1px solid #cbd5e1;
+          color: #0f172a;
+        }
+
+        /* Milestones row: tighter chips */
+        .milestones {
+          grid-column: 1 / -1;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          margin-top: 8px;
+        }
+        .milestone {
+          border: 1px solid #e5e7eb;
+          background: #fff;
+          border-radius: 999px;
+          padding: 4px 8px;
+          font-size: 11px;
+          color: #334155;
+        }
+        .milestone.achieved {
+          background: #ecfccb;
+          border-color: #bef264;
+          color: #365314;
+          font-weight: 700;
+        }
+
+        /* Bottom bulk bar: already sticky; just spacing/stack on mobile */
+        .bulkBar {
+          gap: 12px;
+        }
+        @media (max-width: 860px) {
+          .businessRow {
+            grid-template-columns: 1fr;
+            gap: 12px;
+            padding: 14px;
+          }
+          .actions {
+            grid-template-columns: repeat(3, 1fr);
+          }
+          .profitSection { order: -1; }
+        }
+
+        /* Subtle scrollbars for long lists (desktop) */
+        .businessList::-webkit-scrollbar { width: 10px; }
+        .businessList::-webkit-scrollbar-thumb {
+          background: #e5e7eb;
+          border-radius: 999px;
+        }
+
+        /* ====== DARK THEME: Premium Space Aesthetic ====== */
+
+        :root {
+          --bg: #0b1020;
+          --bg-2: #0e1426;
+          --panel: rgba(255,255,255,0.06);
+          --line: rgba(255,255,255,0.12);
+          --text: #e6edf5;
+          --muted: #9aa7bd;
+          --accent: #22c55e;       /* emerald */
+          --accent-2: #16a34a;
+          --gold-1: #fde68a;
+          --gold-2: #fbbf24;
+          --gold-3: #9b6a1a;
+          --shadow: 0 10px 30px rgba(0,0,0,0.45);
+        }
+
+        /* Premium starfield + radial glow + noise */
+        body {
+          background: radial-gradient(1200px 800px at 20% -10%, #1b2550 0%, transparent 60%),
+                      radial-gradient(900px 700px at 85% 10%, #083b2c 0%, transparent 60%),
+                      linear-gradient(180deg, var(--bg), var(--bg-2));
+          color: var(--text);
+        }
+        body::before {
+          content: "";
+          position: fixed; inset: 0; pointer-events: none; z-index: 0;
+          background-image:
+            radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.12) 30%, transparent 31%),
+            radial-gradient(2px 2px at 80% 20%, rgba(255,255,255,0.12) 30%, transparent 31%),
+            radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,0.10) 30%, transparent 31%);
+          opacity: .6;
+        }
+        body::after {
+          /* subtle film grain */
+          content: "";
+          position: fixed; inset: 0; pointer-events: none; z-index: 0;
+          background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' opacity='0.06' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+          mix-blend-mode: soft-light;
+        }
+
+        /* Panels + cards go glassy */
+        .topBar,
+        .banner,
+        .businessRow,
+        .bulkBar,
+        .drawer {
+          background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+          border: 1px solid var(--line);
+          box-shadow: var(--shadow);
+          backdrop-filter: blur(8px) saturate(1.2);
+          color: var(--text);
+        }
+
+        .banner .msg { color: var(--text); }
+        .dot { box-shadow: 0 0 0 3px rgba(0,0,0,0.25) inset; }
+
+        /* "WEALTH" numbers shimmer like coins */
+        .wealthValue {
+          background: linear-gradient(180deg, var(--gold-1), var(--gold-2) 70%, var(--gold-3));
+          -webkit-background-clip: text; background-clip: text; color: transparent;
+          position: relative;
+        }
+        .wealthValue::after {
+          content: "";
+          position: absolute; inset: 0; pointer-events: none;
+          background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.6) 14%, transparent 28%);
+          transform: translateX(-120%);
+          animation: shine 2.6s ease-in-out infinite;
+        }
+        @keyframes shine { to { transform: translateX(120%); } }
+
+        .rateValue { color: #6bdcff; text-shadow: 0 0 14px rgba(107,220,255,0.35); }
+
+        /* Business rows: tighter rhythm + accent edges */
+        .businessRow {
+          position: relative;
+          overflow: hidden;
+        }
+        .businessRow::before {
+          content: "";
+          position: absolute; inset: -1px;
+          border-radius: 14px;
+          padding: 1px;
+          background: conic-gradient(from 180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04), rgba(255,255,255,0.14));
+          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          -webkit-mask-composite: xor; mask-composite: exclude;
+          pointer-events: none;
+        }
+
+        /* Progress bars: candy stripes + smooth fill */
+        .cycleBar { background: rgba(255,255,255,0.12); }
+        .cycleFill {
+          background:
+            repeating-linear-gradient(135deg, rgba(255,255,255,0.25) 0 8px, rgba(255,255,255,0.05) 8px 16px),
+            linear-gradient(90deg, var(--accent), var(--accent-2));
+          box-shadow: 0 0 12px rgba(34,197,94,0.35);
+        }
+        .conditionBar { background: rgba(255,255,255,0.08); }
+        .conditionFill { box-shadow: inset 0 0 8px rgba(0,0,0,0.2); }
+
+        /* Buttons: premium neon-ish glow */
+        .btn.primary,
+        .collectBtn {
+          background: linear-gradient(180deg, var(--accent), var(--accent-2));
+          border: 1px solid rgba(0,0,0,0.28);
+          color: white;
+          box-shadow:
+            0 10px 22px rgba(34,197,94,0.22),
+            inset 0 0 0 1px rgba(255,255,255,0.08);
+        }
+        .btn.primary:hover,
+        .collectBtn:hover:not(:disabled) { filter: brightness(1.06) saturate(1.1); transform: translateY(-1px); }
+
+        .btn.dark,
+        .upgradeBtn {
+          background: linear-gradient(180deg, #101628, #0a0f1f);
+          color: #f8fafc;
+          border: 1px solid rgba(255,255,255,0.12);
+        }
+        .btn.dark:hover,
+        .upgradeBtn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
+        .btn.ghost,
+        .defendBtn {
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.16);
+          color: var(--text);
+        }
+        .btn.ghost:hover,
+        .defendBtn:hover { background: rgba(255,255,255,0.12); }
+
+        /* Milestone chips pop */
+        .milestone {
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.12);
+          color: var(--muted);
+        }
+        .milestone.achieved {
+          background: rgba(190,242,100,0.18);
+          border-color: rgba(163,230,53,0.6);
+          color: #d9f99d;
+        }
+
+        /* Drawer: glass sheet */
+        .drawer {
+          background: linear-gradient(180deg, rgba(16,22,40,0.86), rgba(10,15,31,0.86));
+          border-left: 1px solid rgba(255,255,255,0.12);
+          color: var(--text);
+        }
+        .drawerTitle { color: var(--gold-1); text-shadow: 0 0 12px rgba(251,191,36,0.24); }
+        .navBtn.active { background: linear-gradient(180deg, #1e2a4d, #172554); border-color: rgba(255,255,255,0.16); }
+
+        /* Bottom bar polish */
+        .bulkBar {
+          background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+          border-top: 1px solid var(--line);
+        }
+        .bulkBtn.active {
+          background: linear-gradient(180deg, #1d2a50, #172554);
+          border-color: rgba(255,255,255,0.16);
+          color: #e6edf5;
+          box-shadow: 0 6px 18px rgba(23,37,84,0.35);
+        }
+
+        /* Avatar button polish */
+        .avatarBtn { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.16); color: var(--text); }
+        .avatar { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18); }
+
+        /* Responsive bumps */
+        @media (max-width: 860px) {
+          .businessRow { padding: 14px 12px; }
+          .actions .btn.large { padding: 12px 8px; font-size: 13px; }
         }
       `}</style>
     </div>

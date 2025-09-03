@@ -81,14 +81,16 @@ export function BulkBar({ bulkQty, setBulkQty }: BulkBarProps) {
           bottom: 0;
           left: 0;
           right: 0;
-          background: #fff;
-          border-top: 2px solid #e5e7eb;
+          background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+          border-top: 1px solid rgba(255,255,255,0.12);
           padding: 16px 20px;
-          box-shadow: 0 -4px 12px rgba(15,23,42,0.08);
+          box-shadow: 0 -4px 12px rgba(0,0,0,0.25);
+          backdrop-filter: blur(8px) saturate(1.2);
           display: flex;
           justify-content: space-between;
           align-items: center;
           z-index: 10;
+          color: #e6edf5;
         }
 
         .bulkSelector {
@@ -100,7 +102,7 @@ export function BulkBar({ bulkQty, setBulkQty }: BulkBarProps) {
         .bulkLabel {
           font-size: 14px;
           font-weight: 600;
-          color: #0f172a;
+          color: #e6edf5;
         }
 
         .bulkButtons {
@@ -110,9 +112,9 @@ export function BulkBar({ bulkQty, setBulkQty }: BulkBarProps) {
 
         .bulkBtn {
           padding: 8px 12px;
-          border: 1px solid #cbd5e1;
-          background: #f8fafc;
-          color: #0f172a;
+          border: 1px solid rgba(255,255,255,0.16);
+          background: rgba(255,255,255,0.06);
+          color: #e6edf5;
           border-radius: 8px;
           cursor: pointer;
           font-size: 13px;
@@ -121,13 +123,14 @@ export function BulkBar({ bulkQty, setBulkQty }: BulkBarProps) {
         }
 
         .bulkBtn:hover {
-          background: #e2e8f0;
+          background: rgba(255,255,255,0.12);
         }
 
         .bulkBtn.active {
-          background: #172554;
-          color: #fff;
-          border-color: #172554;
+          background: linear-gradient(180deg, #1d2a50, #172554);
+          border-color: rgba(255,255,255,0.16);
+          color: #e6edf5;
+          box-shadow: 0 6px 18px rgba(23,37,84,0.35);
         }
 
         .actionButtons {

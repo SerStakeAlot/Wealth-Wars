@@ -105,11 +105,14 @@ export function MenuSheet({ isOpen, onClose }: MenuSheetProps) {
           right: 0;
           width: 320px;
           height: 100vh;
-          background: #fff;
-          box-shadow: -8px 0 25px rgba(15,23,42,0.15);
+          background: linear-gradient(180deg, rgba(16,22,40,0.86), rgba(10,15,31,0.86));
+          border-left: 1px solid rgba(255,255,255,0.12);
+          box-shadow: -8px 0 25px rgba(0,0,0,0.35);
+          backdrop-filter: blur(8px) saturate(1.2);
           z-index: 101;
           display: flex;
           flex-direction: column;
+          color: #e6edf5;
         }
 
         .menuHeader {
@@ -117,7 +120,7 @@ export function MenuSheet({ isOpen, onClose }: MenuSheetProps) {
           justify-content: space-between;
           align-items: center;
           padding: 20px;
-          border-bottom: 1px solid #e5e7eb;
+          border-bottom: 1px solid rgba(255,255,255,0.12);
         }
 
         .menuTitle {
@@ -125,7 +128,7 @@ export function MenuSheet({ isOpen, onClose }: MenuSheetProps) {
           font-size: 18px;
           letter-spacing: 0.1em;
           text-transform: uppercase;
-          color: #0f172a;
+          color: #e6edf5;
         }
 
         .closeBtn {
@@ -133,12 +136,12 @@ export function MenuSheet({ isOpen, onClose }: MenuSheetProps) {
           border: none;
           font-size: 20px;
           cursor: pointer;
-          color: #6b7280;
+          color: #9aa7bd;
           padding: 4px;
         }
 
         .closeBtn:hover {
-          color: #0f172a;
+          color: #e6edf5;
         }
 
         .menuContent {
@@ -155,7 +158,7 @@ export function MenuSheet({ isOpen, onClose }: MenuSheetProps) {
           margin: 0 0 12px 0;
           font-size: 14px;
           font-weight: 600;
-          color: #6b7280;
+          color: #9aa7bd;
           text-transform: uppercase;
           letter-spacing: 0.05em;
         }
@@ -166,9 +169,9 @@ export function MenuSheet({ isOpen, onClose }: MenuSheetProps) {
           gap: 12px;
           width: 100%;
           padding: 12px 16px;
-          border: 1px solid #e5e7eb;
-          background: #f8fafc;
-          color: #0f172a;
+          border: 1px solid rgba(255,255,255,0.12);
+          background: rgba(255,255,255,0.06);
+          color: #e6edf5;
           border-radius: 8px;
           cursor: pointer;
           transition: all 0.2s;
@@ -176,14 +179,14 @@ export function MenuSheet({ isOpen, onClose }: MenuSheetProps) {
         }
 
         .menuItem:hover {
-          background: #e2e8f0;
-          border-color: #cbd5e1;
+          background: rgba(255,255,255,0.12);
+          border-color: rgba(255,255,255,0.16);
         }
 
         .menuItem.active {
-          background: #172554;
+          background: linear-gradient(180deg, #1e2a4d, #172554);
           color: #fff;
-          border-color: #172554;
+          border-color: rgba(255,255,255,0.16);
         }
 
         .itemIcon {
@@ -206,13 +209,13 @@ export function MenuSheet({ isOpen, onClose }: MenuSheetProps) {
 
         .statLabel {
           font-size: 14px;
-          color: #6b7280;
+          color: #9aa7bd;
         }
 
         .statValue {
           font-size: 14px;
           font-weight: 600;
-          color: #0f172a;
+          color: #e6edf5;
         }
 
         @media (max-width: 480px) {

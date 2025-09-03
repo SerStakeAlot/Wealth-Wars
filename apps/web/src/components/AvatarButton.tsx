@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Orbitron, Inter } from 'next/font/google';
+import { useGame } from '../app/lib/store';
 
 const inter = Inter({ subsets: ['latin'] });
 const orbitron = Orbitron({ subsets: ['latin'], weight: ['600', '800'] });
@@ -12,11 +13,14 @@ interface AvatarButtonProps {
 
 export function AvatarButton({ onClick }: AvatarButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const { username, walletAddress } = useGame();
 
   const handleClick = () => {
     setIsOpen(!isOpen);
     onClick?.();
   };
+
+  const displayName = walletAddress && username ? username : 'Player';
 
   return (
     <div className="avatarContainer">
@@ -24,7 +28,7 @@ export function AvatarButton({ onClick }: AvatarButtonProps) {
         <div className="avatar">
           <span className="avatarIcon">👤</span>
         </div>
-        <span className="avatarLabel">Player</span>
+        <span className="avatarLabel">{displayName}</span>
       </button>
 
       {isOpen && (
@@ -54,16 +58,17 @@ export function AvatarButton({ onClick }: AvatarButtonProps) {
           align-items: center;
           gap: 8px;
           padding: 8px 12px;
-          border: 1px solid #cbd5e1;
-          background: #f8fafc;
-          color: #0f172a;
+          border: 1px solid rgba(255,255,255,0.16);
+          background: rgba(255,255,255,0.06);
+          color: #e6edf5;
           border-radius: 10px;
           cursor: pointer;
           transition: all 0.2s;
+          backdrop-filter: blur(8px) saturate(1.2);
         }
 
         .avatarBtn:hover {
-          background: #e2e8f0;
+          background: rgba(255,255,255,0.12);
         }
 
         .avatar {
@@ -90,10 +95,11 @@ export function AvatarButton({ onClick }: AvatarButtonProps) {
           top: 100%;
           left: 0;
           right: 0;
-          background: #fff;
-          border: 1px solid #e5e7eb;
+          background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+          border: 1px solid rgba(255,255,255,0.12);
           border-radius: 10px;
-          box-shadow: 0 8px 25px rgba(15,23,42,0.12);
+          box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+          backdrop-filter: blur(8px) saturate(1.2);
           margin-top: 4px;
           z-index: 20;
           overflow: hidden;
@@ -121,7 +127,7 @@ export function AvatarButton({ onClick }: AvatarButtonProps) {
         .menuText {
           font-size: 14px;
           font-weight: 500;
-          color: #0f172a;
+          color: #e6edf5;
         }
 
         @media (max-width: 768px) {

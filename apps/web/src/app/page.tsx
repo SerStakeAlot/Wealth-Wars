@@ -16,7 +16,7 @@ type SolanaProvider = {
 };
 declare global {
   interface Window {
-    solana?: SolanaProvider;
+    solana?: any;
   }
 }
 const shorten = (pk = '') => (pk ? `${pk.slice(0, 4)}…${pk.slice(-4)}` : '');
@@ -266,6 +266,132 @@ export default function Home() {
           animation: blink 1400ms steps(2, start) infinite;
         }
         @keyframes blink { 0%, 49% { opacity: 0.8; } 50%, 100% { opacity: 0.4; } }
+
+        /* ====== DARK THEME: Premium Space Aesthetic ====== */
+
+        :root {
+          --bg: #0b1020;
+          --bg-2: #0e1426;
+          --panel: rgba(255,255,255,0.06);
+          --line: rgba(255,255,255,0.12);
+          --text: #e6edf5;
+          --muted: #9aa7bd;
+          --accent: #22c55e;
+          --accent-2: #16a34a;
+          --gold-1: #fde68a;
+          --gold-2: #fbbf24;
+          --gold-3: #9b6a1a;
+          --shadow: 0 10px 30px rgba(0,0,0,0.45);
+        }
+
+        /* Premium starfield background */
+        .page {
+          background: radial-gradient(1200px 800px at 20% -10%, #1b2550 0%, transparent 60%),
+                      radial-gradient(900px 700px at 85% 10%, #083b2c 0%, transparent 60%),
+                      linear-gradient(180deg, var(--bg), var(--bg-2));
+          color: var(--text);
+        }
+
+        .page::before {
+          content: "";
+          position: fixed; inset: 0; pointer-events: none; z-index: 0;
+          background-image:
+            radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.12) 30%, transparent 31%),
+            radial-gradient(2px 2px at 80% 20%, rgba(255,255,255,0.12) 30%, transparent 31%),
+            radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,0.10) 30%, transparent 31%);
+          opacity: .6;
+        }
+
+        .page::after {
+          content: "";
+          position: fixed; inset: 0; pointer-events: none; z-index: 0;
+          background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' opacity='0.06' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+          mix-blend-mode: soft-light;
+        }
+
+        /* Logo with enhanced glow */
+        .logo {
+          background: linear-gradient(
+            180deg,
+            #fde68a 0%,
+            #fbbf24 14%,
+            #f9c742 28%,
+            #b07c24 42%,
+            #f2d271 58%,
+            #ffd34a 72%,
+            #9b6a1a 86%,
+            #ffd98c 100%
+          );
+          -webkit-background-clip: text; background-clip: text; color: transparent;
+          text-shadow: 0 2px 0 rgba(0,0,0,0.12), 0 10px 24px rgba(255,199,84,0.18);
+          position: relative;
+        }
+
+        .logo::after {
+          content: "";
+          position: absolute; inset: 0; pointer-events: none;
+          background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.6) 14%, transparent 28%);
+          transform: translateX(-120%);
+          animation: logoShine 3.2s ease-in-out infinite;
+        }
+
+        @keyframes logoShine { to { transform: translateX(120%); } }
+
+        /* Play button with premium styling */
+        .playBtn {
+          border: none; padding: 18px 36px; font-size: 20px; font-weight: 800;
+          text-transform: uppercase; letter-spacing: 0.12em; border-radius: 12px; cursor: pointer;
+          background: linear-gradient(180deg, var(--accent), var(--accent-2));
+          color: #fff;
+          box-shadow:
+            0 8px 20px rgba(34,197,94,0.35),
+            0 0 0 2px rgba(0,0,0,0.04) inset,
+            inset 0 0 0 1px rgba(255,255,255,0.08);
+          transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+        }
+        .playBtn:hover {
+          transform: translateY(-2px);
+          box-shadow:
+            0 12px 28px rgba(34,197,94,0.45),
+            0 0 0 2px rgba(0,0,0,0.06) inset,
+            inset 0 0 0 1px rgba(255,255,255,0.12);
+          filter: brightness(1.06) saturate(1.1);
+        }
+        .playBtn:active {
+          transform: translateY(2px);
+          box-shadow:
+            0 6px 16px rgba(34,197,94,0.25),
+            0 0 0 2px rgba(0,0,0,0.04) inset;
+        }
+
+        /* Alpha text with subtle glow */
+        .alpha {
+          margin-top: 16px; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+          color: var(--muted);
+          animation: blink 1400ms steps(2, start) infinite;
+        }
+
+        /* Wallet avatar with glass effect */
+        .walletWrap {
+          background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+          border: 1px solid var(--line);
+          box-shadow: var(--shadow);
+          backdrop-filter: blur(8px) saturate(1.2);
+          border-radius: 12px;
+          padding: 8px 12px;
+        }
+
+        .avatar {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border: 1px solid rgba(255,255,255,0.18);
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+        }
+
+        .badge {
+          background: rgba(255,255,255,0.06);
+          border: 1px solid var(--line);
+          color: var(--text);
+        }
       `}</style>
     </div>
   );

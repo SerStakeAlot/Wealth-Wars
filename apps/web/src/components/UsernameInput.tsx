@@ -8,11 +8,13 @@ interface UsernameInputProps {
 }
 
 export function UsernameInput({ onClose }: UsernameInputProps) {
-  const { username, setUsername } = useGame();
+  const { username, setUsername, walletAddress } = useGame();
   const [inputValue, setInputValue] = useState(username);
   const [isEditing, setIsEditing] = useState(!username);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isWalletConnected = !!walletAddress;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +51,13 @@ export function UsernameInput({ onClose }: UsernameInputProps) {
 
   return (
     <div className="usernameSection">
-      {isEditing ? (
+      {!isWalletConnected ? (
+        <div className="walletRequired">
+          <div className="walletMessage">
+            Connect your wallet to set a username
+          </div>
+        </div>
+      ) : isEditing ? (
         <form onSubmit={handleSubmit} className="usernameForm">
           <div className="inputGroup">
             <label htmlFor="username" className="inputLabel">Username</label>
@@ -121,18 +129,18 @@ export function UsernameInput({ onClose }: UsernameInputProps) {
         .inputLabel {
           font-size: 12px;
           font-weight: 600;
-          color: #6b7280;
+          color: #9aa7bd;
           text-transform: uppercase;
           letter-spacing: 0.05em;
         }
 
         .usernameInput {
           padding: 10px 12px;
-          border: 1px solid #d1d5db;
+          border: 1px solid rgba(255,255,255,0.12);
           border-radius: 8px;
           font-size: 14px;
-          background: #fff;
-          color: #0f172a;
+          background: rgba(255,255,255,0.06);
+          color: #e6edf5;
           transition: border-color 0.2s;
         }
 
@@ -143,8 +151,8 @@ export function UsernameInput({ onClose }: UsernameInputProps) {
         }
 
         .usernameInput:disabled {
-          background: #f9fafb;
-          color: #6b7280;
+          background: rgba(255,255,255,0.03);
+          color: #9aa7bd;
           cursor: not-allowed;
         }
 
@@ -184,19 +192,19 @@ export function UsernameInput({ onClose }: UsernameInputProps) {
         }
 
         .btn.primary:disabled {
-          background: #9ca3af;
-          border-color: #9ca3af;
+          background: #6b7280;
+          border-color: #6b7280;
           cursor: not-allowed;
         }
 
         .btn.secondary {
-          background: #f8fafc;
-          color: #0f172a;
-          border-color: #cbd5e1;
+          background: rgba(255,255,255,0.06);
+          color: #e6edf5;
+          border-color: rgba(255,255,255,0.12);
         }
 
         .btn.secondary:hover:not(:disabled) {
-          background: #e2e8f0;
+          background: rgba(255,255,255,0.12);
         }
 
         .usernameDisplay {
@@ -214,14 +222,14 @@ export function UsernameInput({ onClose }: UsernameInputProps) {
         .usernameLabel {
           font-size: 12px;
           font-weight: 600;
-          color: #6b7280;
+          color: #9aa7bd;
           text-transform: uppercase;
           letter-spacing: 0.05em;
         }
 
         .usernameValue {
           font-weight: 700;
-          color: ${username ? '#0f172a' : '#9ca3af'};
+          color: ${username ? '#e6edf5' : '#9aa7bd'};
           flex: 1;
           text-align: right;
           margin-right: 8px;
@@ -238,13 +246,29 @@ export function UsernameInput({ onClose }: UsernameInputProps) {
         }
 
         .editBtn:hover {
-          background: #f3f4f6;
+          background: rgba(255,255,255,0.06);
         }
 
         .usernameHint {
           font-size: 11px;
-          color: #6b7280;
+          color: #9aa7bd;
           font-style: italic;
+        }
+
+        .walletRequired {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 16px;
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 8px;
+        }
+
+        .walletMessage {
+          font-size: 14px;
+          color: #9aa7bd;
+          text-align: center;
         }
       `}</style>
     </div>

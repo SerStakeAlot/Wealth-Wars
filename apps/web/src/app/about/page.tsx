@@ -164,8 +164,8 @@ export default function About() {
       <style jsx>{`
         .page {
           min-height: 100vh;
-          background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-          color: #0f172a;
+          background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+          color: #e6edf5;
         }
 
         .header {
@@ -173,9 +173,9 @@ export default function About() {
           justify-content: space-between;
           align-items: center;
           padding: 16px 20px;
-          background: rgba(255, 255, 255, 0.9);
+          background: rgba(255, 255, 255, 0.06);
           backdrop-filter: blur(10px);
-          border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+          border-bottom: 1px solid rgba(255,255,255,0.12);
           position: sticky;
           top: 0;
           z-index: 10;
@@ -183,19 +183,19 @@ export default function About() {
 
         .backBtn {
           background: none;
-          border: 1px solid #e5e7eb;
+          border: 1px solid rgba(255,255,255,0.12);
           border-radius: 8px;
           padding: 8px 12px;
-          color: #6b7280;
+          color: #9aa7bd;
           cursor: pointer;
           font-size: 14px;
           transition: all 0.2s;
         }
 
         .backBtn:hover {
-          background: #f3f4f6;
-          color: #0f172a;
-          border-color: #d1d5db;
+          background: rgba(255,255,255,0.06);
+          color: #e6edf5;
+          border-color: rgba(255,255,255,0.16);
         }
 
         .content {
@@ -231,12 +231,12 @@ export default function About() {
         }
 
         .aboutContent {
-          background: rgba(255, 255, 255, 0.8);
+          background: rgba(255, 255, 255, 0.06);
           border-radius: 16px;
           padding: 32px;
-          box-shadow: 0 8px 32px rgba(15, 23, 42, 0.08);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
           backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.5);
+          border: 1px solid rgba(255, 255, 255, 0.12);
         }
 
         .section {
@@ -251,13 +251,13 @@ export default function About() {
           font-size: 20px;
           font-weight: 600;
           margin: 0 0 16px 0;
-          color: #1e293b;
+          color: #e6edf5;
         }
 
         .text {
           font-size: 16px;
           line-height: 1.6;
-          color: #475569;
+          color: #9aa7bd;
           margin: 0;
         }
 
@@ -271,7 +271,7 @@ export default function About() {
 
         .featureList li {
           font-size: 16px;
-          color: #475569;
+          color: #9aa7bd;
           display: flex;
           align-items: center;
           gap: 8px;
@@ -286,7 +286,7 @@ export default function About() {
 
         .stepsList li {
           font-size: 16px;
-          color: #475569;
+          color: #9aa7bd;
           line-height: 1.5;
         }
 
@@ -319,7 +319,7 @@ export default function About() {
         }
 
         .tradeBtn {
-          border: 1px solid #e5e7eb;
+          border: 1px solid rgba(255,255,255,0.12);
           padding: 16px 28px;
           font-size: 16px;
           font-weight: 700;
@@ -327,16 +327,17 @@ export default function About() {
           letter-spacing: 0.1em;
           border-radius: 10px;
           cursor: pointer;
-          background: #fff;
-          color: #0f172a;
-          box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+          background: rgba(255,255,255,0.06);
+          color: #e6edf5;
+          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
           transition: transform 120ms, box-shadow 120ms, border-color 120ms;
         }
 
         .tradeBtn:hover {
           transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
-          border-color: #d1d5db;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+          border-color: rgba(255,255,255,0.16);
+          background: rgba(255,255,255,0.12);
         }
 
         @media (max-width: 640px) {
