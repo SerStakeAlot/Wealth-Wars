@@ -7,7 +7,7 @@ mod errors;
 mod events;
 mod instructions;
 
-declare_id!("3MuF3DSnsg166e1EuYdF4Dc86Z1nzD8dESbqpmFVmQYd");
+declare_id!("EhN1NGXmhGyzN1qTPRRc7ZRA9yZuJdvVhJPE4AkRWMu");
 
 #[program]
 pub mod wwars {

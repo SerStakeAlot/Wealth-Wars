@@ -204,6 +204,9 @@ export default function GamePage() {
 
   useEffect(() => { if (pubkey) refreshBalance(); }, [pubkey]);
 
+  // Debug: Check if assets are loaded
+  console.log('Assets in game page:', assets);
+
   return (
     <div className={`${inter.className} page`}>
       {/* TOP BAR - Player Status & Settings */}
@@ -248,6 +251,7 @@ export default function GamePage() {
 
       {/* BUSINESS LIST */}
       <main className="businessList">
+        {assets.length === 0 && <div style={{color: 'white', padding: '20px'}}>No assets found</div>}
         {assets.map(a => (
           <BusinessRow key={a.id} asset={a} />
         ))}
@@ -276,6 +280,7 @@ export default function GamePage() {
 
         <div className="navTabs">
           <button className="navBtn active" onClick={() => router.push('/game')}>Play Mode</button>
+          <button className="navBtn" onClick={() => router.push('/demo')}>Demo Mode</button>
           <button className="navBtn" onClick={() => router.push('/trade')}>Trade Mode</button>
         </div>
 
@@ -494,14 +499,7 @@ export default function GamePage() {
         }
 
         /* BusinessRow card: three-column grid with clear areas (AdCap vibe) */
-        .businessRow {
-          display: grid;
-          grid-template-columns: 1.1fr 1.2fr 0.9fr; /* identity | progress | actions */
-          align-items: center;
-          padding: 16px 16px;
-          border-width: 1px;
-          box-shadow: 0 4px 16px rgba(15,23,42,0.04);
-        }
+        /* Removed conflicting styles - BusinessRow component handles its own layout */
 
         /* Identity column */
         .businessName {
@@ -553,30 +551,7 @@ export default function GamePage() {
           gap: 8px;
           align-self: stretch;
         }
-        .actions .btn.large {
-          padding: 12px 10px;
-          font-size: 14px;
-          border-radius: 10px;
-        }
-        .collectBtn {
-          background: #16a34a;
-          border: 1px solid #0f7a34;
-          color: #fff;
-        }
-        .collectBtn:disabled {
-          opacity: 0.6;
-          filter: grayscale(0.2);
-        }
-        .upgradeBtn {
-          background: linear-gradient(180deg, #1e2a4d, #172554);
-          color: #fff;
-          border-color: rgba(255,255,255,0.16);
-        }
-        .defendBtn {
-          background: rgba(255,255,255,0.06);
-          border: 1px solid rgba(255,255,255,0.12);
-          color: #e6edf5;
-        }
+        /* Removed conflicting button styles - BusinessRow component handles its own styling */
 
         /* Milestones row: tighter chips */
         .milestones {
@@ -606,14 +581,7 @@ export default function GamePage() {
           gap: 12px;
         }
         @media (max-width: 860px) {
-          .businessRow {
-            grid-template-columns: 1fr;
-            gap: 12px;
-            padding: 14px;
-          }
-          .actions {
-            grid-template-columns: repeat(3, 1fr);
-          }
+          /* Removed conflicting businessRow styles - component handles its own responsive layout */
           .profitSection { order: -1; }
         }
 
@@ -689,14 +657,7 @@ export default function GamePage() {
         .rateValue { color: #6bdcff; text-shadow: 0 0 14px rgba(107,220,255,0.35); }
 
         /* Business rows: tighter rhythm + accent edges */
-        .businessRow {
-          position: relative;
-          overflow: hidden;
-        }
-        .businessRow::before {
-          content: "";
-          position: absolute; inset: -1px;
-          border-radius: 14px;
+        /* Removed conflicting styles - BusinessRow component handles its own dark theme */
           padding: 1px;
           background: conic-gradient(from 180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04), rgba(255,255,255,0.14));
           -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -715,38 +676,8 @@ export default function GamePage() {
         .conditionBar { background: rgba(255,255,255,0.08); }
         .conditionFill { box-shadow: inset 0 0 8px rgba(0,0,0,0.2); }
 
-        /* Buttons: premium neon-ish glow */
-        .btn.primary,
-        .collectBtn {
-          background: linear-gradient(180deg, var(--accent), var(--accent-2));
-          border: 1px solid rgba(0,0,0,0.28);
-          color: white;
-          box-shadow:
-            0 10px 22px rgba(34,197,94,0.22),
-            inset 0 0 0 1px rgba(255,255,255,0.08);
-        }
-        .btn.primary:hover,
-        .collectBtn:hover:not(:disabled) { filter: brightness(1.06) saturate(1.1); transform: translateY(-1px); }
-
-        .btn.dark,
-        .upgradeBtn {
-          background: linear-gradient(180deg, #101628, #0a0f1f);
-          color: #f8fafc;
-          border: 1px solid rgba(255,255,255,0.12);
-        }
-        .btn.dark:hover,
-        .upgradeBtn:hover { filter: brightness(1.08); transform: translateY(-1px); }
-
-        .btn.ghost,
-        .defendBtn {
-          background: rgba(255,255,255,0.06);
-          border: 1px solid rgba(255,255,255,0.16);
-          color: var(--text);
-        }
-        .btn.ghost:hover,
-        .defendBtn:hover { background: rgba(255,255,255,0.12); }
-
-        /* Milestone chips pop */
+        /* Removed conflicting button styles - BusinessRow component handles its own styling */
+        /* Removed conflicting button styles - BusinessRow component handles its own styling */        /* Milestone chips pop */
         .milestone {
           background: rgba(255,255,255,0.06);
           border: 1px solid rgba(255,255,255,0.12);
@@ -786,7 +717,7 @@ export default function GamePage() {
         /* Responsive bumps */
         @media (max-width: 860px) {
           .businessRow { padding: 14px 12px; }
-          .actions .btn.large { padding: 12px 8px; font-size: 13px; }
+          /* Removed conflicting button styles - component handles its own responsive layout */
         }
       `}</style>
     </div>
