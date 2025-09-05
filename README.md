@@ -34,9 +34,15 @@ Build your financial empire, wage economic wars, and dominate the markets with e
 
 ## 🚀 Quick Start (Current Alpha)
 
-### Ready to Play Immediately
-The current alpha is fully configured and ready to run with all the premium styling and features from this development session.
+### ⚡ One-Command Setup
+```bash
+# Clone and start immediately 
+git clone https://github.com/SerStakeAlot/Wealth-Wars.git
+cd Wealth-Wars
+./quick-start.sh
+```
 
+### Manual Setup (If Preferred)
 ```bash
 # Clone the current alpha
 git clone https://github.com/SerStakeAlot/Wealth-Wars.git
@@ -48,7 +54,7 @@ npm install
 npm run dev
 ```
 
-**🎯 Access the game at: `http://localhost:3000/game`**
+**🎯 Access the game at: `http://localhost:3001/game`**
 
 ### Full Solana Integration (Optional)
 To enable real blockchain transactions:
