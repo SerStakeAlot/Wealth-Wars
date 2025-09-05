@@ -7,7 +7,7 @@ import { PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import * as anchor from "@coral-xyz/anchor";
 import toast from "react-hot-toast";
-import { getProgramForWallet, PROGRAM_ID, WEALTH_MINT, TREASURY_VAULT } from "../../lib/anchorClient";
+import { getProgramForWallet, PROGRAM_ID, WEALTH_MINT, TREASURY_VAULT, checkProgramDeployment } from "../../lib/anchorClient";
 import { pdaConfig, pdaAmm, pdaPolicy, pdaTreasuryAuth, pdaPlayer, pdaEra, pdaPlayerEra } from "../../lib/pdas";
 
 type Player = {
@@ -34,11 +34,23 @@ export default function Demo() {
   const [loading, setLoading] = useState(false);
   const [playerPda, setPlayerPda] = useState<PublicKey | null>(null);
   const [player, setPlayer] = useState<Player | null>(null);
+  const [isProgramDeployed, setIsProgramDeployed] = useState<boolean | null>(null);
 
   const [eraPda, setEraPda] = useState<PublicKey | null>(null);
   const [playerEraPda, setPlayerEraPda] = useState<PublicKey | null>(null);
   const [era, setEra] = useState<any>(null);
   const [playerEra, setPlayerEra] = useState<EraAcc | null>(null);
+
+  // Check program deployment status
+  useEffect(() => {
+    async function checkDeployment() {
+      if (connection) {
+        const deployed = await checkProgramDeployment(connection);
+        setIsProgramDeployed(deployed);
+      }
+    }
+    checkDeployment();
+  }, [connection]);
 
   const refresh = useCallback(async () => {
     if (!connection || !publicKey || !wallet) return;
@@ -235,43 +247,79 @@ export default function Demo() {
         <>
           {/* Status Indicator */}
           <div style={{
-            padding: "12px",
-            background: "#f0f9ff",
-            border: "1px solid #0ea5e9",
-            borderRadius: "8px",
+            padding: "16px",
+            background: "#fef3c7",
+            border: "2px solid #f59e0b",
+            borderRadius: "12px",
             marginBottom: "16px"
           }}>
-            <h3 style={{margin: "0 0 8px 0", color: "#0ea5e9"}}>Connection Status</h3>
-            <div style={{display: "flex", gap: "16px", flexWrap: "wrap"}}>
-              <span style={{color: connection ? "#22c55e" : "#ef4444"}}>
-                🔗 Connection: {connection ? "Connected" : "Disconnected"}
-              </span>
-              <span style={{color: wallet ? "#22c55e" : "#ef4444"}}>
-                👛 Wallet: {wallet ? "Connected" : "Disconnected"}
-              </span>
-              <span style={{color: "#f59e0b"}}>
-                📋 Program: Demo Mode - Real transactions require Anchor program deployment
-              </span>
+            <h3 style={{margin: "0 0 12px 0", color: "#92400e", fontSize: "18px"}}>⚠️ Demo Mode Active</h3>
+            <div style={{marginBottom: "12px"}}>
+              <div style={{display: "flex", gap: "16px", flexWrap: "wrap", marginBottom: "8px"}}>
+                <span style={{color: connection ? "#22c55e" : "#ef4444", fontWeight: "600"}}>
+                  🔗 Connection: {connection ? "✅ Connected" : "❌ Disconnected"}
+                </span>
+                <span style={{color: wallet ? "#22c55e" : "#ef4444", fontWeight: "600"}}>
+                  👛 Wallet: {wallet ? "✅ Connected" : "❌ Disconnected"}
+                </span>
+              </div>
+              <div style={{color: "#92400e", fontWeight: "600", fontSize: "14px"}}>
+                📋 Anchor Program: {isProgramDeployed === null ? "⏳ Checking..." : isProgramDeployed ? "✅ Deployed" : "❌ Not deployed (functions will show error messages)"}
+              </div>
+            </div>
+            <div style={{
+              background: "#fed7aa", 
+              padding: "12px", 
+              borderRadius: "8px", 
+              border: "1px solid #fb923c"
+            }}>
+              <p style={{margin: "0 0 8px 0", fontWeight: "600", color: "#ea580c"}}>
+                🚀 To Enable Real Transactions:
+              </p>
+              <div style={{fontSize: "14px", color: "#9a3412"}}>
+                <strong>Quick Setup:</strong> Run <code style={{background: "#ffffff", padding: "2px 6px", borderRadius: "4px"}}>./deploy.sh</code> in the project root, then refresh this page.
+              </div>
             </div>
           </div>
-          <section style={{border:"1px solid #ddd", padding:16, borderRadius:8, marginTop:16, backgroundColor: "#f9f9f9"}}>
-            <h3>🚀 Enable Real Transactions</h3>
-            <p style={{margin: "8px 0"}}>Currently running in demo mode. To enable real Solana transactions:</p>
-            <div style={{margin: "8px 0", fontSize: "14px"}}>
-              <strong>Quick Setup:</strong> Run <code>./deploy.sh</code> in the project root, then refresh this page.
+          <section style={{border:"2px solid #3b82f6", padding:20, borderRadius:12, marginTop:16, backgroundColor: "#eff6ff"}}>
+            <h3 style={{color: "#1e40af", margin: "0 0 12px 0"}}>🚀 Enable Real Transactions</h3>
+            <p style={{margin: "8px 0", color: "#1e3a8a"}}>Currently running in demo mode. To enable real Solana transactions:</p>
+            
+            <div style={{
+              background: "#dbeafe", 
+              padding: "16px", 
+              borderRadius: "8px", 
+              margin: "12px 0",
+              border: "1px solid #93c5fd"
+            }}>
+              <div style={{margin: "8px 0", fontSize: "16px", fontWeight: "600", color: "#1e40af"}}>
+                🎯 Quick Setup (Recommended):
+              </div>
+              <div style={{margin: "8px 0", fontSize: "14px", fontFamily: "monospace", background: "#1e40af", color: "white", padding: "8px", borderRadius: "4px"}}>
+                ./deploy.sh
+              </div>
+              <div style={{margin: "8px 0", fontSize: "14px", color: "#1e3a8a"}}>
+                Run this command in the project root, then refresh this page.
+              </div>
             </div>
-            <div style={{margin: "8px 0", fontSize: "14px"}}>
-              <strong>Manual Steps:</strong>
-            </div>
-            <ol style={{margin: "8px 0", paddingLeft: "20px", fontSize: "14px"}}>
-              <li>Install Solana CLI: <code>curl -sSfL https://release.solana.com/v1.18.26/install | sh</code></li>
-              <li>Configure for devnet: <code>solana config set --url https://api.devnet.solana.com</code></li>
-              <li>Create/fund account: <code>solana-keygen new && solana airdrop 2</code></li>
-              <li>Deploy program: <code>cd wwars && anchor build && anchor deploy</code></li>
-              <li>Run bootstrap: <code>cd bootstrap && npm run start</code></li>
-            </ol>
-            <p style={{margin: "8px 0", fontSize: "14px", color: "#666"}}>
-              Check browser console for detailed error logs and setup progress.
+
+            <details style={{margin: "12px 0"}}>
+              <summary style={{cursor: "pointer", color: "#1e40af", fontWeight: "600"}}>
+                📋 Manual Setup Steps (Advanced)
+              </summary>
+              <div style={{margin: "8px 0", paddingLeft: "16px"}}>
+                <ol style={{margin: "8px 0", paddingLeft: "20px", fontSize: "14px", color: "#1e3a8a"}}>
+                  <li>Install Solana CLI: <code style={{background: "#f1f5f9", padding: "2px 4px"}}>curl -sSfL https://release.solana.com/v1.18.26/install | sh</code></li>
+                  <li>Configure for devnet: <code style={{background: "#f1f5f9", padding: "2px 4px"}}>solana config set --url https://api.devnet.solana.com</code></li>
+                  <li>Create/fund account: <code style={{background: "#f1f5f9", padding: "2px 4px"}}>solana-keygen new && solana airdrop 2</code></li>
+                  <li>Deploy program: <code style={{background: "#f1f5f9", padding: "2px 4px"}}>cd wwars && anchor build && anchor deploy</code></li>
+                  <li>Run bootstrap: <code style={{background: "#f1f5f9", padding: "2px 4px"}}>cd bootstrap && npm run start</code></li>
+                </ol>
+              </div>
+            </details>
+            
+            <p style={{margin: "8px 0", fontSize: "14px", color: "#64748b"}}>
+              💡 Check browser console for detailed error logs and setup progress.
             </p>
           </section>
 

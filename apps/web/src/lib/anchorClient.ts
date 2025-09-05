@@ -100,7 +100,7 @@ export function getProgramForWallet(connection: Connection, wallet: any) {
             accounts: () => ({
               rpc: async () => {
                 console.log("Mock initPlayer called");
-                throw new Error("Demo mode: Anchor program not deployed. Run './deploy.sh' in project root, then refresh the page.");
+                throw new Error("🚀 Demo mode: Run './deploy.sh' to enable real transactions, then refresh the page.");
               }
             })
           }),
@@ -108,7 +108,7 @@ export function getProgramForWallet(connection: Connection, wallet: any) {
             accounts: () => ({
               rpc: async () => {
                 console.log("Mock clickWork called");
-                throw new Error("Demo mode: Anchor program not deployed. Run './deploy.sh' in project root, then refresh the page.");
+                throw new Error("🚀 Demo mode: Run './deploy.sh' to enable real transactions, then refresh the page.");
               }
             })
           }),
@@ -116,7 +116,7 @@ export function getProgramForWallet(connection: Connection, wallet: any) {
             accounts: () => ({
               rpc: async () => {
                 console.log("Mock buyBusiness called");
-                throw new Error("Demo mode: Anchor program not deployed. Run './deploy.sh' in project root, then refresh the page.");
+                throw new Error("🚀 Demo mode: Run './deploy.sh' to enable real transactions, then refresh the page.");
               }
             })
           }),
@@ -124,7 +124,7 @@ export function getProgramForWallet(connection: Connection, wallet: any) {
             accounts: () => ({
               rpc: async () => {
                 console.log("Mock swapCreditForWealth called");
-                throw new Error("Demo mode: Anchor program not deployed. Run './deploy.sh' in project root, then refresh the page.");
+                throw new Error("🚀 Demo mode: Run './deploy.sh' to enable real transactions, then refresh the page.");
               }
             })
           }),
@@ -132,7 +132,7 @@ export function getProgramForWallet(connection: Connection, wallet: any) {
             accounts: () => ({
               rpc: async () => {
                 console.log("Mock swapWealthForCredit called");
-                throw new Error("Demo mode: Anchor program not deployed. Run './deploy.sh' in project root, then refresh the page.");
+                throw new Error("🚀 Demo mode: Run './deploy.sh' to enable real transactions, then refresh the page.");
               }
             })
           })
@@ -142,5 +142,18 @@ export function getProgramForWallet(connection: Connection, wallet: any) {
   } catch (error) {
     console.error("Failed to create program for wallet:", error);
     return null;
+  }
+}
+
+/**
+ * Test if the Anchor program is actually deployed and accessible
+ */
+export async function checkProgramDeployment(connection: Connection): Promise<boolean> {
+  try {
+    const accountInfo = await connection.getAccountInfo(PROGRAM_ID);
+    return accountInfo !== null && accountInfo.executable;
+  } catch (error) {
+    console.error("Error checking program deployment:", error);
+    return false;
   }
 }

@@ -36,8 +36,8 @@ dotenv.config();
 // 🔧 CONFIGURE THESE CONSTANTS
 // -------------------------------
 
-// Program ID from your deployment
-const PROGRAM_ID = new PublicKey("BgiPAjcP224ppYDPYDponbWDFkBcHya8EPCbycJ9YYwL");
+// Program ID from your deployment (from Anchor.toml)
+const PROGRAM_ID = new PublicKey("EhN1NGXmhGyzN1qTPRRc7ZRA9yZuJdvVhJPE4AkRWMu");
 
 // Path to your IDL JSON
 const IDL_PATH = path.resolve(
