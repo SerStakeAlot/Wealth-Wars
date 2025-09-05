@@ -48,10 +48,10 @@ export function MenuSheet({ isOpen, onClose }: MenuSheetProps) {
             </button>
             <button
               className="menuItem"
-              onClick={() => handleNavigation('/trade')}
+              onClick={() => handleNavigation('/forbes')}
             >
               <span className="itemIcon">📈</span>
-              <span className="itemText">Trade Mode</span>
+              <span className="itemText">Forbes List</span>
             </button>
             <button
               className="menuItem"

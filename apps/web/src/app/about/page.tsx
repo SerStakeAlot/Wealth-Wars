@@ -151,10 +151,10 @@ export default function About() {
                 ▶ START PLAYING
               </button>
               <button
-                className="tradeBtn"
-                onClick={() => router.push('/trade')}
+                className="forbesBtn"
+                onClick={() => router.push('/forbes')}
               >
-                📈 TRADE MODE
+                📈 FORBES LIST
               </button>
             </div>
           </div>
@@ -318,7 +318,7 @@ export default function About() {
           filter: brightness(1.05);
         }
 
-        .tradeBtn {
+        .forbesBtn {
           border: 1px solid rgba(255,255,255,0.12);
           padding: 16px 28px;
           font-size: 16px;
@@ -333,7 +333,7 @@ export default function About() {
           transition: transform 120ms, box-shadow 120ms, border-color 120ms;
         }
 
-        .tradeBtn:hover {
+        .forbesBtn:hover {
           transform: translateY(-2px);
           box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
           border-color: rgba(255,255,255,0.16);
@@ -355,7 +355,7 @@ export default function About() {
           }
 
           .playBtn,
-          .tradeBtn {
+          .forbesBtn {
             width: 100%;
             max-width: 280px;
           }

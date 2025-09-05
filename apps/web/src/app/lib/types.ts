@@ -28,6 +28,15 @@ export interface Player {
   prestige: number;
   clanEligible: boolean;
   username: string;
+  creditBalance: number; // New: Credit balance that increases per click
+  streakDays: number;
+  lastClickDay: number;
+  business: { 
+    clickBonusPerDay: number; 
+    lemStand: number; 
+    cafe: number; 
+    factory: number; 
+  };
 }
 
 export interface Derived {
@@ -42,4 +51,26 @@ export interface Swap {
   fromToken: string;
   toToken: string;
   price: number;
+}
+
+export interface LeaderboardPlayer {
+  id: string;
+  username: string;
+  rank: number;
+  creditBalance: number;
+  totalClicks: number;
+  streakDays: number;
+  business: {
+    clickBonusPerDay: number;
+    lemStand: number;
+    cafe: number;
+    factory: number;
+  };
+  clan?: string;
+  level: number;
+  xp: number;
+  wealth: number;
+  joinDate: string;
+  lastActive: string;
+  avatar: string;
 }

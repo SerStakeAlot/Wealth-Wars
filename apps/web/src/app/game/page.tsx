@@ -113,7 +113,15 @@ export default function GamePage() {
   const connected = !!pubkey;
 
   /* ---------- Game state ---------- */
-  const { level, xp, wealth, liquidity, assets, collect, upgrade, defend, prestige, clanEligible, derived, tick, setWalletAddress } = useGame();
+  const { 
+    level, xp, wealth, liquidity, assets, collect, upgrade, defend, prestige, clanEligible, derived, tick, setWalletAddress,
+    // Demo-style functions
+    creditBalance, streakDays, business, clickWork, buyBusiness, initPlayer,
+    // Solana integration
+    isOnChainMode, setOnChainMode, loading, setLoading,
+    initPlayerOnChain, clickWorkOnChain, buyBusinessOnChain, 
+    swapCreditForWealth, swapWealthForCredit, refreshPlayerData
+  } = useGame();
 
   useEffect(() => {
     const p = typeof window !== 'undefined' ? window.solana : undefined;
@@ -246,11 +254,170 @@ export default function GamePage() {
         </div>
       </section>
 
-      {/* BUSINESS LIST */}
-      <main className="businessList">
-        {assets.map(a => (
-          <BusinessRow key={a.id} asset={a} />
-        ))}
+      {/* CREDIT WORK SECTION */}
+      <main className="creditSection">
+        <div className="creditCard">
+          <div className="creditDisplay">
+            <span className="creditLabel">CREDITS</span>
+            <span className={`${orbitron.className} creditValue`}>{creditBalance.toLocaleString()}</span>
+          </div>
+          
+          <div className="streakInfo">
+            <span className="streakLabel">Streak: {streakDays} days</span>
+            <span className="streakBonus">+{streakDays * 10}% bonus</span>
+          </div>
+
+          <button className="workBtn" onClick={clickWork}>
+            <span className="workIcon">💼</span>
+            <span className="workText">Do Work</span>
+            <span className="workEarn">+{1 + Math.floor(streakDays * 0.1)} credits</span>
+          </button>
+        </div>
+
+        <div className="businessGrid">
+          <div className="businessCard">
+            <div className="businessHeader">
+              <span className="businessIcon">🥤</span>
+              <span className="businessName">Lemonade Stand</span>
+            </div>
+            <div className="businessStats">
+              <span className="businessOwned">Owned: {business.lemStand}</span>
+              <span className="businessIncome">+{business.lemStand} credits/click</span>
+            </div>
+            <button 
+              className="buyBtn" 
+              onClick={() => buyBusiness(0)}
+              disabled={creditBalance < 10}
+            >
+              Buy for 10 credits
+            </button>
+          </div>
+
+          <div className="businessCard">
+            <div className="businessHeader">
+              <span className="businessIcon">☕</span>
+              <span className="businessName">Coffee Cafe</span>
+            </div>
+            <div className="businessStats">
+              <span className="businessOwned">Owned: {business.cafe}</span>
+              <span className="businessIncome">+{business.cafe * 5} credits/click</span>
+            </div>
+            <button 
+              className="buyBtn" 
+              onClick={() => buyBusiness(1)}
+              disabled={creditBalance < 50}
+            >
+              Buy for 50 credits
+            </button>
+          </div>
+
+          <div className="businessCard">
+            <div className="businessHeader">
+              <span className="businessIcon">🏭</span>
+              <span className="businessName">Widget Factory</span>
+            </div>
+            <div className="businessStats">
+              <span className="businessOwned">Owned: {business.factory}</span>
+              <span className="businessIncome">+{business.factory * 20} credits/click</span>
+            </div>
+            <button 
+              className="buyBtn" 
+              onClick={() => buyBusiness(2)}
+              disabled={creditBalance < 200}
+            >
+              Buy for 200 credits
+            </button>
+          </div>
+        </div>
+
+        {/* Treasury & Swap Section */}
+        <div className="treasurySection">
+          <div className="treasuryHeader">
+            <span className="treasuryIcon">🏦</span>
+            <span className="treasuryTitle">Treasury & Token Swaps</span>
+          </div>
+          
+          <div className="modeToggle">
+            <button 
+              className={`modeBtn ${!isOnChainMode ? 'active' : ''}`}
+              onClick={() => setOnChainMode(false)}
+            >
+              Demo Mode
+            </button>
+            <button 
+              className={`modeBtn ${isOnChainMode ? 'active' : ''}`}
+              onClick={() => setOnChainMode(true)}
+            >
+              Solana Mode
+            </button>
+          </div>
+
+          {!isOnChainMode && (
+            <div className="demoNotice">
+              <span className="noticeIcon">ℹ️</span>
+              <span>Demo mode - Real transactions require Anchor program deployment</span>
+            </div>
+          )}
+
+          <div className="swapGrid">
+            <div className="swapCard">
+              <div className="swapHeader">
+                <span>Credits → $WEALTH</span>
+              </div>
+              <div className="swapInputGroup">
+                <input 
+                  type="number" 
+                  placeholder="Amount of credits"
+                  className="swapInput"
+                />
+                <button 
+                  className="swapBtn"
+                  disabled={loading}
+                  onClick={() => swapCreditForWealth("0")}
+                >
+                  Swap
+                </button>
+              </div>
+            </div>
+
+            <div className="swapCard">
+              <div className="swapHeader">
+                <span>$WEALTH → Credits</span>
+              </div>
+              <div className="swapInputGroup">
+                <input 
+                  type="number" 
+                  placeholder="Amount of $WEALTH"
+                  className="swapInput"
+                />
+                <button 
+                  className="swapBtn"
+                  disabled={loading}
+                  onClick={() => swapWealthForCredit("0")}
+                >
+                  Swap
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="treasuryInfo">
+            <div className="treasuryStats">
+              <span className="statLabel">Treasury Status:</span>
+              <span className="statValue">Ready for swaps</span>
+            </div>
+            <div className="treasuryStats">
+              <span className="statLabel">$WEALTH Rate:</span>
+              <span className="statValue">1:1 (demo)</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="resetSection">
+          <button className="resetBtn" onClick={initPlayer}>
+            Reset Progress
+          </button>
+        </div>
       </main>
 
       {/* PROFILE SLIDE-OUT */}
@@ -276,8 +443,7 @@ export default function GamePage() {
 
         <div className="navTabs">
           <button className="navBtn active" onClick={() => router.push('/game')}>Play Mode</button>
-          <button className="navBtn" onClick={() => router.push('/trade')}>Trade Mode</button>
-          <button className="navBtn" onClick={() => router.push('/demo')}>Demo Mode</button>
+          <button className="navBtn" onClick={() => router.push('/forbes')}>Forbes List</button>
         </div>
 
         <div className="sep" />
@@ -397,6 +563,370 @@ export default function GamePage() {
           max-width: 800px;
           margin: 0 auto;
           width: 100%;
+        }
+
+        /* Credit-based game styles */
+        .creditSection {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+          padding: 16px;
+          padding-bottom: 120px;
+          max-width: 800px;
+          margin: 0 auto;
+          width: 100%;
+        }
+
+        .creditCard {
+          background: rgba(255,255,255,0.08);
+          border: 2px solid #ffd700;
+          border-radius: 16px;
+          padding: 24px;
+          text-align: center;
+          box-shadow: 0 4px 16px rgba(255,215,0,0.2);
+        }
+
+        .creditDisplay {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          margin-bottom: 16px;
+        }
+
+        .creditLabel {
+          font-size: 14px;
+          color: #9aa7bd;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          margin-bottom: 4px;
+        }
+
+        .creditValue {
+          font-size: 36px;
+          font-weight: 800;
+          color: #ffd700;
+          text-shadow: 0 0 20px rgba(255,215,0,0.4);
+        }
+
+        .streakInfo {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+          padding: 8px 16px;
+          background: rgba(255,255,255,0.04);
+          border-radius: 8px;
+        }
+
+        .streakLabel {
+          color: #9aa7bd;
+          font-size: 14px;
+        }
+
+        .streakBonus {
+          color: #22c55e;
+          font-weight: 600;
+          font-size: 14px;
+        }
+
+        .workBtn {
+          background: linear-gradient(180deg, #22c55e, #16a34a);
+          border: none;
+          border-radius: 12px;
+          padding: 16px 24px;
+          color: white;
+          font-weight: 600;
+          font-size: 16px;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          box-shadow: 0 4px 16px rgba(34,197,94,0.3);
+        }
+
+        .workBtn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(34,197,94,0.4);
+        }
+
+        .workIcon {
+          font-size: 20px;
+        }
+
+        .workText {
+          flex: 1;
+        }
+
+        .workEarn {
+          background: rgba(255,255,255,0.2);
+          padding: 4px 8px;
+          border-radius: 6px;
+          font-size: 12px;
+        }
+
+        .businessGrid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: 16px;
+        }
+
+        .businessCard {
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 12px;
+          padding: 20px;
+          transition: all 0.2s;
+        }
+
+        .businessCard:hover {
+          border-color: #ffd700;
+          box-shadow: 0 4px 16px rgba(255,215,0,0.1);
+        }
+
+        .businessHeader {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 12px;
+        }
+
+        .businessIcon {
+          font-size: 24px;
+        }
+
+        .businessName {
+          font-weight: 600;
+          color: #e6edf5;
+        }
+
+        .businessStats {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          margin-bottom: 16px;
+        }
+
+        .businessOwned {
+          color: #9aa7bd;
+          font-size: 14px;
+        }
+
+        .businessIncome {
+          color: #22c55e;
+          font-size: 14px;
+          font-weight: 600;
+        }
+
+        .buyBtn {
+          background: linear-gradient(180deg, #3b82f6, #2563eb);
+          border: none;
+          border-radius: 8px;
+          padding: 12px 16px;
+          color: white;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          width: 100%;
+        }
+
+        .buyBtn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(59,130,246,0.3);
+        }
+
+        .buyBtn:disabled {
+          background: rgba(255,255,255,0.08);
+          color: #9aa7bd;
+          cursor: not-allowed;
+        }
+
+        .resetSection {
+          display: flex;
+          justify-content: center;
+          margin-top: 20px;
+        }
+
+        .resetBtn {
+          background: rgba(239,68,68,0.8);
+          border: 1px solid #ef4444;
+          border-radius: 8px;
+          padding: 12px 24px;
+          color: white;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .resetBtn:hover {
+          background: #ef4444;
+          transform: translateY(-1px);
+        }
+
+        /* Treasury & Swap Section Styles */
+        .treasurySection {
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 12px;
+          padding: 24px;
+          margin-top: 8px;
+        }
+
+        .treasuryHeader {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 20px;
+        }
+
+        .treasuryIcon {
+          font-size: 24px;
+        }
+
+        .treasuryTitle {
+          font-weight: 700;
+          font-size: 18px;
+          color: #e6edf5;
+        }
+
+        .modeToggle {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+
+        .modeBtn {
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 8px;
+          padding: 8px 16px;
+          color: #9aa7bd;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-weight: 600;
+        }
+
+        .modeBtn.active {
+          background: linear-gradient(180deg, #3b82f6, #2563eb);
+          border-color: #3b82f6;
+          color: white;
+        }
+
+        .modeBtn:hover:not(.active) {
+          background: rgba(255,255,255,0.12);
+          color: #e6edf5;
+        }
+
+        .demoNotice {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px;
+          background: rgba(251,191,36,0.1);
+          border: 1px solid rgba(251,191,36,0.3);
+          border-radius: 8px;
+          margin-bottom: 20px;
+          color: #fbbf24;
+          font-size: 14px;
+        }
+
+        .noticeIcon {
+          font-size: 16px;
+        }
+
+        .swapGrid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: 16px;
+          margin-bottom: 20px;
+        }
+
+        .swapCard {
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 8px;
+          padding: 16px;
+        }
+
+        .swapHeader {
+          font-weight: 600;
+          color: #e6edf5;
+          margin-bottom: 12px;
+          text-align: center;
+        }
+
+        .swapInputGroup {
+          display: flex;
+          gap: 8px;
+        }
+
+        .swapInput {
+          flex: 1;
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 6px;
+          padding: 8px 12px;
+          color: #e6edf5;
+          font-size: 14px;
+        }
+
+        .swapInput::placeholder {
+          color: #9aa7bd;
+        }
+
+        .swapInput:focus {
+          outline: none;
+          border-color: #3b82f6;
+          box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+        }
+
+        .swapBtn {
+          background: linear-gradient(180deg, #f59e0b, #d97706);
+          border: none;
+          border-radius: 6px;
+          padding: 8px 16px;
+          color: white;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .swapBtn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(245,158,11,0.3);
+        }
+
+        .swapBtn:disabled {
+          background: rgba(255,255,255,0.08);
+          color: #9aa7bd;
+          cursor: not-allowed;
+        }
+
+        .treasuryInfo {
+          display: flex;
+          justify-content: space-between;
+          padding-top: 16px;
+          border-top: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .treasuryStats {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .statLabel {
+          color: #9aa7bd;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .statValue {
+          color: #e6edf5;
+          font-weight: 600;
         }
 
 

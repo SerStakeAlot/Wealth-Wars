@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Asset, Player, Derived } from './types';
+import { Asset, Player, Derived, LeaderboardPlayer } from './types';
 import { calculateAssetValue, calculateRisk, getPriceInSol, calculateProfitPerSecond, calculateOutletCost, calculateMultiplier, getNextMilestone, DEFAULT_CYCLE_MS, MILESTONES } from './balance';
 import { prestigeFromBehavior, CLAN_MIN_LEVEL } from './prestige';
 
@@ -14,10 +14,32 @@ interface GameState extends Player {
   buyOutlet: (id: string, qty: number) => void;
   toggleManager: (id: string, on: boolean) => void;
   tick: () => void;
+  // Demo-style functions (new tokenomics)
+  clickWork: () => void;
+  buyBusiness: (bizKind: number) => void;
+  initPlayer: () => void;
+  // Solana integration functions
+  initPlayerOnChain: () => Promise<void>;
+  clickWorkOnChain: () => Promise<void>;
+  buyBusinessOnChain: (bizKind: number) => Promise<void>;
+  swapCreditForWealth: (amount: string) => Promise<void>;
+  swapWealthForCredit: (amount: string) => Promise<void>;
+  refreshPlayerData: () => Promise<void>;
   // Username management
   setUsername: (username: string) => Promise<{ success: boolean; error?: string }>;
   setWalletAddress: (address: string) => void;
   walletAddress: string;
+  // Solana state
+  isOnChainMode: boolean;
+  setOnChainMode: (enabled: boolean) => void;
+  loading: boolean;
+  setLoading: (loading: boolean) => void;
+  
+  // Leaderboard data
+  leaderboardPlayers: LeaderboardPlayer[];
+  refreshLeaderboard: () => void;
+  viewPlayerProfile: (playerId: string) => void;
+  selectedPlayer: LeaderboardPlayer | null;
 }
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
@@ -96,6 +118,25 @@ export const useGame = create<GameState>((set, get) => ({
   clanEligible: false,
   username: '',
   walletAddress: '',
+  
+  // Demo-style state
+  creditBalance: 10,
+  streakDays: 0,
+  lastClickDay: 0,
+  business: {
+    clickBonusPerDay: 1,
+    lemStand: 0,
+    cafe: 0,
+    factory: 0
+  },
+
+  // Solana state
+  isOnChainMode: false,
+  loading: false,
+
+  // Leaderboard data
+  leaderboardPlayers: [],
+  selectedPlayer: null,
 
   assets: [
     {
@@ -388,5 +429,210 @@ export const useGame = create<GameState>((set, get) => ({
   setWalletAddress: (address: string) => {
     const username = address ? getUsernameForWallet(address) : '';
     set({ walletAddress: address, username });
+  },
+
+  // Demo-style functions (new tokenomics)
+  clickWork: () => {
+    const currentDay = Math.floor(Date.now() / (24 * 60 * 60 * 1000));
+    set(state => {
+      const isNewDay = currentDay > state.lastClickDay;
+      const newStreakDays = isNewDay ? state.streakDays + 1 : state.streakDays;
+      const creditGain = state.business.clickBonusPerDay + (newStreakDays * 0.1); // Bonus for streak
+      const xpGain = 5 + Math.floor(newStreakDays * 0.5); // XP scales with streak
+      
+      const newXp = state.xp + xpGain;
+      const newLevel = newXp >= 100 ? state.level + 1 : state.level;
+      
+      return {
+        creditBalance: state.creditBalance + creditGain,
+        streakDays: newStreakDays,
+        lastClickDay: currentDay,
+        xp: newXp >= 100 ? 0 : newXp,
+        level: newLevel,
+        clanEligible: newLevel >= CLAN_MIN_LEVEL,
+      };
+    });
+  },
+
+  buyBusiness: (bizKind: number) => {
+    const businessTypes = ['lemStand', 'cafe', 'factory'] as const;
+    const costs = [10, 50, 200]; // Credit costs for each business type
+    const bonuses = [1, 5, 20]; // Click bonus increases
+    
+    if (bizKind < 0 || bizKind >= businessTypes.length) return;
+    
+    const businessType = businessTypes[bizKind];
+    const cost = costs[bizKind];
+    
+    set(state => {
+      if (state.creditBalance < cost) return state;
+      
+      const newBusiness = {
+        ...state.business,
+        [businessType]: state.business[businessType] + 1,
+        clickBonusPerDay: state.business.clickBonusPerDay + bonuses[bizKind]
+      };
+      
+      return {
+        creditBalance: state.creditBalance - cost,
+        business: newBusiness,
+      };
+    });
+  },
+
+  initPlayer: () => {
+    // Initialize or reset player to demo state
+    set(state => ({
+      ...state,
+      creditBalance: 10, // Starting credits
+      streakDays: 0,
+      lastClickDay: 0,
+      business: {
+        clickBonusPerDay: 1,
+        lemStand: 0,
+        cafe: 0,
+        factory: 0
+      },
+      level: 1,
+      xp: 0,
+    }));
+  },
+
+  // Solana blockchain functions
+  setOnChainMode: (enabled: boolean) => {
+    set({ isOnChainMode: enabled });
+  },
+
+  setLoading: (loading: boolean) => {
+    set({ loading });
+  },
+
+  initPlayerOnChain: async () => {
+    // Placeholder for Solana on-chain player initialization
+    // This will be implemented when Anchor program is deployed
+    console.log('initPlayerOnChain called - requires Anchor program deployment');
+  },
+
+  clickWorkOnChain: async () => {
+    // Placeholder for Solana on-chain work clicking
+    // This will be implemented when Anchor program is deployed
+    console.log('clickWorkOnChain called - requires Anchor program deployment');
+  },
+
+  buyBusinessOnChain: async (bizKind: number) => {
+    // Placeholder for Solana on-chain business purchases
+    // This will be implemented when Anchor program is deployed
+    console.log('buyBusinessOnChain called with:', bizKind, '- requires Anchor program deployment');
+  },
+
+  swapCreditForWealth: async (amount: string) => {
+    // Placeholder for Solana on-chain credit to $WEALTH swaps
+    // This will be implemented when Anchor program is deployed
+    console.log('swapCreditForWealth called with amount:', amount, '- requires Anchor program deployment');
+  },
+
+  swapWealthForCredit: async (amount: string) => {
+    // Placeholder for Solana on-chain $WEALTH to credit swaps
+    // This will be implemented when Anchor program is deployed
+    console.log('swapWealthForCredit called with amount:', amount, '- requires Anchor program deployment');
+  },
+
+  refreshPlayerData: async () => {
+    // Placeholder for fetching player data from Solana blockchain
+    // This will be implemented when Anchor program is deployed
+    console.log('refreshPlayerData called - requires Anchor program deployment');
+  },
+
+  // Leaderboard functions
+  refreshLeaderboard: () => {
+    // Generate mock leaderboard data for demo
+    const mockPlayers: LeaderboardPlayer[] = [
+      {
+        id: '1',
+        username: 'CryptoKing',
+        rank: 1,
+        creditBalance: 15420,
+        totalClicks: 892,
+        streakDays: 12,
+        business: { clickBonusPerDay: 45, lemStand: 15, cafe: 8, factory: 3 },
+        clan: 'Diamond Hands',
+        level: 8,
+        xp: 85,
+        wealth: 2840,
+        joinDate: '2025-08-15',
+        lastActive: '2025-09-05T06:30:00Z',
+        avatar: '👑'
+      },
+      {
+        id: '2',
+        username: 'SolanaWhale',
+        rank: 2,
+        creditBalance: 12850,
+        totalClicks: 756,
+        streakDays: 8,
+        business: { clickBonusPerDay: 38, lemStand: 12, cafe: 6, factory: 2 },
+        clan: 'Solana Sharks',
+        level: 7,
+        xp: 92,
+        wealth: 2180,
+        joinDate: '2025-08-20',
+        lastActive: '2025-09-05T05:45:00Z',
+        avatar: '🐋'
+      },
+      {
+        id: '3',
+        username: 'DefiMaster',
+        rank: 3,
+        creditBalance: 9640,
+        totalClicks: 623,
+        streakDays: 15,
+        business: { clickBonusPerDay: 32, lemStand: 10, cafe: 5, factory: 1 },
+        level: 6,
+        xp: 64,
+        wealth: 1750,
+        joinDate: '2025-08-25',
+        lastActive: '2025-09-05T04:20:00Z',
+        avatar: '⚡'
+      },
+      {
+        id: '4',
+        username: 'TokenTycoon',
+        rank: 4,
+        creditBalance: 8320,
+        totalClicks: 487,
+        streakDays: 6,
+        business: { clickBonusPerDay: 28, lemStand: 8, cafe: 4, factory: 1 },
+        clan: 'Token Titans',
+        level: 5,
+        xp: 43,
+        wealth: 1420,
+        joinDate: '2025-09-01',
+        lastActive: '2025-09-05T03:10:00Z',
+        avatar: '💎'
+      },
+      {
+        id: '5',
+        username: 'WealthBuilder',
+        rank: 5,
+        creditBalance: 6750,
+        totalClicks: 412,
+        streakDays: 4,
+        business: { clickBonusPerDay: 22, lemStand: 6, cafe: 3, factory: 0 },
+        level: 4,
+        xp: 78,
+        wealth: 980,
+        joinDate: '2025-09-03',
+        lastActive: '2025-09-05T02:30:00Z',
+        avatar: '🏗️'
+      }
+    ];
+    
+    set({ leaderboardPlayers: mockPlayers });
+  },
+
+  viewPlayerProfile: (playerId: string) => {
+    const { leaderboardPlayers } = get();
+    const player = leaderboardPlayers.find(p => p.id === playerId);
+    set({ selectedPlayer: player || null });
   },
 }));

@@ -3,18 +3,18 @@ import { useRouter } from 'next/navigation';
 
 export function BulkBar() {
   const router = useRouter();
-  const handleUpgrades = () => alert('Upgrades page coming soon!');
-  const handlePrestige = () => alert('Prestige system coming soon!');
+  const handleEra = () => alert('Era page coming soon!');
+  const handlePartnerships = () => alert('Partnerships system coming soon!');
   const handleEvents = () => alert('Events & Planets coming soon!');
 
   return (
     <div className="bulkBar">
       <div className="actionButtons">
-        <button className="actionBtn upgrades" onClick={handleUpgrades}>
-          <span className="btnIcon">⬆️</span><span className="btnText">Upgrades</span>
+        <button className="actionBtn era" onClick={handleEra}>
+          <span className="btnIcon">⬆️</span><span className="btnText">Era</span>
         </button>
-        <button className="actionBtn prestige" onClick={handlePrestige}>
-          <span className="btnIcon">👑</span><span className="btnText">Investors</span>
+        <button className="actionBtn partnerships" onClick={handlePartnerships}>
+          <span className="btnIcon">👑</span><span className="btnText">Partnerships</span>
         </button>
         <button className="actionBtn events" onClick={handleEvents}>
           <span className="btnIcon">🌍</span><span className="btnText">Events</span>
@@ -37,10 +37,10 @@ export function BulkBar() {
           box-shadow: 0 2px 8px rgba(255,215,0,.2);
         }
         .actionBtn:hover { background: #4b5563; transform: translateY(-1px); border-color: #ffd700; }
-        .upgrades { border-color: #ffd700; color: #16a34a; background: #064e3b; }
-        .upgrades:hover { background: #065f46; border-color: #ffd700; }
-        .prestige { border-color: #ffd700; color: #d97706; background: #451a03; }
-        .prestige:hover { background: #78350f; border-color: #ffd700; }
+        .era { border-color: #ffd700; color: #16a34a; background: #064e3b; }
+        .era:hover { background: #065f46; border-color: #ffd700; }
+        .partnerships { border-color: #ffd700; color: #d97706; background: #451a03; }
+        .partnerships:hover { background: #78350f; border-color: #ffd700; }
         .events { border-color: #ffd700; color: #7c3aed; background: #312e81; }
         .events:hover { background: #3730a3; border-color: #ffd700; }
         .btnIcon { font-size: 16px; }

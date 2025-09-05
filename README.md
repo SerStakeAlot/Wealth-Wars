@@ -1,9 +1,22 @@
 # Wealth Wars - Current Alpha
-**The premium financial strategy game on Solana blockchain**
+**Gamified Financial Literacy Platform on Solana Blockchain**
 
-Build your financial empire, wage economic wars, and dominate the markets with elegant gold-bordered interfaces and Adventure Capitalist-style gameplay mechanics.
+Build your financial empire through engaging click-to-earn mechanics that naturally teach real-world financial concepts. Wealth Wars combines premium gaming experiences with inherent financial education.
 
-## � Current Alpha Features
+## 📚 **Project Documentation**
+
+### **Core Documents**
+- 📖 **[Whitepaper](./WHITEPAPER.md)** - Complete project vision, mechanics, and tokenomics
+- 💰 **[Tokenomics Analysis](./TOKENOMICS.md)** - Economic model and revenue projections  
+- 🛣️ **[Technical Roadmap](./ROADMAP.md)** - Development phases and implementation strategy
+- 📋 **[Session Summary](./SESSION_SUMMARY.md)** - Development history and feature evolution
+
+### **Quick Links**
+- 🎮 **Game**: `/game` - Click-to-earn with business empire building
+- 📊 **Forbes List**: `/forbes` - Global leaderboard and player profiles
+- ℹ️ **About**: `/about` - Project information and navigation
+
+## 🌟 Current Alpha Features
 
 ### **Premium Dark Theme with Gold Borders**
 - **Elegant Gold Accents**: Consistent #ffd700 gold borders throughout the interface
@@ -11,14 +24,27 @@ Build your financial empire, wage economic wars, and dominate the markets with e
 - **Premium Feel**: Gold-tinted shadows and hover effects for luxury gaming experience
 - **Visual Hierarchy**: Gold borders clearly distinguish interactive elements
 
-### **Adventure Capitalist-Style Business Management**
-- **Vertical Business Layout**: Clean, organized business rows with progress tracking
-- **Outlet System**: Purchase multiple instances of each business for exponential growth
-- **Manager System**: Hire managers for automated collection and passive income
-- **Milestone Bonuses**: Achievement system with profit multipliers at key thresholds
-- **Bulk Buying**: Efficient purchasing with ×1, ×10, ×100 quantity selectors
+### **Credit-Based Tokenomics System**
+- **Credit Balance**: Clean credit accumulation with streak bonuses
+- **Click Work System**: Earn credits with daily streak multipliers
+- **Business Investments**: Three business types (Lemonade Stand, Coffee Cafe, Widget Factory)
+- **Progressive Rewards**: Each business purchase increases earning potential
+- **Token Integration**: Seamless credit-to-$WEALTH conversion system
 
-### **Core Gameplay Mechanics**
+### **Treasury & Token Swap System**
+- **Dual Mode Operation**: Demo mode for testing, Solana mode for real transactions
+- **Credit ↔ $WEALTH Swaps**: Bidirectional token conversion through treasury
+- **Real-time Rates**: Dynamic exchange rates based on treasury reserves
+- **Blockchain Integration**: Full Solana program support when deployed
+- **User-Friendly Interface**: Clean swap cards with input validation
+
+### **Forbes List Leaderboard System**
+- **Global Rankings**: Track top players by credits, clicks, and business empire size
+- **Interactive Profiles**: Click any player to view detailed business strategies
+- **Top 3 Podium**: Special highlighting for the highest-performing players
+- **Comprehensive Stats**: Credits, total clicks, streak days, clan affiliations
+- **Business Analysis**: View other players' lemonade stands, cafes, and factories
+- **Real-time Activity**: Track when players were last active
 - **Asset Management**: Build and upgrade various business assets
 - **Economic Warfare**: Strategic takeovers and defense systems
 - **Liquidity Management**: Balance risk and reward in asset conditions
@@ -54,7 +80,8 @@ npm install
 npm run dev
 ```
 
-**🎯 Access the game at: `http://localhost:3001/game`**
+**🎯 Access the game at: `http://localhost:3000/game`**
+**🏆 View leaderboard at: `http://localhost:3000/forbes`**
 
 ### Full Solana Integration (Optional)
 To enable real blockchain transactions:
@@ -91,15 +118,18 @@ This current alpha provides everything you need to:
 ## 🎯 Game Modes
 
 ### **Play Mode** (`/game`)
-- Main business simulation interface
-- Adventure Capitalist-style vertical layout
-- Real-time profit tracking and automation
-- Manager hiring and outlet purchasing
+- Main business simulation interface with credit-based tokenomics
+- Clean card-based layout for business investments and treasury operations
+- Real-time credit tracking with streak bonuses
+- Integrated treasury system for credit-to-$WEALTH swaps
+- Dual mode operation (Demo/Solana) for testing and production
 
-### **Trade Mode** (`/trade`)
-- Asset trading and marketplace
-- Economic analysis tools
-- Strategic investment opportunities
+### **Forbes List** (`/forbes`)
+- Global leaderboard tracking top players and their strategies
+- Interactive player profiles with business empire breakdowns
+- Top 3 podium display with special styling
+- Comprehensive stats: credits, clicks, streaks, clan affiliations
+- Click-to-view detailed player analysis and business portfolios
 
 ## 🏗️ Project Structure
 
@@ -108,7 +138,7 @@ apps/web/
 ├── src/
 │   ├── app/
 │   │   ├── game/page.tsx      # Main game interface
-│   │   ├── trade/page.tsx     # Trading interface
+│   │   ├── forbes/page.tsx    # Forbes List leaderboard
 │   │   ├── lib/
 │   │   │   ├── store.ts       # Game state management
 │   │   │   ├── types.ts       # TypeScript interfaces
