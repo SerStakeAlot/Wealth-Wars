@@ -2,9 +2,14 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import * as anchor from "@coral-xyz/anchor";
 import idl from "../idl/wwars.json";
 
-export const PROGRAM_ID = new PublicKey(process.env.NEXT_PUBLIC_PROGRAM_ID!);
-export const WEALTH_MINT = new PublicKey(process.env.NEXT_PUBLIC_WEALTH_MINT!);
-export const TREASURY_VAULT = new PublicKey(process.env.NEXT_PUBLIC_TREASURY_VAULT!);
+// Fallback program IDs for demo mode
+const FALLBACK_PROGRAM_ID = "GCg5RAMT4pk74ybPTq2E9vo1o8SK2r5bJaJeYj45eCvH";
+const FALLBACK_WEALTH_MINT = "9ELH8MpSRswva8iW3TMVC4b3MCi3PRW3Zkb22TxCT232";
+const FALLBACK_TREASURY_VAULT = "J8RbqYYhB6PXr8wrpxiVbVxmbRsxB93923TsJJuQza2H";
+
+export const PROGRAM_ID = new PublicKey(process.env.NEXT_PUBLIC_PROGRAM_ID || FALLBACK_PROGRAM_ID);
+export const WEALTH_MINT = new PublicKey(process.env.NEXT_PUBLIC_WEALTH_MINT || FALLBACK_WEALTH_MINT);
+export const TREASURY_VAULT = new PublicKey(process.env.NEXT_PUBLIC_TREASURY_VAULT || FALLBACK_TREASURY_VAULT);
 
 /**
  * NOTE:
@@ -40,7 +45,7 @@ export function getProviderForWallet(connection: Connection, wallet: any): ancho
 
 export function getProgram(provider?: anchor.AnchorProvider) {
   const p = provider || getProvider();
-  return new anchor.Program(idl as any, PROGRAM_ID, p);
+  return new anchor.Program(idl as any, p);
 }
 
 export function getProgramForWallet(connection: Connection, wallet: any) {

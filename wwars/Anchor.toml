@@ -7,18 +7,18 @@ package_manager = "yarn"
 resolution = true
 skip-lint = false
 
+[programs.devnet]
+wwars = "GCg5RAMT4pk74ybPTq2E9vo1o8SK2r5bJaJeYj45eCvH"
+
 [programs.mainnet]
-wwars = "9A2bft4ehF3zGTid1o6TC828Ww2mmNhmqGC3PzHd4EXw"
+wwars = "GCg5RAMT4pk74ybPTq2E9vo1o8SK2r5bJaJeYj45eCvH"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "mainnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
-
-[workspace]
-types = "../apps/web/src/idl"

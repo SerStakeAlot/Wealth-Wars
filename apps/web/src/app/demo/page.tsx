@@ -1,5 +1,6 @@
 'use client';
 
+import Link from "next/link";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -223,6 +224,26 @@ export default function Demo() {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
+      {/* Back Button */}
+      <div style={{ marginBottom: "20px" }}>
+        <Link href="/game" style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "8px",
+          padding: "8px 16px",
+          background: "#1e293b",
+          color: "#f1f5f9",
+          textDecoration: "none",
+          borderRadius: "8px",
+          border: "1px solid #334155",
+          fontSize: "14px",
+          fontWeight: "600",
+          transition: "all 0.2s ease"
+        }}>
+          ← Back to Game
+        </Link>
+      </div>
+      
       <h1>Wealth Wars — Demo</h1>
       <div style={{display:"flex", gap:12, alignItems:"center", margin:"12px 0"}}>
         <WalletMultiButton />

@@ -82,7 +82,7 @@ function WalletAvatar({
         .avatar {
           border-radius: 999px; display: grid; place-items: center; color: #0b1220;
           background: linear-gradient(180deg, #fde68a, #fbbf24);
-          border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+          border: 2px solid #ffd700; box-shadow: 0 6px 16px rgba(255, 215, 0, 0.3);
           cursor: pointer; transition: transform 120ms, filter 120ms;
         }
         .avatar:hover { transform: translateY(-1px); filter: brightness(1.03); }
@@ -277,6 +277,7 @@ export default function GamePage() {
         <div className="navTabs">
           <button className="navBtn active" onClick={() => router.push('/game')}>Play Mode</button>
           <button className="navBtn" onClick={() => router.push('/trade')}>Trade Mode</button>
+          <button className="navBtn" onClick={() => router.push('/demo')}>Demo Mode</button>
         </div>
 
         <div className="sep" />
@@ -324,10 +325,11 @@ export default function GamePage() {
           align-items: center;
           padding: 16px 20px;
           background: rgba(255,255,255,0.06);
-          border-bottom: 1px solid rgba(255,255,255,0.12);
+          border-bottom: 2px solid #ffd700;
           backdrop-filter: blur(8px);
           z-index: 10;
           position: relative;
+          box-shadow: 0 2px 12px rgba(255,215,0,0.2);
         }
 
         .playerSection {
@@ -368,18 +370,19 @@ export default function GamePage() {
         .rateValue { font-size: 16px; font-weight: 600; color: #3b82f6; }
 
         .menuBtn {
-          border: 1px solid rgba(255,255,255,0.12);
+          border: 2px solid #ffd700;
           background: rgba(255,255,255,0.06);
           color: #e6edf5;
           padding: 10px;
           border-radius: 8px;
           cursor: pointer;
           transition: all 0.2s;
+          box-shadow: 0 2px 8px rgba(255,215,0,0.2);
         }
         .menuBtn:hover { background: rgba(255,255,255,0.12); }
         .menuIcon { font-size: 16px; }
 
-        .banner { display: flex; align-items: center; gap: 10px; margin: 10px 16px; padding: 12px 14px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; }
+        .banner { display: flex; align-items: center; gap: 10px; margin: 10px 16px; padding: 12px 14px; background: rgba(255,255,255,0.06); border: 2px solid #ffd700; border-radius: 12px; box-shadow: 0 2px 8px rgba(255,215,0,0.2); }
         .dot { width: 10px; height: 10px; border-radius: 999px; background: #22c55e; }
         .dot.bad { background: #ef4444; }
         .msg { font-weight: 600; }
@@ -400,8 +403,8 @@ export default function GamePage() {
 
         .drawer {
           position: fixed; top: 0; right: 0; height: 100vh; width: 360px; background: rgba(255,255,255,0.06);
-          border-left: 1px solid rgba(255,255,255,0.12); transform: translateX(100%); transition: transform 200ms ease;
-          z-index: 20; box-shadow: -8px 0 24px rgba(0,0,0,0.3); padding: 16px; backdrop-filter: blur(8px);
+          border-left: 3px solid #ffd700; transform: translateX(100%); transition: transform 200ms ease;
+          z-index: 20; box-shadow: -8px 0 24px rgba(255,215,0,0.3); padding: 16px; backdrop-filter: blur(8px);
         }
         .drawer.open { transform: translateX(0); }
         .drawerHead { display: flex; justify-content: space-between; align-items: center; }
@@ -416,8 +419,8 @@ export default function GamePage() {
         .nftList { margin: 0; padding-left: 16px; color: #9aa7bd; }
 
         .navTabs { display: flex; gap: 8px; }
-        .navBtn { flex: 1; padding: 10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: #e6edf5; border-radius: 8px; cursor: pointer; }
-        .navBtn.active { background: linear-gradient(180deg, #1e2a4d, #172554); color: #fff; border-color: rgba(255,255,255,0.16); }
+        .navBtn { flex: 1; padding: 10px; border: 2px solid #ffd700; background: rgba(255,255,255,0.06); color: #e6edf5; border-radius: 8px; cursor: pointer; box-shadow: 0 2px 8px rgba(255,215,0,0.2); }
+        .navBtn.active { background: linear-gradient(180deg, #1e2a4d, #172554); color: #fff; border-color: #ffd700; }
 
         .drawerWallet {
           position: absolute; right: 14px; bottom: 14px;
@@ -493,128 +496,9 @@ export default function GamePage() {
           gap: 12px;
         }
 
-        /* BusinessRow card: three-column grid with clear areas (AdCap vibe) */
-        .businessRow {
-          display: grid;
-          grid-template-columns: 1.1fr 1.2fr 0.9fr; /* identity | progress | actions */
-          align-items: center;
-          padding: 16px 16px;
-          border-width: 1px;
-          box-shadow: 0 4px 16px rgba(15,23,42,0.04);
-        }
-
-        /* Identity column */
-        .businessName {
-          letter-spacing: 0.12em;
-        }
-        .levelBadge {
-          transform: translateY(-1px);
-        }
-        .outletInfo {
-          gap: 10px;
-        }
-
-        /* Progress column */
-        .cycleBar {
-          height: 14px;
-          background: #e5e7eb;
-        }
-        .cycleFill {
-          background: linear-gradient(90deg, #22c55e, #16a34a);
-          transition: width 120ms linear;
-        }
-        .tapHint, .timer {
-          position: absolute;
-          inset: 0;
-          font-size: 11px;
-          color: #e6edf5;
-          display: grid;
-          place-items: center;
-          mix-blend-mode: multiply;
-          pointer-events: none;
-        }
-        .profitInfo {
-          font-weight: 700;
-          color: #e6edf5;
-        }
-        .conditionBar {
-          height: 8px;
-          width: 100%;
-          background: #f1f5f9;
-          border-radius: 999px;
-          overflow: hidden;
-        }
-        .conditionFill { height: 100%; }
-
-        /* Actions column: big tap targets, consistent sizes */
-        .actions {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 8px;
-          align-self: stretch;
-        }
-        .actions .btn.large {
-          padding: 12px 10px;
-          font-size: 14px;
-          border-radius: 10px;
-        }
-        .collectBtn {
-          background: #16a34a;
-          border: 1px solid #0f7a34;
-          color: #fff;
-        }
-        .collectBtn:disabled {
-          opacity: 0.6;
-          filter: grayscale(0.2);
-        }
-        .upgradeBtn {
-          background: linear-gradient(180deg, #1e2a4d, #172554);
-          color: #fff;
-          border-color: rgba(255,255,255,0.16);
-        }
-        .defendBtn {
-          background: rgba(255,255,255,0.06);
-          border: 1px solid rgba(255,255,255,0.12);
-          color: #e6edf5;
-        }
-
-        /* Milestones row: tighter chips */
-        .milestones {
-          grid-column: 1 / -1;
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px;
-          margin-top: 8px;
-        }
-        .milestone {
-          border: 1px solid rgba(255,255,255,0.12);
-          background: rgba(255,255,255,0.06);
-          border-radius: 999px;
-          padding: 4px 8px;
-          font-size: 11px;
-          color: #9aa7bd;
-        }
-        .milestone.achieved {
-          background: #ecfccb;
-          border-color: #bef264;
-          color: #365314;
-          font-weight: 700;
-        }
-
         /* Bottom bulk bar: already sticky; just spacing/stack on mobile */
         .bulkBar {
           gap: 12px;
-        }
-        @media (max-width: 860px) {
-          .businessRow {
-            grid-template-columns: 1fr;
-            gap: 12px;
-            padding: 14px;
-          }
-          .actions {
-            grid-template-columns: repeat(3, 1fr);
-          }
-          .profitSection { order: -1; }
         }
 
         /* Subtle scrollbars for long lists (desktop) */
@@ -668,7 +552,6 @@ export default function GamePage() {
         /* Panels + cards go glassy */
         .topBar,
         .banner,
-        .businessRow,
         .bulkBar,
         .drawer {
           background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
@@ -687,22 +570,6 @@ export default function GamePage() {
         }
 
         .rateValue { color: #6bdcff; text-shadow: 0 0 14px rgba(107,220,255,0.35); }
-
-        /* Business rows: tighter rhythm + accent edges */
-        .businessRow {
-          position: relative;
-          overflow: hidden;
-        }
-        .businessRow::before {
-          content: "";
-          position: absolute; inset: -1px;
-          border-radius: 14px;
-          padding: 1px;
-          background: conic-gradient(from 180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04), rgba(255,255,255,0.14));
-          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          -webkit-mask-composite: xor; mask-composite: exclude;
-          pointer-events: none;
-        }
 
         /* Progress bars: candy stripes + smooth fill */
         .cycleBar { background: rgba(255,255,255,0.12); }
@@ -785,7 +652,6 @@ export default function GamePage() {
 
         /* Responsive bumps */
         @media (max-width: 860px) {
-          .businessRow { padding: 14px 12px; }
           .actions .btn.large { padding: 12px 8px; font-size: 13px; }
         }
       `}</style>

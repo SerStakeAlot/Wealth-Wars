@@ -37,7 +37,18 @@ export function BusinessRow({ asset }: BusinessRowProps) {
   };
 
   return (
-    <div className="businessRow">
+    <div className="businessRow" style={{
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr 1fr',
+      gap: '16px',
+      background: '#1e293b',
+      border: '2px solid #ffd700',
+      borderRadius: '14px',
+      padding: '20px',
+      boxShadow: '0 6px 24px rgba(255,215,0,.3)',
+      marginBottom: '16px',
+      position: 'relative'
+    }}>
       {/* Identity Section */}
       <div className="identity">
         <div className="nameSection">
@@ -51,18 +62,53 @@ export function BusinessRow({ asset }: BusinessRowProps) {
       </div>
 
       {/* Progress Section */}
-      <div className="progress">
-        <div className="cycleBar">
-          <div className="cycleFill" style={{ width: `${progressPercent}%` }} />
-          {!isRunning && isReady && <span className="tapHint">Tap to start</span>}
-          {isRunning && <span className="timer">{formatTime(timeLeft)}</span>}
+      <div className="progress" style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+        <div className="cycleBar" style={{
+          height: '12px', 
+          width: '100%',
+          background: '#475569',
+          borderRadius: '999px', 
+          overflow: 'hidden', 
+          position: 'relative'
+        }}>
+          <div className="cycleFill" style={{ 
+            width: `${progressPercent}%`,
+            height: '100%', 
+            background: 'linear-gradient(90deg, #22c55e, #16a34a)', 
+            transition: 'width 120ms linear' 
+          }} />
+          {!isRunning && isReady && <span className="tapHint" style={{
+            position: 'absolute', 
+            inset: '0', 
+            fontSize: '11px', 
+            color: '#f1f5f9', 
+            display: 'grid', 
+            placeItems: 'center', 
+            pointerEvents: 'none'
+          }}>Tap to start</span>}
+          {isRunning && <span className="timer" style={{
+            position: 'absolute', 
+            inset: '0', 
+            fontSize: '11px', 
+            color: '#f1f5f9', 
+            display: 'grid', 
+            placeItems: 'center', 
+            pointerEvents: 'none'
+          }}>{formatTime(timeLeft)}</span>}
         </div>
-        <div className="profitInfo">Profit/cycle: {profitPerCycle} $WEALTH</div>
-        <div className="conditionBar">
+        <div className="profitInfo" style={{fontWeight: '700', color: '#f1f5f9'}}>Profit/cycle: {profitPerCycle} $WEALTH</div>
+        <div className="conditionBar" style={{
+          height: '8px', 
+          width: '100%', 
+          background: '#374151', 
+          borderRadius: '999px', 
+          overflow: 'hidden'
+        }}>
           <div
             className="conditionFill"
             style={{
               width: `${asset.condition}%`,
+              height: '100%',
               background: asset.condition < 35 ? '#ef4444' : asset.condition < 70 ? '#f59e0b' : '#22c55e'
             }}
           />
@@ -70,11 +116,27 @@ export function BusinessRow({ asset }: BusinessRowProps) {
       </div>
 
       {/* Actions Section */}
-      <div className="actions">
+      <div className="actions" style={{
+        display: 'grid', 
+        gridTemplateColumns: '1fr', 
+        gap: '8px', 
+        alignSelf: 'stretch'
+      }}>
         <button
           className="btn primary large collectBtn"
           onClick={() => collect(asset.id)}
           disabled={!isReady}
+          style={{
+            padding: '12px 10px',
+            fontSize: '14px',
+            borderRadius: '10px',
+            border: '2px solid #ffd700',
+            background: '#16a34a',
+            color: '#fff',
+            cursor: 'pointer',
+            fontWeight: '600',
+            boxShadow: '0 2px 8px rgba(255,215,0,.2)'
+          }}
         >
           {isRunning ? 'Collect' : 'Start'}
         </button>
@@ -83,6 +145,17 @@ export function BusinessRow({ asset }: BusinessRowProps) {
           className="btn dark large upgradeBtn"
           onClick={() => buyOutlet(asset.id, 1)}
           disabled={!canAffordOutlet}
+          style={{
+            padding: '12px 10px',
+            fontSize: '14px',
+            borderRadius: '10px',
+            border: '2px solid #ffd700',
+            background: '#fbbf24',
+            color: '#0f172a',
+            cursor: 'pointer',
+            fontWeight: '600',
+            boxShadow: '0 2px 8px rgba(255,215,0,.2)'
+          }}
         >
           Buy ({outletCost})
         </button>
@@ -90,6 +163,17 @@ export function BusinessRow({ asset }: BusinessRowProps) {
         <button
           className="btn ghost large defendBtn"
           onClick={() => toggleManager(asset.id, !asset.managerHired)}
+          style={{
+            padding: '12px 10px',
+            fontSize: '14px',
+            borderRadius: '10px',
+            border: '2px solid #ffd700',
+            background: '#374151',
+            color: '#f1f5f9',
+            cursor: 'pointer',
+            fontWeight: '600',
+            boxShadow: '0 2px 8px rgba(255,215,0,.2)'
+          }}
         >
           {asset.managerHired ? 'Manager ✓' : 'Hire Manager'}
         </button>
@@ -114,51 +198,60 @@ export function BusinessRow({ asset }: BusinessRowProps) {
 
 <style jsx>{`
   .businessRow {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 16px;
-    background: #fff;
-    border: 2px solid #e5e7eb;
-    border-radius: 14px;
-    padding: 20px;
-    box-shadow: 0 6px 24px rgba(15,23,42,.04);
-    margin-bottom: 16px;
-    position: relative;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 16px !important;
+    background: #1e293b !important;
+    border: 2px solid #334155 !important;
+    border-radius: 14px !important;
+    padding: 20px !important;
+    box-shadow: 0 6px 24px rgba(0,0,0,.2) !important;
+    margin-bottom: 16px !important;
+    position: relative !important;
   }
-  .identity { display: flex; flex-direction: column; gap: 8px; }
-  .nameSection { display: flex; align-items: center; gap: 8px; }
-  .businessName { margin: 0; font-size: 18px; letter-spacing: 0.08em; text-transform: uppercase; color: #0f172a; }
-  .levelBadge { background: #172554; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: 600; }
-  .outletInfo { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #6b7280; }
-  .outletCount { font-weight: 600; color: #0f172a; }
-  .milestoneHint { font-size: 12px; color: #64748b; }
+  .identity { display: flex !important; flex-direction: column !important; gap: 8px !important; }
+  .nameSection { display: flex !important; align-items: center !important; gap: 8px !important; }
+  .businessName { margin: 0 !important; font-size: 18px !important; letter-spacing: 0.08em !important; text-transform: uppercase !important; color: #f1f5f9 !important; }
+  .levelBadge { background: #fbbf24 !important; color: #0f172a !important; padding: 2px 6px !important; border-radius: 4px !important; font-size: 12px !important; font-weight: 600 !important; }
+  .outletInfo { display: flex !important; align-items: center !important; gap: 8px !important; font-size: 14px !important; color: #94a3b8 !important; }
+  .outletCount { font-weight: 600 !important; color: #f1f5f9 !important; }
+  .milestoneHint { font-size: 12px !important; color: #64748b !important; }
 
-  .progress { display: flex; flex-direction: column; gap: 8px; }
+  .progress { display: flex !important; flex-direction: column !important; gap: 8px !important; }
   .cycleBar {
-    height: 12px; width: 100%;
-    background: #e2e8f0;
-    border-radius: 999px; overflow: hidden; position: relative;
+    height: 12px !important; width: 100% !important;
+    background: #475569 !important;
+    border-radius: 999px !important; overflow: hidden !important; position: relative !important;
   }
-  .cycleFill { height: 100%; background: linear-gradient(90deg, #22c55e, #16a34a); transition: width 120ms linear; }
-  .tapHint, .timer { position: absolute; inset: 0; font-size: 11px; color: #0f172a; display: grid; place-items: center; pointer-events: none; }
-  .profitInfo { font-weight: 700; color: #0f172a; }
+  .cycleFill { height: 100% !important; background: linear-gradient(90deg, #22c55e, #16a34a) !important; transition: width 120ms linear !important; }
+  .tapHint, .timer { position: absolute !important; inset: 0 !important; font-size: 11px !important; color: #f1f5f9 !important; display: grid !important; place-items: center !important; pointer-events: none !important; }
+  .profitInfo { font-weight: 700 !important; color: #f1f5f9 !important; }
 
-  .conditionBar { height: 8px; width: 100%; background: #f1f5f9; border-radius: 999px; overflow: hidden; }
-  .conditionFill { height: 100%; }
+  .conditionBar { height: 8px !important; width: 100% !important; background: #374151 !important; border-radius: 999px !important; overflow: hidden !important; }
+  .conditionFill { height: 100% !important; }
 
-  .actions { display: grid; grid-template-columns: 1fr; gap: 8px; align-self: stretch; }
-  .btn.large { padding: 12px 10px; font-size: 14px; border-radius: 10px; }
-  .collectBtn { background: #16a34a; border: 1px solid #0f7a34; color: #fff; }
-  .collectBtn:disabled { opacity: 0.6; filter: grayscale(0.2); }
-  .upgradeBtn { background: #0f172a; color: #fff; border-color: #0f172a; }
-  .defendBtn { background: #f8fafc; border: 1px solid #cbd5e1; color: #0f172a; }
+  .actions { display: grid !important; grid-template-columns: 1fr !important; gap: 8px !important; align-self: stretch !important; }
+  .btn { 
+    border: none !important; 
+    cursor: pointer !important; 
+    font-weight: 600 !important; 
+    transition: all 0.2s ease !important;
+    font-family: inherit !important;
+  }
+  .btn:hover { transform: translateY(-1px) !important; }
+  .btn:disabled { cursor: not-allowed !important; }
+  .btn.large { padding: 12px 10px !important; font-size: 14px !important; border-radius: 10px !important; }
+  .collectBtn { background: #16a34a !important; border: 1px solid #0f7a34 !important; color: #fff !important; }
+  .collectBtn:disabled { opacity: 0.6 !important; filter: grayscale(0.2) !important; }
+  .upgradeBtn { background: #fbbf24 !important; color: #0f172a !important; border: 1px solid #f59e0b !important; font-weight: 600 !important; }
+  .defendBtn { background: #374151 !important; border: 1px solid #4b5563 !important; color: #f1f5f9 !important; }
 
-  .milestones { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .milestone { border: 1px solid #e5e7eb; background: #fff; border-radius: 999px; padding: 4px 8px; font-size: 11px; color: #334155; }
-  .milestone.achieved { background: #ecfccb; border-color: #bef264; color: #365314; font-weight: 700; }
+  .milestones { grid-column: 1 / -1 !important; display: flex !important; flex-wrap: wrap !important; gap: 6px !important; margin-top: 8px !important; }
+  .milestone { border: 1px solid #4b5563 !important; background: #374151 !important; border-radius: 999px !important; padding: 4px 8px !important; font-size: 11px !important; color: #d1d5db !important; }
+  .milestone.achieved { background: #16a34a !important; border-color: #22c55e !important; color: #fff !important; font-weight: 700 !important; }
 
   @media (max-width: 860px) {
-    .businessRow { grid-template-columns: 1fr; gap: 12px; padding: 14px; }
-    .actions { grid-template-columns: repeat(3, 1fr); }
+    .businessRow { grid-template-columns: 1fr !important; gap: 12px !important; padding: 14px !important; }
+    .actions { grid-template-columns: repeat(3, 1fr) !important; }
   }
 `}</style>

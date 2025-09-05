@@ -24,24 +24,25 @@ export function BulkBar() {
       <style jsx>{`
         .bulkBar {
           position: fixed; bottom: 0; left: 0; right: 0;
-          background: #fff; border-top: 2px solid #e5e7eb;
-          padding: 16px 20px; box-shadow: 0 -4px 12px rgba(15,23,42,0.08);
+          background: #1e293b; border-top: 3px solid #ffd700;
+          padding: 16px 20px; box-shadow: 0 -4px 12px rgba(255,215,0,0.3);
           display: flex; justify-content: center; align-items: center; z-index: 10;
         }
         .actionButtons { display: flex; gap: 8px; }
         .actionBtn {
           display: flex; align-items: center; gap: 6px;
-          padding: 10px 16px; border: 1px solid #cbd5e1;
-          background: #f8fafc; color: #0f172a; border-radius: 10px;
+          padding: 10px 16px; border: 2px solid #ffd700;
+          background: #374151; color: #f1f5f9; border-radius: 10px;
           cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;
+          box-shadow: 0 2px 8px rgba(255,215,0,.2);
         }
-        .actionBtn:hover { background: #e2e8f0; transform: translateY(-1px); }
-        .upgrades { border-color: #22c55e; color: #16a34a; }
-        .upgrades:hover { background: #dcfce7; }
-        .prestige { border-color: #f59e0b; color: #d97706; }
-        .prestige:hover { background: #fef3c7; }
-        .events { border-color: #8b5cf6; color: #7c3aed; }
-        .events:hover { background: #f3e8ff; }
+        .actionBtn:hover { background: #4b5563; transform: translateY(-1px); border-color: #ffd700; }
+        .upgrades { border-color: #ffd700; color: #16a34a; background: #064e3b; }
+        .upgrades:hover { background: #065f46; border-color: #ffd700; }
+        .prestige { border-color: #ffd700; color: #d97706; background: #451a03; }
+        .prestige:hover { background: #78350f; border-color: #ffd700; }
+        .events { border-color: #ffd700; color: #7c3aed; background: #312e81; }
+        .events:hover { background: #3730a3; border-color: #ffd700; }
         .btnIcon { font-size: 16px; }
         .btnText { font-size: 13px; }
         @media (max-width: 768px) {
