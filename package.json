@@ -1,5 +1,7 @@
 {
-  "name": "wealth-wars",
+  "name": "wealth-wars-current-alpha",
+  "version": "2.0.0",
+  "description": "Premium financial strategy game on Solana - Current Alpha with gold-bordered dark theme","name": "wealth-wars",
   "version": "1.0.0",
   "description": "A strategy game where players build financial empires on Solana Blockchain",
   "scripts": {
