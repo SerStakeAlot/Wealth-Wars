@@ -1,76 +1,79 @@
 # Business Empire Guide
 
-Master the art of building and managing your business empire in Wealth Wars. This comprehensive guide covers strategies, optimization techniques, and advanced management principles.
+Master the art of building and managing your business empire in Wealth Wars. This comprehensive guide covers strategies, optimization techniques, and advanced management principles for the daily work system.
 
 ## 🏢 Business Types Overview
 
-### Current Business Portfolio (Alpha Version)
+### Current Business Portfolio (Daily Work System)
 
 **Note**: The business types and mechanics are actively evolving. New business categories, upgraded options, and additional perks will be added as the game develops. Current businesses may receive balance updates, new features, or expanded upgrade paths based on player feedback and game progression.
 
-### Lemonade Stand (Entry Level)
-- **Cost**: 50 credits
-- **Click Bonus**: +1 credit per click
-- **ROI Period**: 50 clicks to break even
+### 🥤 Lemonade Stand (Entry Level)
+- **Cost**: 10 credits
+- **Work Multiplier**: +5 credits per work action
+- **ROI Period**: 2 work actions to break even
 - **Strategy**: Foundation building, low risk/reward
 - **Best For**: New players, steady growth, learning basics
+- **Educational Value**: Teaches basic entrepreneurial skills
 
-### Coffee Cafe (Mid Tier)
-- **Cost**: 500 credits
-- **Click Bonus**: +5 credits per click
-- **ROI Period**: 100 clicks to break even
+### ☕ Coffee Cafe (Mid Tier)
+- **Cost**: 50 credits
+- **Work Multiplier**: +25 credits per work action
+- **ROI Period**: 2 work actions to break even
 - **Strategy**: Significant scaling, moderate risk/reward
 - **Best For**: Established players, portfolio expansion
+- **Educational Value**: Advanced business management concepts
 
-### Widget Factory (Premium)
-- **Cost**: 2,000 credits
-- **Click Bonus**: +20 credits per click
-- **ROI Period**: 100 clicks to break even
+### 🏭 Widget Factory (Premium)
+- **Cost**: 200 credits
+- **Work Multiplier**: +100 credits per work action
+- **ROI Period**: 2 work actions to break even
 - **Strategy**: Premium investment, high risk/reward
 - **Best For**: Advanced players, maximum efficiency
+- **Educational Value**: Industrial-scale operations and automation
 
 ## 📊 Strategic Business Building
 
-### Early Game Strategy (0-500 credits)
+### Early Game Strategy (0-100 credits)
 
-#### Phase 1: Foundation (0-150 credits)
-1. **Focus on Active Play**: Build credit base through clicking
-2. **First Lemonade Stand**: Purchase at 50 credits for immediate ROI
-3. **Second Stand**: Buy another at 100 credits total
-4. **Third Stand**: Complete foundation with 150 credits invested
+#### Phase 1: Foundation (0-30 credits)
+1. **Focus on Daily Work**: Build credit base through consistent daily work actions
+2. **First Lemonade Stand**: Purchase at 10 credits for immediate work multiplier
+3. **Second Stand**: Buy another when you have 20 credits total
+4. **Third Stand**: Complete foundation with 30 credits invested
 
 #### Optimal Early Portfolio
-- **3 Lemonade Stands** = 150 credits invested
-- **Click Value**: +3 credits per click
-- **Break-even**: 50 clicks per stand (150 total)
+- **3 Lemonade Stands** = 30 credits invested
+- **Work Value**: +15 credits per work action
+- **Break-even**: 6 work actions total (2 per stand)
 - **Strategy**: Stable foundation with predictable returns
 
-### Mid Game Strategy (500-5,000 credits)
+### Mid Game Strategy (100-500 credits)
 
-#### Phase 2: Scaling (500-2,000 credits)
-1. **Coffee Cafe Transition**: Replace Lemonade Stands strategically
-2. **Portfolio Balance**: Mix of Cafes and remaining Stands
-3. **ROI Optimization**: Calculate optimal replacement timing
+#### Phase 2: Scaling (100-200 credits)
+1. **Coffee Cafe Transition**: Add cafes while keeping some stands
+2. **Portfolio Balance**: Mix of Cafes and Stands for stability
+3. **Work Optimization**: Calculate optimal timing for purchases
 4. **Growth Planning**: Prepare for Widget Factory investment
 
 #### Optimal Mid-Game Portfolio
-- **2-3 Coffee Cafes** = 1,000-1,500 credits invested
-- **1-2 Lemonade Stands** = 50-100 credits remaining
-- **Click Value**: +12-17 credits per click
+- **2-3 Coffee Cafes** = 100-150 credits invested
+- **2-3 Lemonade Stands** = 20-30 credits remaining
+- **Work Value**: +65-100 credits per work action
 - **Strategy**: Balanced growth with risk management
 
-### Late Game Strategy (5,000+ credits)
+### Late Game Strategy (500+ credits)
 
-#### Phase 3: Optimization (5,000+ credits)
+#### Phase 3: Optimization (500+ credits)
 1. **Widget Factory Investment**: Premium business acquisition
-2. **Portfolio Rebalancing**: Optimize business mix
-3. **Efficiency Maximization**: Highest credit per click ratio
+2. **Portfolio Rebalancing**: Optimize business mix for maximum work value
+3. **Efficiency Maximization**: Highest credits per work action ratio
 4. **Wealth Conversion**: Strategic token accumulation
 
 #### Optimal Late-Game Portfolio
-- **2-3 Widget Factories** = 4,000-6,000 credits invested
-- **1-2 Coffee Cafes** = 500-1,000 credits supplemental
-- **Click Value**: +45-70 credits per click
+- **2-3 Widget Factories** = 400-600 credits invested
+- **1-2 Coffee Cafes** = 50-100 credits supplemental
+- **Work Value**: +250-350 credits per work action
 - **Strategy**: Maximum efficiency and wealth generation
 
 ## 💡 Advanced Management Techniques
@@ -79,39 +82,39 @@ Master the art of building and managing your business empire in Wealth Wars. Thi
 
 #### Simple Payback Period
 ```
-Payback Period = Business Cost ÷ Click Bonus
-Lemonade Stand: 50 ÷ 1 = 50 clicks
-Coffee Cafe: 500 ÷ 5 = 100 clicks
-Widget Factory: 2,000 ÷ 20 = 100 clicks
+Payback Period = Business Cost ÷ Work Multiplier
+Lemonade Stand: 10 ÷ 5 = 2 work actions
+Coffee Cafe: 50 ÷ 25 = 2 work actions
+Widget Factory: 200 ÷ 100 = 2 work actions
 ```
 
 #### Portfolio Efficiency Analysis
 ```
 Total Investment = Sum of all business costs
-Total Click Bonus = Sum of all click bonuses
-Efficiency Ratio = Total Click Bonus ÷ Total Investment
+Total Work Multiplier = Sum of all work bonuses
+Efficiency Ratio = Total Work Multiplier ÷ Total Investment
 
 Example Portfolio:
-- 2 Widget Factories: 4,000 credits, +40 click bonus
-- 1 Coffee Cafe: 500 credits, +5 click bonus
-- Total: 4,500 credits invested, +45 click bonus
-- Efficiency: 45 ÷ 4,500 = 0.01 credits per credit invested
+- 2 Widget Factories: 400 credits, +200 work bonus
+- 1 Coffee Cafe: 50 credits, +25 work bonus
+- Total: 450 credits invested, +225 work bonus
+- Efficiency: 225 ÷ 450 = 0.5 credits per credit invested
 ```
 
 ### Business Replacement Strategy
 
 #### When to Upgrade
-1. **Cost-Benefit Analysis**: Compare upgrade cost vs. benefit increase
+1. **Cost-Benefit Analysis**: Compare upgrade cost vs. work multiplier increase
 2. **Liquidity Management**: Ensure sufficient credits for operations
 3. **Risk Assessment**: Balance portfolio stability with growth
 4. **Timeline Planning**: Consider long-term vs. short-term gains
 
 #### Upgrade Decision Matrix
-| Current Business | Upgrade Target | Cost Difference | Benefit Increase | ROI Improvement |
-|-----------------|----------------|-----------------|------------------|-----------------|
-| Lemonade Stand | Coffee Cafe | +450 credits | +4 click bonus | 90 clicks to benefit |
-| Coffee Cafe | Widget Factory | +1,500 credits | +15 click bonus | 100 clicks to benefit |
-| Lemonade Stand | Widget Factory | +1,950 credits | +19 click bonus | 102 clicks to benefit |
+| Current Business | Upgrade Target | Cost Difference | Work Multiplier Increase | ROI Improvement |
+|-----------------|----------------|-----------------|-------------------------|-----------------|
+| Lemonade Stand | Coffee Cafe | +40 credits | +20 work bonus | 2 work actions to benefit |
+| Coffee Cafe | Widget Factory | +150 credits | +75 work bonus | 2 work actions to benefit |
+| Lemonade Stand | Widget Factory | +190 credits | +95 work bonus | 2 work actions to benefit |
 
 ### Portfolio Diversification
 
@@ -124,43 +127,43 @@ Example Portfolio:
 #### Diversification Strategies
 
 **Conservative Portfolio (Low Risk)**
-- **60% Lemonade Stands**: Stable, predictable returns
+- **60% Lemonade Stands**: Stable, predictable work multipliers
 - **30% Coffee Cafes**: Moderate growth potential
 - **10% Reserve Credits**: Opportunity fund
 
 **Balanced Portfolio (Moderate Risk)**
-- **30% Coffee Cafes**: Primary income source
+- **30% Coffee Cafes**: Primary work multiplier source
 - **40% Widget Factories**: Growth investment
 - **20% Lemonade Stands**: Stability buffer
 - **10% Reserve Credits**: Strategic flexibility
 
 **Aggressive Portfolio (High Risk)**
-- **70% Widget Factories**: Maximum efficiency focus
+- **70% Widget Factories**: Maximum work efficiency focus
 - **20% Coffee Cafes**: Secondary support
 - **10% Reserve Credits**: Minimal safety net
 
 ## 🎯 Optimization Strategies
 
-### Click Efficiency Maximization
+### Work Efficiency Maximization
 
-#### Active Play Optimization
-1. **Peak Performance Hours**: Identify most productive play times
-2. **Click Rate Management**: Maintain sustainable clicking pace
-3. **Break Scheduling**: Avoid fatigue and maintain consistency
-4. **Streak Protection**: Prioritize daily login bonuses
+#### Daily Work Optimization
+1. **Consistent Schedule**: Maintain regular work action timing
+2. **Work Frequency Goals**: Progress toward higher work frequencies
+3. **Streak Protection**: Prioritize daily work for streak bonuses
+4. **Business Timing**: Coordinate purchases with work schedules
 
 #### Business Synergy Effects
-- **Multiple Businesses**: Compound click bonuses for maximum effect
+- **Multiple Businesses**: Compound work multipliers for maximum effect
 - **Balanced Portfolio**: Reduce dependency on single business type
-- **Strategic Timing**: Coordinate business purchases with play sessions
+- **Strategic Timing**: Coordinate business purchases with work actions
 - **Growth Planning**: Align business expansion with credit accumulation
 
 ### Credit Flow Management
 
 #### Income Optimization
-1. **Business Revenue**: Passive income from click multipliers
-2. **Active Clicking**: Direct credit generation through work
-3. **Streak Bonuses**: Daily play multiplier effects
+1. **Business Revenue**: Work multipliers from business ownership
+2. **Daily Work Actions**: Direct credit generation through work
+3. **Streak Bonuses**: Daily work multiplier effects (2 credits per day)
 4. **Conversion Timing**: Strategic credit-to-wealth exchanges
 
 #### Expense Management
@@ -196,8 +199,8 @@ Example Portfolio:
 ### Key Performance Indicators
 
 #### Business Efficiency Metrics
-- **Credits per Click**: Total click bonus across all businesses
-- **Investment Efficiency**: Click bonus per credit invested
+- **Credits per Work Action**: Total work multiplier across all businesses
+- **Investment Efficiency**: Work multiplier per credit invested
 - **Payback Speed**: Average time to recover business investments
 - **Portfolio Balance**: Distribution across business types
 
@@ -211,7 +214,7 @@ Example Portfolio:
 
 #### Forbes List Performance
 - **Empire Value Ranking**: Total business investment comparison
-- **Efficiency Ranking**: Credits per click vs. other players
+- **Efficiency Ranking**: Credits per work action vs. other players
 - **Growth Rate Ranking**: Expansion speed comparison
 - **Wealth Ranking**: $WEALTH token accumulation comparison
 
@@ -220,13 +223,13 @@ Example Portfolio:
 ### Business Management Problems
 
 #### "Should I replace all Lemonade Stands with Coffee Cafes?"
-**Analysis**: Calculate total replacement cost vs. benefit increase
+**Analysis**: Calculate total replacement cost vs. work multiplier increase
 **Recommendation**: Gradual replacement maintains stability while improving efficiency
 **Strategy**: Replace one at a time, monitor impact, then proceed
 
 #### "When should I buy my first Widget Factory?"
-**Timing**: When you have 2,500+ credits (business cost + buffer)
-**Prerequisites**: Stable credit income from existing businesses
+**Timing**: When you have 250+ credits (business cost + buffer)
+**Prerequisites**: Stable credit income from daily work and existing businesses
 **Strategy**: Ensure continued growth capability after major investment
 
 #### "How many businesses should I own?"
@@ -236,14 +239,14 @@ Example Portfolio:
 
 ### Optimization Challenges
 
-#### "My click bonus seems low compared to other players"
-**Diagnosis**: Check business composition and efficiency ratios
+#### "My work value seems low compared to other players"
+**Diagnosis**: Check business composition and work multiplier ratios
 **Solution**: Analyze ROI and consider business upgrades
 **Prevention**: Regular portfolio review and optimization
 
 #### "I'm running out of credits for new businesses"
 **Cause**: Imbalanced spending vs. income generation
-**Solution**: Focus on active clicking and existing business ROI
+**Solution**: Focus on daily work consistency and existing business ROI
 **Strategy**: Build credit reserves before major purchases
 
 ## 🎓 Learning Objectives
@@ -300,4 +303,43 @@ The development team actively seeks player feedback on:
 
 ---
 
-**Ready to master treasury management?** Combine these strategies with insights from the [Business Empire Guide](Business-Empire-Guide) and track your progress on the [Forbes List](Forbes-List-Guide)!
+**Ready to master treasury management?** Combine these strategies with insights from the [Daily Work System](Daily-Work-System) and track your progress on the [Forbes List](Forbes-List-Guide)!
+
+## 💼 Work Value Multiplication
+
+### **How Businesses Enhance Your Work**
+Your businesses don't just generate passive income - they multiply the effectiveness of your daily work actions:
+
+```
+Work Multiplier Effects:
+
+🥤 Lemonade Stand: +5 credits per work action
+- Teaches: Basic entrepreneurial skills
+- ROI: Pays for itself in 2 work actions
+- Strategy: Build 3-5 stands for solid foundation
+
+☕ Coffee Cafe: +25 credits per work action  
+- Teaches: Advanced business management
+- ROI: Pays for itself in 2 work actions
+- Strategy: Build 2-3 cafes for major boost
+
+🏭 Widget Factory: +100 credits per work action
+- Teaches: Industrial-scale operations  
+- ROI: Pays for itself in 2 work actions
+- Strategy: Build 1-2 factories for massive scaling
+```
+
+### **Work Value Progression Examples**
+```
+Early Game (Month 1):
+Day 1: 12 credits per work (10 base + 2 streak)
+Day 30: 105 credits per work (with 2 stands, 1 cafe)
+
+Mid Game (Month 3):  
+Day 90: 390 credits per work (5 stands, 3 cafes, 1 factory)
+
+Late Game (Year 1):
+Day 365: 1,055 credits per work (full business portfolio)
+```
+
+This system teaches the real-world concept that **owning productive assets multiplies your labor value** - a fundamental wealth-building principle!
