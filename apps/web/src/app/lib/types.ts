@@ -43,6 +43,11 @@ export interface Player {
     cafe: number; 
     factory: number; 
   };
+  // Enhanced Business System
+  enhancedBusinesses: string[]; // Owned enhanced business IDs
+  activeBusinessSlots: BusinessSlot[]; // Currently active business slots
+  businessCooldowns: Record<string, number>; // Business ability cooldowns
+  activeEffects: Record<string, { endTime: number; effect: any }>; // Active temporary effects
 }
 
 export interface Derived {
@@ -81,4 +86,44 @@ export interface LeaderboardPlayer {
   joinDate: string;
   lastActive: string;
   avatar: string;
+}
+
+// Enhanced Business System Types
+export interface BusinessAbility {
+  id: string;
+  name: string;
+  description: string;
+  type: 'active' | 'passive' | 'triggered';
+  cooldown?: number; // milliseconds
+  duration?: number; // milliseconds for temporary effects
+  uses?: number; // limited uses per time period
+  cost?: number; // activation cost in credits
+}
+
+export interface EnhancedBusiness {
+  id: string;
+  name: string;
+  emoji: string;
+  cost: number;
+  workMultiplier: number;
+  category: 'efficiency' | 'defensive' | 'offensive' | 'utility';
+  tier: 'basic' | 'advanced' | 'premium' | 'legendary';
+  ability: BusinessAbility;
+  prerequisites?: string[]; // required achievements or other businesses
+  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+}
+
+export interface BusinessSlot {
+  businessId: string | null;
+  isActive: boolean;
+  abilityLastUsed?: number;
+  abilityUsesRemaining?: number;
+}
+
+export interface PlayerBusinessState {
+  ownedBusinesses: string[]; // Business IDs
+  activeSlots: BusinessSlot[]; // Limited slots based on work frequency
+  businessCooldowns: Record<string, number>; // Ability cooldowns
+  takeoversReceived: number;
+  takeoversInitiated: number;
 }

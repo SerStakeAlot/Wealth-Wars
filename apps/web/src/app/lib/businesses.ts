@@ -1,0 +1,259 @@
+import { EnhancedBusiness } from './types';
+
+export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
+  // Efficiency Category (⚡ Time Management)
+  {
+    id: 'automation_factory',
+    name: 'Automation Factory',
+    emoji: '🏭',
+    cost: 500,
+    workMultiplier: 100,
+    category: 'efficiency',
+    tier: 'premium',
+    rarity: 'rare',
+    ability: {
+      id: 'rapid_processing',
+      name: 'Rapid Processing',
+      description: 'Reduces all cooldowns by 50% for 24 hours',
+      type: 'active',
+      cooldown: 7 * 24 * 60 * 60 * 1000, // 7 days
+      duration: 24 * 60 * 60 * 1000, // 24 hours
+      cost: 200
+    }
+  },
+  
+  {
+    id: 'fast_food_chain',
+    name: 'Fast Food Chain',
+    emoji: '🍔',
+    cost: 300,
+    workMultiplier: 75,
+    category: 'efficiency',
+    tier: 'advanced',
+    rarity: 'uncommon',
+    ability: {
+      id: 'quick_service',
+      name: 'Quick Service',
+      description: 'Next 3 work actions provide 20% bonus credits',
+      type: 'active',
+      cooldown: 5 * 24 * 60 * 60 * 1000, // 5 days
+      cost: 150
+    }
+  },
+
+  {
+    id: 'innovation_lab',
+    name: 'Innovation Lab',
+    emoji: '🔬',
+    cost: 400,
+    workMultiplier: 60,
+    category: 'efficiency',
+    tier: 'advanced',
+    rarity: 'uncommon',
+    ability: {
+      id: 'breakthrough',
+      name: 'Breakthrough',
+      description: 'Next work action provides 3x credits',
+      type: 'active',
+      cooldown: 4 * 24 * 60 * 60 * 1000, // 4 days
+      cost: 100
+    }
+  },
+
+  // Defensive Category (🛡️ Protection)
+  {
+    id: 'security_firm',
+    name: 'Security Firm',
+    emoji: '🛡️',
+    cost: 250,
+    workMultiplier: 50,
+    category: 'defensive',
+    tier: 'advanced',
+    rarity: 'uncommon',
+    ability: {
+      id: 'fortress_protection',
+      name: 'Fortress Protection',
+      description: 'Reduces takeover success rate against you by 50% for 48 hours',
+      type: 'passive',
+      duration: 48 * 60 * 60 * 1000, // 48 hours
+    }
+  },
+
+  {
+    id: 'insurance_company',
+    name: 'Insurance Company',
+    emoji: '🏥',
+    cost: 180,
+    workMultiplier: 40,
+    category: 'defensive',
+    tier: 'basic',
+    rarity: 'common',
+    ability: {
+      id: 'damage_insurance',
+      name: 'Damage Insurance',
+      description: 'If work streak breaks, only lose 50% instead of resetting to 0',
+      type: 'passive',
+    }
+  },
+
+  {
+    id: 'government_contract',
+    name: 'Government Contract',
+    emoji: '🏛️',
+    cost: 1000,
+    workMultiplier: 80,
+    category: 'defensive',
+    tier: 'legendary',
+    rarity: 'legendary',
+    prerequisites: ['100_work_actions', 'week_streak'],
+    ability: {
+      id: 'diplomatic_immunity',
+      name: 'Diplomatic Immunity',
+      description: 'Cannot be targeted by takeovers. +10% multiplier to all businesses.',
+      type: 'passive',
+    }
+  },
+
+  // Offensive Category (⚔️ Competition)
+  {
+    id: 'consulting_firm',
+    name: 'Consulting Firm',
+    emoji: '💼',
+    cost: 350,
+    workMultiplier: 45,
+    category: 'offensive',
+    tier: 'advanced',
+    rarity: 'uncommon',
+    ability: {
+      id: 'hostile_takeover',
+      name: 'Hostile Takeover',
+      description: 'Attempt to take over another player\'s business',
+      type: 'active',
+      cooldown: 14 * 24 * 60 * 60 * 1000, // 14 days
+      cost: 500
+    }
+  },
+
+  {
+    id: 'cyber_security',
+    name: 'Cyber Security',
+    emoji: '💻',
+    cost: 400,
+    workMultiplier: 30,
+    category: 'offensive',
+    tier: 'advanced',
+    rarity: 'rare',
+    ability: {
+      id: 'network_sabotage',
+      name: 'Network Sabotage',
+      description: 'Add 6 hours to target player\'s work cooldown',
+      type: 'active',
+      cooldown: 7 * 24 * 60 * 60 * 1000, // 7 days
+      cost: 200
+    }
+  },
+
+  {
+    id: 'market_research',
+    name: 'Market Research',
+    emoji: '📊',
+    cost: 200,
+    workMultiplier: 35,
+    category: 'offensive',
+    tier: 'basic',
+    rarity: 'common',
+    ability: {
+      id: 'intelligence_gathering',
+      name: 'Intelligence Gathering',
+      description: 'See target player\'s business portfolio and cooldown status',
+      type: 'active',
+      cooldown: 3 * 24 * 60 * 60 * 1000, // 3 days
+      cost: 50
+    }
+  },
+
+  // Utility Category (🎲 Special)
+  {
+    id: 'marketing_agency',
+    name: 'Marketing Agency',
+    emoji: '📢',
+    cost: 250,
+    workMultiplier: 30,
+    category: 'utility',
+    tier: 'basic',
+    rarity: 'common',
+    ability: {
+      id: 'viral_campaign',
+      name: 'Viral Campaign',
+      description: 'Double streak bonus for next 5 work actions',
+      type: 'active',
+      cooldown: 10 * 24 * 60 * 60 * 1000, // 10 days
+      cost: 100
+    }
+  },
+
+  {
+    id: 'investment_bank',
+    name: 'Investment Bank',
+    emoji: '🏦',
+    cost: 600,
+    workMultiplier: 80,
+    category: 'utility',
+    tier: 'premium',
+    rarity: 'rare',
+    ability: {
+      id: 'compound_interest',
+      name: 'Compound Interest',
+      description: 'Credits grow by 5% every day for 7 days (if not spent)',
+      type: 'active',
+      cooldown: 14 * 24 * 60 * 60 * 1000, // 14 days
+      cost: 300
+    }
+  },
+
+  {
+    id: 'venture_capital',
+    name: 'Venture Capital',
+    emoji: '🎰',
+    cost: 200,
+    workMultiplier: 35,
+    category: 'utility',
+    tier: 'basic',
+    rarity: 'common',
+    ability: {
+      id: 'high_risk_investment',
+      name: 'High Risk Investment',
+      description: 'Gamble credits for 2x-5x return (60% loss chance)',
+      type: 'active',
+      cooldown: 24 * 60 * 60 * 1000, // Daily
+    }
+  }
+];
+
+// Helper functions
+export function getBusinessById(id: string): EnhancedBusiness | undefined {
+  return ENHANCED_BUSINESSES.find(business => business.id === id);
+}
+
+export function getBusinessesByCategory(category: 'efficiency' | 'defensive' | 'offensive' | 'utility'): EnhancedBusiness[] {
+  return ENHANCED_BUSINESSES.filter(business => business.category === category);
+}
+
+export function getAvailableBusinesses(ownedBusinessIds: string[], totalWorkActions: number, streakDays: number): EnhancedBusiness[] {
+  return ENHANCED_BUSINESSES.filter(business => {
+    // Check if already owned
+    if (ownedBusinessIds.includes(business.id)) return false;
+    
+    // Check prerequisites
+    if (business.prerequisites) {
+      return business.prerequisites.every(req => {
+        if (req === '100_work_actions') return totalWorkActions >= 100;
+        if (req === 'week_streak') return streakDays >= 7;
+        // Add more prerequisite checks as needed
+        return true;
+      });
+    }
+    
+    return true;
+  });
+}

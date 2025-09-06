@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import { Asset, Player, Derived, LeaderboardPlayer } from './types';
+import { Asset, Player, Derived, LeaderboardPlayer, EnhancedBusiness, BusinessSlot } from './types';
 import { calculateAssetValue, calculateRisk, getPriceInSol, calculateProfitPerSecond, calculateOutletCost, calculateMultiplier, getNextMilestone, DEFAULT_CYCLE_MS, MILESTONES } from './balance';
 import { prestigeFromBehavior, CLAN_MIN_LEVEL } from './prestige';
+import { ENHANCED_BUSINESSES } from './businesses';
 
 interface GameState extends Player {
   assets: Asset[];
@@ -18,6 +19,12 @@ interface GameState extends Player {
   clickWork: () => void;
   buyBusiness: (bizKind: number) => void;
   initPlayer: () => void;
+  // Enhanced Business System
+  buyEnhancedBusiness: (businessId: string) => boolean;
+  activateBusinessAbility: (businessId: string) => boolean;
+  setBusinessActive: (businessId: string, slotIndex: number) => boolean;
+  getActiveEffects: () => Record<string, any>;
+  getMaxActiveSlots: () => number;
   // Solana integration functions
   initPlayerOnChain: () => Promise<void>;
   clickWorkOnChain: () => Promise<void>;
@@ -135,6 +142,12 @@ export const useGame = create<GameState>((set, get) => ({
     cafe: 0,
     factory: 0
   },
+
+  // Enhanced Business System
+  enhancedBusinesses: [],
+  activeBusinessSlots: [],
+  businessCooldowns: {},
+  activeEffects: {},
 
   // Solana state
   isOnChainMode: false,
@@ -479,7 +492,42 @@ export const useGame = create<GameState>((set, get) => ({
         (state.business.cafe * 25) +        // +25 credits per coffee cafe
         (state.business.factory * 100);     // +100 credits per widget factory
       
-      const workValue = baseCredits + streakBonus + businessBonus;
+      // Enhanced business bonuses
+      let enhancedBusinessBonus = 0;
+      state.activeBusinessSlots.forEach(slot => {
+        if (slot.isActive && slot.businessId) {
+          const business = ENHANCED_BUSINESSES.find(b => b.id === slot.businessId);
+          if (business) {
+            enhancedBusinessBonus += business.workMultiplier;
+          }
+        }
+      });
+      
+      // Apply active effects
+      const activeEffects = get().getActiveEffects();
+      let workMultiplier = 1;
+      let streakMultiplier = 1;
+      let cooldownReduction = 0;
+      
+      Object.values(activeEffects).forEach(effect => {
+        const ability = effect.effect;
+        if (ability.id === 'rapid_processing') {
+          cooldownReduction = 0.5; // 50% cooldown reduction
+        } else if (ability.id === 'breakthrough') {
+          workMultiplier = 3; // 3x credits for this work action
+        } else if (ability.id === 'quick_service') {
+          workMultiplier = 1.2; // 20% bonus
+        } else if (ability.id === 'viral_campaign') {
+          streakMultiplier = 2; // Double streak bonus
+        }
+      });
+      
+      const adjustedStreakBonus = Math.floor(streakBonus * streakMultiplier);
+      const totalBaseValue = baseCredits + adjustedStreakBonus + businessBonus + enhancedBusinessBonus;
+      const workValue = Math.floor(totalBaseValue * workMultiplier);
+      
+      // Apply cooldown reduction
+      const adjustedBaseCooldown = Math.floor(baseCooldown * (1 - cooldownReduction));
       
       // Check if it's a new day for streak calculation
       const currentDay = Math.floor(now / (24 * 60 * 60 * 1000));
@@ -495,7 +543,7 @@ export const useGame = create<GameState>((set, get) => ({
         streakDays: newStreakDays,
         lastWorkDay: currentDay,
         lastWorkTime: now,
-        workCooldown: baseCooldown,
+        workCooldown: adjustedBaseCooldown,
         workFrequency,
         totalWorkActions: (state.totalWorkActions || 0) + 1,
         totalCreditsEarned: (state.totalCreditsEarned || 0) + workValue,
@@ -536,6 +584,148 @@ export const useGame = create<GameState>((set, get) => ({
     });
   },
 
+  // Enhanced Business System Methods
+  buyEnhancedBusiness: (businessId: string) => {
+    const state = get();
+    const business = ENHANCED_BUSINESSES.find(b => b.id === businessId);
+    
+    if (!business) return false;
+    if (state.creditBalance < business.cost) return false;
+    if (state.enhancedBusinesses.includes(businessId)) return false;
+    
+    // Check prerequisites
+    if (business.prerequisites) {
+      const meetsPrereqs = business.prerequisites.every(req => {
+        if (req === '100_work_actions') return state.totalWorkActions >= 100;
+        if (req === 'week_streak') return state.streakDays >= 7;
+        return true;
+      });
+      if (!meetsPrereqs) return false;
+    }
+    
+    set(state => ({
+      creditBalance: state.creditBalance - business.cost,
+      enhancedBusinesses: [...state.enhancedBusinesses, businessId],
+    }));
+    
+    return true;
+  },
+
+  activateBusinessAbility: (businessId: string) => {
+    const state = get();
+    const business = ENHANCED_BUSINESSES.find(b => b.id === businessId);
+    
+    if (!business || !state.enhancedBusinesses.includes(businessId)) return false;
+    if (business.ability.type === 'passive') return false; // Passive abilities don't need activation
+    
+    // Check cooldown
+    const lastUsed = state.businessCooldowns[businessId] || 0;
+    const now = Date.now();
+    if (business.ability.cooldown && now - lastUsed < business.ability.cooldown) return false;
+    
+    // Check cost
+    if (business.ability.cost && state.creditBalance < business.ability.cost) return false;
+    
+    set(state => {
+      const updates: any = {
+        businessCooldowns: {
+          ...state.businessCooldowns,
+          [businessId]: now
+        }
+      };
+      
+      // Deduct cost if any
+      if (business.ability.cost) {
+        updates.creditBalance = state.creditBalance - business.ability.cost;
+      }
+      
+      // Apply temporary effects
+      if (business.ability.duration) {
+        updates.activeEffects = {
+          ...state.activeEffects,
+          [business.ability.id]: {
+            endTime: now + business.ability.duration,
+            effect: business.ability
+          }
+        };
+      }
+      
+      return updates;
+    });
+    
+    return true;
+  },
+
+  setBusinessActive: (businessId: string, slotIndex: number) => {
+    const state = get();
+    const maxSlots = get().getMaxActiveSlots();
+    
+    if (slotIndex >= maxSlots) return false;
+    if (!state.enhancedBusinesses.includes(businessId)) return false;
+    
+    set(state => {
+      const newSlots = [...state.activeBusinessSlots];
+      
+      // Ensure we have enough slots
+      while (newSlots.length <= slotIndex) {
+        newSlots.push({ businessId: null, isActive: false });
+      }
+      
+      // Deactivate any existing slot with this business
+      newSlots.forEach(slot => {
+        if (slot.businessId === businessId) {
+          slot.businessId = null;
+          slot.isActive = false;
+        }
+      });
+      
+      // Set new slot
+      newSlots[slotIndex] = {
+        businessId,
+        isActive: true,
+        abilityLastUsed: 0,
+        abilityUsesRemaining: undefined
+      };
+      
+      return { activeBusinessSlots: newSlots };
+    });
+    
+    return true;
+  },
+
+  getActiveEffects: () => {
+    const state = get();
+    const now = Date.now();
+    const activeEffects: Record<string, any> = {};
+    
+    // Clean up expired effects and return active ones
+    Object.entries(state.activeEffects).forEach(([effectId, effect]) => {
+      if (effect.endTime > now) {
+        activeEffects[effectId] = effect;
+      }
+    });
+    
+    // Update state to remove expired effects
+    set(state => ({
+      activeEffects
+    }));
+    
+    return activeEffects;
+  },
+
+  getMaxActiveSlots: () => {
+    const state = get();
+    // Number of active slots based on work frequency
+    switch (state.workFrequency) {
+      case 'novice': return 1;
+      case 'apprentice': return 2;
+      case 'skilled': return 3;
+      case 'expert': return 4;
+      case 'master': return 5;
+      default: return 1;
+    }
+  },
+
   initPlayer: () => {
     // Initialize or reset player to demo state
     set(state => ({
@@ -555,6 +745,11 @@ export const useGame = create<GameState>((set, get) => ({
         cafe: 0,
         factory: 0
       },
+      // Enhanced Business System initialization
+      enhancedBusinesses: [],
+      activeBusinessSlots: [],
+      businessCooldowns: {},
+      activeEffects: {},
       level: 1,
       xp: 0,
     }));
