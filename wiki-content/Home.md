@@ -48,7 +48,8 @@ Welcome to the comprehensive Wealth Wars documentation wiki. This wiki contains 
 Wealth Wars is currently in **Alpha Development** with the following features live:
 
 ✅ **Core Gameplay**
-- Click-to-work credit system
+- Daily work system with strategic timing
+- Business empire building and management
 - Business empire building
 - Forbes List leaderboard
 - Treasury conversion system

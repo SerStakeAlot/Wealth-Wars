@@ -1,6 +1,6 @@
 # Game Overview
 
-Wealth Wars is a gamified financial literacy platform that teaches real-world financial concepts through engaging click-to-earn mechanics and strategic gameplay.
+Wealth Wars is a gamified financial literacy platform that teaches real-world financial concepts through engaging daily work mechanics and strategic gameplay.
 
 ## 🎯 Core Concept
 
@@ -8,15 +8,15 @@ Learn financial literacy naturally through gameplay - no forced lessons, just st
 
 ## 🎮 Game Mechanics
 
-### Click-to-Work System
-- **Basic Clicking**: Earn credits through active engagement
-- **Streak Bonuses**: Daily play increases credit multipliers
-- **Strategic Timing**: Learn optimal work scheduling
+### Daily Work System
+- **Daily Work Actions**: Earn credits through meaningful daily engagement
+- **Streak Bonuses**: Daily consistency increases credit multipliers
+- **Strategic Timing**: Learn optimal work scheduling and cooldown management
 
 ### Business Empire Building
-- **Lemonade Stands**: Entry-level businesses (+1 credit/click)
-- **Coffee Cafes**: Mid-tier operations (+5 credits/click)  
-- **Widget Factories**: Premium enterprises (+20 credits/click)
+- **Lemonade Stands**: Entry-level businesses (+5 credits per work action)
+- **Coffee Cafes**: Mid-tier operations (+25 credits per work action)  
+- **Widget Factories**: Premium enterprises (+100 credits per work action)
 
 ### Credit & $WEALTH Economy
 - **Asymmetric Exchange**: 
@@ -95,7 +95,7 @@ Players organically develop skills through gameplay:
 ## 🎪 Why Play Wealth Wars?
 
 ### For Entertainment
-- Engaging click-to-earn mechanics
+- Engaging daily work mechanics with strategic depth
 - Strategic depth and complexity
 - Social competition and collaboration
 - Regular content updates and events

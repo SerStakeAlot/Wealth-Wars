@@ -64,19 +64,19 @@ Engagement-Based Cooldowns:
 
 Tier 1: Small Conversions (100-999 credits)
 - Base Cooldown: 30 minutes
-- Active Reduction: 1 min per 5 clicks
+- Active Reduction: 1 min per 5 work actions
 - Daily Limit: 20 conversions max
 - Min Cooldown: 5 minutes
 
 Tier 2: Medium Conversions (1,000-4,999 credits)
 - Base Cooldown: 90 minutes
-- Active Reduction: 1 min per 10 clicks
+- Active Reduction: 1 min per 10 work actions
 - Daily Limit: 8 conversions max
 - Min Cooldown: 15 minutes
 
 Tier 3: Large Conversions (5,000+ credits)
 - Base Cooldown: 3 hours
-- Active Reduction: 1 min per 20 clicks
+- Active Reduction: 1 min per 20 work actions
 - Daily Limit: 4 conversions max
 - Min Cooldown: 30 minutes
 ```
@@ -93,7 +93,7 @@ Conversion Costs:
 - Large: 75 energy points
 
 Energy Boosts:
-- Active Clicking: +1 energy per 10 clicks
+- Active Work: +1 energy per 10 work actions
 - Business Purchases: +15 energy boost
 - Achievement Unlocks: +20 energy boost
 - Guild Activities: +10 energy boost
@@ -420,8 +420,8 @@ Business Investment ROI vs. $WEALTH Holding:
 
 Business Option:
 - Cost: 2,000 credits
-- Benefit: +20 credits per click
-- Payback: 100 clicks
+- Benefit: +100 credits per work action
+- Payback: 20 work actions
 
 $WEALTH Option:
 - Convert: 2,000 credits → 196 $WEALTH

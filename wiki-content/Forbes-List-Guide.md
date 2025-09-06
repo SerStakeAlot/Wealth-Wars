@@ -30,7 +30,7 @@ The Forbes List is Wealth Wars' global leaderboard system that ranks players bas
 - **Market Timing**: Optimal conversion decision-making
 
 #### 3. Strategic Efficiency
-- **Credits per Click**: Total click multiplier from businesses
+- **Credits per Work Action**: Total work multiplier from businesses
 - **ROI Performance**: Return on investment across portfolio
 - **Growth Rate**: Speed of empire building
 - **Resource Optimization**: Effective credit and wealth management
@@ -68,7 +68,7 @@ The Forbes List is Wealth Wars' global leaderboard system that ranks players bas
   - Widget Factories: Quantity and investment
 
 #### Performance Metrics
-- **Credits per Click**: Current click multiplier
+- **Credits per Work Action**: Current work multiplier
 - **$WEALTH Balance**: Token holdings
 - **Growth Rate**: Empire expansion speed
 - **Efficiency Ratio**: Investment optimization score
@@ -97,15 +97,15 @@ The Forbes List is Wealth Wars' global leaderboard system that ranks players bas
 
 #### Quick Wins
 - **Daily Streaks**: Easy ranking boost through consistency
-- **Business Efficiency**: Optimize click-to-business ratio
+- **Business Efficiency**: Optimize work-to-business ratio
 - **Profile Completion**: Maximize visible achievements
-- **Strategic Clicking**: Focus on productive play sessions
+- **Strategic Work Actions**: Focus on productive daily sessions
 
 ### Mid Game Strategy (Ranks 100-1000)
 
 #### Portfolio Optimization
 1. **Coffee Cafe Transition**: Strategic upgrade to mid-tier businesses
-2. **Efficiency Focus**: Maximize credits per click ratios
+2. **Efficiency Focus**: Maximize credits per work action ratios
 3. **Wealth Accumulation**: Begin strategic credit-to-$WEALTH conversion
 4. **Competitive Analysis**: Study top 100 player strategies
 
@@ -137,7 +137,7 @@ The Forbes List is Wealth Wars' global leaderboard system that ranks players bas
 - **Daily Consistency**: Never miss login streaks
 - **Business Foundation**: Solid Lemonade Stand portfolio
 - **Learning Attitude**: Study successful strategies
-- **Basic Optimization**: Improve click efficiency
+- **Basic Optimization**: Improve work action efficiency
 
 #### Common Mistakes to Avoid
 - **Sporadic Play**: Inconsistent engagement hurts rankings
@@ -150,7 +150,7 @@ The Forbes List is Wealth Wars' global leaderboard system that ranks players bas
 #### Advanced Requirements
 - **Strategic Portfolio**: Optimized business composition
 - **Wealth Management**: Significant $WEALTH accumulation
-- **Efficiency Mastery**: High credits per click ratios
+- **Efficiency Mastery**: High credits per work action ratios
 - **Market Understanding**: Strategic conversion timing
 
 #### Competitive Differentiators
@@ -181,7 +181,7 @@ The Forbes List is Wealth Wars' global leaderboard system that ranks players bas
 - **Business Mix**: Ratio of different business types
 - **Investment Timing**: When they made major purchases
 - **Growth Pattern**: Speed and consistency of expansion
-- **Efficiency Metrics**: Credits per click and ROI performance
+- **Efficiency Metrics**: Credits per work action and ROI performance
 
 #### Strategic Patterns
 - **Conversion Timing**: When they exchange credits for $WEALTH

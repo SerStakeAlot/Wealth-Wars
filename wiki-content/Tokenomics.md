@@ -58,7 +58,7 @@ Complete economic model and distribution strategy for the $WEALTH token ecosyste
 | **Common** | 150 NFTs | 500 $WEALTH | 30,000 $WEALTH |
 
 ### Allocation Strategy
-- **50%** (150 NFTs) - Top clickers during launch period
+- **50%** (150 NFTs) - Top performers during launch period
 - **30%** (90 NFTs) - Early supporters and community contributors
 - **20%** (60 NFTs) - Strategic partnerships and influencers
 
