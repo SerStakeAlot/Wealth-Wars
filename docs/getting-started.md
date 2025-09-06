@@ -7,8 +7,8 @@ Welcome to Wealth Wars! This guide will help you understand the core mechanics a
 Wealth Wars is a gamified financial literacy platform where you learn real financial concepts through engaging gameplay. No explicit teaching - you learn by playing!
 
 ### Core Concept
-- **Click to Work**: Earn credits through active engagement
-- **Build Businesses**: Invest credits in businesses that provide multipliers
+- **Daily Work**: Earn credits through meaningful daily engagement
+- **Build Businesses**: Invest credits in businesses that provide work multipliers
 - **Convert Assets**: Exchange credits for $WEALTH tokens strategically
 - **Compete**: Rise through the Forbes List leaderboard
 
@@ -16,24 +16,24 @@ Wealth Wars is a gamified financial literacy platform where you learn real finan
 
 ### 1. First Steps
 1. **Connect Wallet**: Link your Solana wallet (Phantom, Solflare, etc.)
-2. **Start Clicking**: Click the "Work for Credits" button to begin earning
-3. **Build Streak**: Daily login bonuses increase your earning potential
-4. **Buy First Business**: Invest in a Lemonade Stand for passive income
+2. **Start Working**: Click the "Do Work" button to begin your daily work routine
+3. **Build Streak**: Daily consistency increases your earning potential
+4. **Buy First Business**: Invest in a Lemonade Stand for work multipliers
 
 ### 2. Understanding Credits
-- **Base Earning**: 1 credit per click initially
-- **Streak Bonus**: Daily login multiplies your earning rate
-- **Business Multipliers**: Each business type increases click value
+- **Base Earning**: 10 base credits + streak bonus per work action
+- **Streak Bonus**: Daily consistency multiplies your earning rate (2 credits per day)
+- **Business Multipliers**: Each business type increases work action value
 - **Strategic Timing**: Learn when to convert credits to $WEALTH
 
 ### 3. Business Empire Building
 
 #### Business Types
-| Business | Cost | Click Bonus | Strategy |
-|----------|------|-------------|----------|
-| Lemonade Stand | 50 credits | +1 credit/click | Entry-level investment |
-| Coffee Cafe | 200 credits | +5 credits/click | Mid-tier growth |
-| Widget Factory | 1000 credits | +20 credits/click | Premium investment |
+| Business | Cost | Work Bonus | Strategy |
+|----------|------|------------|----------|
+| Lemonade Stand | 10 credits | +5 credits per work action | Entry-level investment |
+| Coffee Cafe | 50 credits | +25 credits per work action | Mid-tier growth |
+| Widget Factory | 200 credits | +100 credits per work action | Premium investment |
 
 #### Investment Strategy
 - **Start Small**: Begin with Lemonade Stands
@@ -120,7 +120,7 @@ Wealth Wars is a gamified financial literacy platform where you learn real finan
 
 ### Main Game Screen
 - **Credit Balance**: Your current credit total (top left)
-- **Work Button**: Click to earn credits (center)
+- **Work Button**: Click to perform daily work (center)
 - **Business Grid**: Your current investments (bottom)
 - **Treasury**: Conversion interface (right panel)
 
@@ -153,7 +153,7 @@ Wealth Wars is a gamified financial literacy platform where you learn real finan
 ## ❓ Common Questions
 
 ### "How do I start earning?"
-Click the "Work for Credits" button! Each click earns credits based on your current multipliers and streak bonus.
+Click the "Do Work" button! Each daily work action earns credits based on your current work multipliers and streak bonus.
 
 ### "What's the best first business?"
 Start with Lemonade Stands - they're affordable and help you understand the business mechanics.
@@ -162,14 +162,14 @@ Start with Lemonade Stands - they're affordable and help you understand the busi
 When you have excess credits and want to secure long-term value. The 10:1 rate means you need significant credits to make it worthwhile.
 
 ### "How do streaks work?"
-Daily logins increase your earning multiplier. The longer your streak, the more credits you earn per click.
+Daily consistency increases your earning multiplier. The longer your streak, the more credits you earn per work action.
 
 ### "Is this a game or education?"
 Both! You're playing an engaging game while naturally learning financial concepts that apply to real-world investing.
 
 ## 🚀 Next Steps
 
-1. **Start Playing**: Jump into the game and begin clicking
+1. **Start Playing**: Jump into the game and begin your daily work routine
 2. **Join Community**: Connect with other players when guilds launch
 3. **Study Strategy**: Watch successful players and learn their methods
 4. **Stay Updated**: Follow development progress and new features
