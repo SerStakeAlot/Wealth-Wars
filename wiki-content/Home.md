@@ -11,6 +11,7 @@ Welcome to the comprehensive Wealth Wars documentation wiki. This wiki contains 
 
 ### Player Guides
 - **[Getting Started](Getting-Started)** - How to start playing Wealth Wars
+- **[Daily Work System](Daily-Work-System)** - Master daily work actions and cooldown optimization
 - **[Business Empire Guide](Business-Empire-Guide)** - Building and managing your businesses
 - **[Forbes List Guide](Forbes-List-Guide)** - Understanding the leaderboard system
 - **[Treasury System](Treasury-System)** - Credit and $WEALTH conversion mechanics
