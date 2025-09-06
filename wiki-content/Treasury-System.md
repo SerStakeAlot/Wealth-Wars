@@ -56,26 +56,47 @@ Without conversion limits, high-performing players could destabilize the entire 
 - **Strategic Planning**: Encourages thoughtful conversion decisions
 - **Real-World Learning**: Teaches patience and market timing like real financial markets
 
-### **Cooldown Mechanics**
+### **Dynamic Cooldown System**
 
 #### **Credit → $WEALTH Cooldowns**
 ```
-Conversion Tier System:
+Engagement-Based Cooldowns:
 
 Tier 1: Small Conversions (100-999 credits)
-- Cooldown: 1 hour
-- Daily Limit: 12 conversions max
-- Purpose: Allows regular small conversions
+- Base Cooldown: 30 minutes
+- Active Reduction: 1 min per 5 clicks
+- Daily Limit: 20 conversions max
+- Min Cooldown: 5 minutes
 
-Tier 2: Medium Conversions (1,000-4,999 credits) 
-- Cooldown: 4 hours
-- Daily Limit: 6 conversions max
-- Purpose: Strategic medium conversions
+Tier 2: Medium Conversions (1,000-4,999 credits)
+- Base Cooldown: 90 minutes
+- Active Reduction: 1 min per 10 clicks
+- Daily Limit: 8 conversions max
+- Min Cooldown: 15 minutes
 
 Tier 3: Large Conversions (5,000+ credits)
-- Cooldown: 12 hours  
-- Daily Limit: 2 conversions max
-- Purpose: Major strategic moves only
+- Base Cooldown: 3 hours
+- Active Reduction: 1 min per 20 clicks
+- Daily Limit: 4 conversions max
+- Min Cooldown: 30 minutes
+```
+
+#### **Conversion Energy Alternative**
+```
+Energy Pool System:
+
+Maximum Energy: 100 points
+Regeneration Rate: 1 point per 5 minutes (12 per hour)
+Conversion Costs:
+- Small: 25 energy points
+- Medium: 50 energy points
+- Large: 75 energy points
+
+Energy Boosts:
+- Active Clicking: +1 energy per 10 clicks
+- Business Purchases: +15 energy boost
+- Achievement Unlocks: +20 energy boost
+- Guild Activities: +10 energy boost
 ```
 
 #### **$WEALTH → Credit Cooldowns**
