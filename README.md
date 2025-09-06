@@ -1,7 +1,7 @@
 # Wealth Wars - Current Alpha
 **Gamified Financial Literacy Platform on Solana Blockchain**
 
-Build your financial empire through engaging click-to-earn mechanics that naturally teach real-world financial concepts. Wealth Wars combines premium gaming experiences with inherent financial education.
+Build your financial empire through engaging daily work mechanics that naturally teach real-world financial concepts. Wealth Wars combines premium gaming experiences with inherent financial education through meaningful daily actions.
 
 ## 📚 **Project Documentation**
 
@@ -12,7 +12,7 @@ Build your financial empire through engaging click-to-earn mechanics that natura
 - 📋 **[Session Summary](./SESSION_SUMMARY.md)** - Development history and feature evolution
 
 ### **Quick Links**
-- 🎮 **Game**: `/game` - Click-to-earn with business empire building
+- 🎮 **Game**: `/game` - Daily work system with business empire building
 - 📊 **Forbes List**: `/forbes` - Global leaderboard and player profiles
 - ℹ️ **About**: `/about` - Project information and navigation
 
@@ -24,12 +24,20 @@ Build your financial empire through engaging click-to-earn mechanics that natura
 - **Premium Feel**: Gold-tinted shadows and hover effects for luxury gaming experience
 - **Visual Hierarchy**: Gold borders clearly distinguish interactive elements
 
-### **Credit-Based Tokenomics System**
-- **Credit Balance**: Clean credit accumulation with streak bonuses
-- **Click Work System**: Earn credits with daily streak multipliers
-- **Business Investments**: Three business types (Lemonade Stand, Coffee Cafe, Widget Factory)
-- **Progressive Rewards**: Each business purchase increases earning potential
-- **Token Integration**: Seamless credit-to-$WEALTH conversion system
+### **Daily Work System & Tokenomics**
+- **Credit Balance**: Clean credit accumulation with meaningful work actions
+- **Daily Work Actions**: Single powerful work action per day with 24-hour cooldown
+- **Work Value Growth**: Work becomes more valuable with streak bonuses and business multipliers
+- **Frequency Unlocks**: Progress from 24h → 18h → 12h → 8h → 6h work cooldowns
+- **Business Multipliers**: Businesses multiply work effectiveness (not just passive income)
+- **Token Integration**: Strategic credit-to-$WEALTH conversion system
+
+### **Business Empire Building**
+- **Lemonade Stand**: +5 credits per work action (entry-level entrepreneurship)
+- **Coffee Cafe**: +25 credits per work action (advanced business management)  
+- **Widget Factory**: +100 credits per work action (industrial-scale operations)
+- **Progressive Investment**: Each business purchase multiplies work value
+- **Strategic Timing**: Plan business purchases around work schedules
 
 ### **Treasury & Token Swap System**
 - **Dual Mode Operation**: Demo mode for testing, Solana mode for real transactions
@@ -39,15 +47,12 @@ Build your financial empire through engaging click-to-earn mechanics that natura
 - **User-Friendly Interface**: Clean swap cards with input validation
 
 ### **Forbes List Leaderboard System**
-- **Global Rankings**: Track top players by credits, clicks, and business empire size
+- **Global Rankings**: Track top players by credits, work actions, and business empire size
 - **Interactive Profiles**: Click any player to view detailed business strategies
 - **Top 3 Podium**: Special highlighting for the highest-performing players
-- **Comprehensive Stats**: Credits, total clicks, streak days, clan affiliations
+- **Comprehensive Stats**: Credits, work actions, streak days, work frequency tiers
 - **Business Analysis**: View other players' lemonade stands, cafes, and factories
 - **Real-time Activity**: Track when players were last active
-- **Asset Management**: Build and upgrade various business assets
-- **Economic Warfare**: Strategic takeovers and defense systems
-- **Liquidity Management**: Balance risk and reward in asset conditions
 - **Prestige System**: Long-term progression and clan features
 - **Real-time Updates**: Live profit tracking and automated collection
 
