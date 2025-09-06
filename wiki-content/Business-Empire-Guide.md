@@ -4,6 +4,8 @@ Master the art of building and managing your business empire in Wealth Wars. Thi
 
 ## 🏢 Business Types Overview
 
+> **⚠️ Note**: The current business types represent the initial implementation. Additional business categories and types are planned for future updates, and existing businesses may be rebalanced or modified based on gameplay data and community feedback. Stay tuned for new investment opportunities!
+
 ### Lemonade Stand (Entry Level)
 - **Cost**: 50 credits
 - **Click Bonus**: +1 credit per click
@@ -249,6 +251,38 @@ Example Portfolio:
 - **Financial Planning**: Goal setting and milestone achievement
 - **Risk Management**: Balancing growth with stability
 - **Performance Analysis**: Measuring and optimizing investments
+
+## 🔮 Future Business Expansions
+
+### Planned Business Categories
+The current three-tier business system is just the beginning. Future updates will introduce:
+
+#### Advanced Business Types
+- **Tech Startups**: High-risk, high-reward ventures with variable returns
+- **Real Estate**: Stable, long-term investments with compound growth
+- **Franchise Operations**: Scalable businesses with network effects
+- **Digital Services**: Modern economy businesses with unique mechanics
+
+#### Specialized Industries
+- **Seasonal Businesses**: Limited-time opportunities with bonus multipliers
+- **Partnership Ventures**: Collaborative businesses requiring guild coordination
+- **Innovation Labs**: Research and development with breakthrough potential
+- **Global Enterprises**: International expansion with currency mechanics
+
+#### Dynamic Features
+- **Market Conditions**: Business performance affected by economic cycles
+- **Competition Effects**: Player actions influencing business success rates
+- **Upgrade Paths**: Advanced customization and specialization options
+- **Cross-Business Synergies**: Portfolio effects and combination bonuses
+
+### Community Input
+Future business additions will be influenced by:
+- **Player Feedback**: Community suggestions and preferences
+- **Gameplay Data**: Performance metrics and balance analysis  
+- **Educational Goals**: New financial concepts to teach through gameplay
+- **Market Evolution**: Real-world business trends and opportunities
+
+**Stay engaged with the community to influence future business development!**
 
 ---
 
