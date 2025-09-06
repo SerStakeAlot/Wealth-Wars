@@ -133,7 +133,7 @@ This current alpha provides everything you need to:
 - Global leaderboard tracking top players and their strategies
 - Interactive player profiles with business empire breakdowns
 - Top 3 podium display with special styling
-- Comprehensive stats: credits, clicks, streaks, clan affiliations
+- Comprehensive stats: credits, work actions, streaks, clan affiliations
 - Click-to-view detailed player analysis and business portfolios
 
 ## 🏗️ Project Structure

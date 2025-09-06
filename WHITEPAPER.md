@@ -3,7 +3,7 @@
 
 ### Executive Summary
 
-Wealth Wars is a gamified financial literacy platform built on Solana that teaches users real-world financial concepts through engaging click-to-earn mechanics, business empire building, and strategic wealth management. Players earn $WEALTH tokens through active gameplay while naturally learning fundamental financial principles through the game's inherent design.
+Wealth Wars is a gamified financial literacy platform built on Solana that teaches users real-world financial concepts through engaging daily work mechanics, business empire building, and strategic wealth management. Players earn $WEALTH tokens through meaningful daily engagement while naturally learning fundamental financial principles through the game's inherent design.
 
 ### Vision Statement
 
@@ -19,10 +19,10 @@ To democratize financial education by creating an engaging, competitive gaming e
 5. **Natural Learning** - Each mechanic inherently teaches real financial concepts
 
 ### 1.2 Business Empire System
-- **Lemonade Stands** - Entry-level businesses (+1 credit/click)
-- **Coffee Cafes** - Mid-tier operations (+5 credits/click)
-- **Widget Factories** - Premium enterprises (+20 credits/click)
-- **Business Perks**: Click multipliers, fee waivers, takeover/defense bonuses
+- **Lemonade Stands** - Entry-level businesses (+5 credits per work action)
+- **Coffee Cafes** - Mid-tier operations (+25 credits per work action)
+- **Widget Factories** - Premium enterprises (+100 credits per work action)
+- **Business Perks**: Work multipliers, fee waivers, takeover/defense bonuses
 
 ### 1.3 Inherent Financial Education
 - **Compound Interest** - Business upgrades demonstrate exponential growth through gameplay
@@ -70,7 +70,7 @@ To democratize financial education by creating an engaging, competitive gaming e
   - **Common (150 NFTs)**: 500 $WEALTH/month yield
 
 ### 3.2 Allocation Strategy
-- **50%** (150 NFTs) - Top clickers during launch period
+- **50%** (150 NFTs) - Top performers during launch period
 - **30%** (90 NFTs) - Early supporters and community contributors
 - **20%** (60 NFTs) - Strategic partnerships and influencers
 
@@ -173,7 +173,7 @@ To democratize financial education by creating an engaging, competitive gaming e
 - **Economic Cycles**: Adapting to era changes and market conditions
 
 ### 7.2 Progressive Skill Development
-1. **Beginner**: Basic clicking and business understanding
+1. **Beginner**: Basic daily work actions and business understanding
 2. **Intermediate**: Conversion timing and guild participation
 3. **Advanced**: Complex PvP strategies and territory management
 4. **Expert**: Teaching others through guild leadership and mentorship

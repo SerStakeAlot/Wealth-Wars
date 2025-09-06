@@ -27,7 +27,7 @@ This roadmap outlines the technical implementation strategy for Wealth Wars, inc
 - [ ] Business upgrade NFT contracts
 - [ ] Metadata management for business types
 - [ ] Marketplace integration for trading
-- [ ] Click multiplier and perk systems
+- [ ] Work multiplier and perk systems
 - [ ] Upgrade progression mechanics
 
 #### Land NFT Implementation
@@ -50,7 +50,7 @@ This roadmap outlines the technical implementation strategy for Wealth Wars, inc
 - [ ] Complete Solana wallet integration (Phantom, Solflare, etc.)
 - [ ] Real-time credit/wealth conversion interface
 - [ ] Enhanced business upgrade system
-- [ ] Click-to-earn mechanics with multipliers
+- [ ] Daily work mechanics with multipliers
 - [ ] Progress tracking and statistics
 
 #### User Interface Improvements
@@ -173,7 +173,7 @@ This roadmap outlines the technical implementation strategy for Wealth Wars, inc
 - [ ] Performance optimization for mobile
 
 #### Mobile-Specific Features
-- [ ] Touch-optimized click mechanics
+- [ ] Touch-optimized work action mechanics
 - [ ] Mobile guild communication
 - [ ] Quick transaction flows
 - [ ] Background sync capabilities
