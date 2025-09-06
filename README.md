@@ -6,9 +6,9 @@ Build your financial empire through engaging daily work mechanics that naturally
 ## 📚 **Project Documentation**
 
 ### **Core Documents**
-- 📖 **[Whitepaper](./docs/WHITEPAPER.md)** - Complete project vision, mechanics, and tokenomics
-- 💰 **[Tokenomics Analysis](./docs/TOKENOMICS.md)** - Economic model and revenue projections  
-- 🛣️ **[Technical Roadmap](./docs/ROADMAP.md)** - Development phases and implementation strategy
+- 📖 **[Whitepaper](./WHITEPAPER.md)** - Complete project vision, mechanics, and tokenomics
+- 💰 **[Tokenomics Analysis](./TOKENOMICS.md)** - Economic model and revenue projections  
+- 🛣️ **[Technical Roadmap](./wiki-content/Development-Roadmap.md)** - Development phases and implementation strategy
 - 📋 **[Session Summary](./SESSION_SUMMARY.md)** - Development history and feature evolution
 
 ### **Quick Links**

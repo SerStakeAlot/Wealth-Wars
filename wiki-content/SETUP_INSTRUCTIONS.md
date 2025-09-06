@@ -57,7 +57,7 @@ Create pages in this order for best navigation:
 ### 6. Additional Pages to Create Later
 
 You can also create these pages using content from your `/docs` folder:
-- **Development Roadmap** (copy from `docs/ROADMAP.md`)
+- **Development Roadmap** (copy from `wiki-content/Development-Roadmap.md`)
 - **FAQ** (create based on common questions)
 - **Community Guidelines** (create for community management)
 
