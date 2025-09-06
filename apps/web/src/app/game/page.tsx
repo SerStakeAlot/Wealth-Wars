@@ -115,8 +115,9 @@ export default function GamePage() {
   /* ---------- Game state ---------- */
   const { 
     level, xp, wealth, liquidity, assets, collect, upgrade, defend, prestige, clanEligible, derived, tick, setWalletAddress,
-    // Demo-style functions
+    // Daily Work System state
     creditBalance, streakDays, business, clickWork, buyBusiness, initPlayer,
+    lastWorkTime, workCooldown, workFrequency, totalWorkActions, totalCreditsEarned,
     // Solana integration
     isOnChainMode, setOnChainMode, loading, setLoading,
     initPlayerOnChain, clickWorkOnChain, buyBusinessOnChain, 
@@ -254,7 +255,7 @@ export default function GamePage() {
         </div>
       </section>
 
-      {/* CREDIT WORK SECTION */}
+      {/* DAILY WORK SECTION */}
       <main className="creditSection">
         <div className="creditCard">
           <div className="creditDisplay">
@@ -262,16 +263,57 @@ export default function GamePage() {
             <span className={`${orbitron.className} creditValue`}>{creditBalance.toLocaleString()}</span>
           </div>
           
-          <div className="streakInfo">
-            <span className="streakLabel">Streak: {streakDays} days</span>
-            <span className="streakBonus">+{streakDays * 10}% bonus</span>
+          <div className="workStats">
+            <div className="workStat">
+              <span className="statLabel">Streak</span>
+              <span className="statValue">{streakDays} days</span>
+            </div>
+            <div className="workStat">
+              <span className="statLabel">Work Level</span>
+              <span className="statValue">{workFrequency}</span>
+            </div>
+            <div className="workStat">
+              <span className="statLabel">Total Work</span>
+              <span className="statValue">{totalWorkActions}</span>
+            </div>
           </div>
 
-          <button className="workBtn" onClick={clickWork}>
-            <span className="workIcon">💼</span>
-            <span className="workText">Do Work</span>
-            <span className="workEarn">+{1 + Math.floor(streakDays * 0.1)} credits</span>
-          </button>
+          {(() => {
+            const now = Date.now();
+            const timeSinceLastWork = now - (lastWorkTime || 0);
+            const timeUntilWork = (workCooldown || (24 * 60 * 60 * 1000)) - timeSinceLastWork;
+            const canWork = timeUntilWork <= 0;
+            
+            // Calculate work value
+            const baseCredits = 10;
+            const streakBonus = streakDays * 2;
+            const businessBonus = 
+              (business.lemStand * 5) +
+              (business.cafe * 25) + 
+              (business.factory * 100);
+            const workValue = baseCredits + streakBonus + businessBonus;
+
+            if (canWork) {
+              return (
+                <button className="workBtn" onClick={clickWork}>
+                  <span className="workIcon">💼</span>
+                  <span className="workText">Do Work</span>
+                  <span className="workEarn">+{workValue} credits</span>
+                </button>
+              );
+            } else {
+              const hours = Math.floor(timeUntilWork / (60 * 60 * 1000));
+              const minutes = Math.floor((timeUntilWork % (60 * 60 * 1000)) / (60 * 1000));
+              
+              return (
+                <div className="workCooldown">
+                  <span className="cooldownIcon">⏰</span>
+                  <span className="cooldownText">Next work available in</span>
+                  <span className="cooldownTime">{hours}h {minutes}m</span>
+                </div>
+              );
+            }
+          })()}
         </div>
 
         <div className="businessGrid">
@@ -282,7 +324,7 @@ export default function GamePage() {
             </div>
             <div className="businessStats">
               <span className="businessOwned">Owned: {business.lemStand}</span>
-              <span className="businessIncome">+{business.lemStand} credits/click</span>
+              <span className="businessIncome">+{business.lemStand * 5} credits per work</span>
             </div>
             <button 
               className="buyBtn" 
@@ -300,7 +342,7 @@ export default function GamePage() {
             </div>
             <div className="businessStats">
               <span className="businessOwned">Owned: {business.cafe}</span>
-              <span className="businessIncome">+{business.cafe * 5} credits/click</span>
+              <span className="businessIncome">+{business.cafe * 25} credits per work</span>
             </div>
             <button 
               className="buyBtn" 
@@ -318,7 +360,7 @@ export default function GamePage() {
             </div>
             <div className="businessStats">
               <span className="businessOwned">Owned: {business.factory}</span>
-              <span className="businessIncome">+{business.factory * 20} credits/click</span>
+              <span className="businessIncome">+{business.factory * 100} credits per work</span>
             </div>
             <button 
               className="buyBtn" 
@@ -609,25 +651,35 @@ export default function GamePage() {
           text-shadow: 0 0 20px rgba(255,215,0,0.4);
         }
 
-        .streakInfo {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
+        .workStats {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 12px;
           margin-bottom: 20px;
-          padding: 8px 16px;
+        }
+
+        .workStat {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 8px;
           background: rgba(255,255,255,0.04);
           border-radius: 8px;
         }
 
-        .streakLabel {
+        .statLabel {
           color: #9aa7bd;
-          font-size: 14px;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-bottom: 4px;
         }
 
-        .streakBonus {
-          color: #22c55e;
+        .statValue {
+          color: #e6edf5;
           font-weight: 600;
           font-size: 14px;
+          text-transform: capitalize;
         }
 
         .workBtn {
@@ -645,11 +697,50 @@ export default function GamePage() {
           justify-content: center;
           gap: 8px;
           box-shadow: 0 4px 16px rgba(34,197,94,0.3);
+          width: 100%;
         }
 
         .workBtn:hover {
           transform: translateY(-2px);
           box-shadow: 0 6px 20px rgba(34,197,94,0.4);
+        }
+
+        .workCooldown {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 16px 24px;
+          background: rgba(255,255,255,0.04);
+          border: 2px dashed rgba(255,255,255,0.2);
+          border-radius: 12px;
+          color: #9aa7bd;
+          gap: 4px;
+        }
+
+        .cooldownIcon {
+          font-size: 24px;
+          margin-bottom: 4px;
+        }
+
+        .cooldownText {
+          font-size: 14px;
+          color: #9aa7bd;
+        }
+
+        .cooldownTime {
+          font-size: 18px;
+          font-weight: 600;
+          color: #ffd700;
+        }
+          font-weight: 600;
+          font-size: 16px;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          box-shadow: 0 4px 16px rgba(34,197,94,0.3);
         }
 
         .workIcon {

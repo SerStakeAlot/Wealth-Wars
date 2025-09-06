@@ -91,7 +91,7 @@ export default function ForbesListPage() {
             <div className="podiumAvatar">{player.avatar}</div>
             <div className="podiumName">{player.username}</div>
             <div className="podiumCredits">{player.creditBalance.toLocaleString()} credits</div>
-            <div className="podiumClicks">{player.totalClicks} clicks</div>
+            <div className="podiumWorkActions">{player.totalWorkActions || 0} work actions</div>
             {player.clan && <div className="podiumClan">{player.clan}</div>}
           </div>
         ))}
@@ -110,7 +110,7 @@ export default function ForbesListPage() {
               <th>Rank</th>
               <th>Player</th>
               <th>Credits</th>
-              <th>Clicks</th>
+              <th>Work Actions</th>
               <th>Streak</th>
               <th>Business Empire</th>
               <th>Clan</th>
@@ -141,7 +141,7 @@ export default function ForbesListPage() {
                   </div>
                 </td>
                 <td>
-                  <span className="clicks">{player.totalClicks}</span>
+                  <span className="workActions">{player.totalWorkActions || 0}</span>
                 </td>
                 <td>
                   <div className="streakCell">
@@ -196,8 +196,8 @@ export default function ForbesListPage() {
                     <span className="modalStatValue">{selectedPlayer.creditBalance.toLocaleString()}</span>
                   </div>
                   <div className="modalStat">
-                    <span className="modalStatLabel">Total Clicks</span>
-                    <span className="modalStatValue">{selectedPlayer.totalClicks}</span>
+                    <span className="modalStatLabel">Work Actions</span>
+                    <span className="modalStatValue">{selectedPlayer.totalWorkActions || 0}</span>
                   </div>
                   <div className="modalStat">
                     <span className="modalStatLabel">Streak</span>
@@ -525,7 +525,7 @@ export default function ForbesListPage() {
           margin-bottom: 2px;
         }
 
-        .podiumClicks {
+        .podiumWorkActions {
           font-size: 12px;
           color: #9aa7bd;
           margin-bottom: 8px;
@@ -656,7 +656,7 @@ export default function ForbesListPage() {
           color: #9aa7bd;
         }
 
-        .clicks {
+        .workActions {
           font-weight: 600;
           color: #e6edf5;
         }

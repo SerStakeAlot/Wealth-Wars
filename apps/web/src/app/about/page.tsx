@@ -20,7 +20,7 @@ type SolanaProvider = {
 
 declare global {
   interface Window {
-    solana?: SolanaProvider;
+    solana?: any;
   }
 }
 
@@ -88,10 +88,7 @@ export default function About() {
         </button>
 
         <AvatarButton
-          connected={connected}
           onClick={handleAvatarClick}
-          onMenuClick={() => setIsMenuOpen(true)}
-          pubkey={pubkey}
         />
       </header>
 

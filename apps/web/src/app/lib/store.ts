@@ -119,12 +119,18 @@ export const useGame = create<GameState>((set, get) => ({
   username: '',
   walletAddress: '',
   
-  // Demo-style state
+  // Daily Work System state
   creditBalance: 10,
   streakDays: 0,
-  lastClickDay: 0,
+  lastClickDay: 0, // Legacy - keeping for compatibility
+  lastWorkDay: 0,
+  lastWorkTime: 0,
+  workCooldown: 24 * 60 * 60 * 1000, // 24 hours default
+  workFrequency: 'novice',
+  totalWorkActions: 0,
+  totalCreditsEarned: 0,
   business: {
-    clickBonusPerDay: 1,
+    clickBonusPerDay: 1, // Legacy - keeping for compatibility
     lemStand: 0,
     cafe: 0,
     factory: 0
@@ -431,22 +437,68 @@ export const useGame = create<GameState>((set, get) => ({
     set({ walletAddress: address, username });
   },
 
-  // Demo-style functions (new tokenomics)
+  // Daily Work System (new tokenomics)
   clickWork: () => {
-    const currentDay = Math.floor(Date.now() / (24 * 60 * 60 * 1000));
+    const now = Date.now();
     set(state => {
-      const isNewDay = currentDay > state.lastClickDay;
-      const newStreakDays = isNewDay ? state.streakDays + 1 : state.streakDays;
-      const creditGain = state.business.clickBonusPerDay + (newStreakDays * 0.1); // Bonus for streak
-      const xpGain = 5 + Math.floor(newStreakDays * 0.5); // XP scales with streak
+      // Check if work cooldown is ready
+      const timeSinceLastWork = now - (state.lastWorkTime || 0);
+      const requiredCooldown = state.workCooldown || (24 * 60 * 60 * 1000); // 24 hours default
       
+      if (timeSinceLastWork < requiredCooldown) {
+        // Return current state - work not ready
+        return state;
+      }
+      
+      // Calculate work frequency based on progression
+      const totalBusinesses = state.business.lemStand + state.business.cafe + state.business.factory;
+      const totalCreditsEarned = state.totalCreditsEarned || 0;
+      
+      let workFrequency: 'novice' | 'apprentice' | 'skilled' | 'expert' | 'master' = 'novice';
+      let baseCooldown = 24 * 60 * 60 * 1000; // 24 hours
+      
+      if (totalCreditsEarned >= 1000000 || totalBusinesses >= 25) {
+        workFrequency = 'master';
+        baseCooldown = 6 * 60 * 60 * 1000; // 6 hours
+      } else if (totalCreditsEarned >= 200000 || totalBusinesses >= 15) {
+        workFrequency = 'expert';
+        baseCooldown = 8 * 60 * 60 * 1000; // 8 hours
+      } else if (totalCreditsEarned >= 50000 || totalBusinesses >= 8) {
+        workFrequency = 'skilled';
+        baseCooldown = 12 * 60 * 60 * 1000; // 12 hours
+      } else if (state.streakDays >= 7 && totalBusinesses >= 3) {
+        workFrequency = 'apprentice';
+        baseCooldown = 18 * 60 * 60 * 1000; // 18 hours
+      }
+      
+      // Calculate work value
+      const baseCredits = 10; // Base work value
+      const streakBonus = state.streakDays * 2; // 2 credits per consecutive day
+      const businessBonus = 
+        (state.business.lemStand * 5) +     // +5 credits per lemonade stand
+        (state.business.cafe * 25) +        // +25 credits per coffee cafe
+        (state.business.factory * 100);     // +100 credits per widget factory
+      
+      const workValue = baseCredits + streakBonus + businessBonus;
+      
+      // Check if it's a new day for streak calculation
+      const currentDay = Math.floor(now / (24 * 60 * 60 * 1000));
+      const isNewDay = currentDay > (state.lastWorkDay || 0);
+      const newStreakDays = isNewDay ? state.streakDays + 1 : state.streakDays;
+      
+      const xpGain = 5 + Math.floor(newStreakDays * 0.5); // XP scales with streak
       const newXp = state.xp + xpGain;
       const newLevel = newXp >= 100 ? state.level + 1 : state.level;
       
       return {
-        creditBalance: state.creditBalance + creditGain,
+        creditBalance: state.creditBalance + workValue,
         streakDays: newStreakDays,
-        lastClickDay: currentDay,
+        lastWorkDay: currentDay,
+        lastWorkTime: now,
+        workCooldown: baseCooldown,
+        workFrequency,
+        totalWorkActions: (state.totalWorkActions || 0) + 1,
+        totalCreditsEarned: (state.totalCreditsEarned || 0) + workValue,
         xp: newXp >= 100 ? 0 : newXp,
         level: newLevel,
         clanEligible: newLevel >= CLAN_MIN_LEVEL,
@@ -457,7 +509,10 @@ export const useGame = create<GameState>((set, get) => ({
   buyBusiness: (bizKind: number) => {
     const businessTypes = ['lemStand', 'cafe', 'factory'] as const;
     const costs = [10, 50, 200]; // Credit costs for each business type
-    const bonuses = [1, 5, 20]; // Click bonus increases
+    // Note: Businesses now multiply work value instead of providing click bonuses
+    // Lemonade Stand: +5 credits per work action
+    // Coffee Cafe: +25 credits per work action  
+    // Widget Factory: +100 credits per work action
     
     if (bizKind < 0 || bizKind >= businessTypes.length) return;
     
@@ -470,7 +525,8 @@ export const useGame = create<GameState>((set, get) => ({
       const newBusiness = {
         ...state.business,
         [businessType]: state.business[businessType] + 1,
-        clickBonusPerDay: state.business.clickBonusPerDay + bonuses[bizKind]
+        // Keep legacy clickBonusPerDay for compatibility but it's not used in new system
+        clickBonusPerDay: state.business.clickBonusPerDay + [1, 5, 20][bizKind]
       };
       
       return {
@@ -486,9 +542,15 @@ export const useGame = create<GameState>((set, get) => ({
       ...state,
       creditBalance: 10, // Starting credits
       streakDays: 0,
-      lastClickDay: 0,
+      lastClickDay: 0, // Legacy
+      lastWorkDay: 0,
+      lastWorkTime: 0,
+      workCooldown: 24 * 60 * 60 * 1000, // 24 hours
+      workFrequency: 'novice',
+      totalWorkActions: 0,
+      totalCreditsEarned: 0,
       business: {
-        clickBonusPerDay: 1,
+        clickBonusPerDay: 1, // Legacy
         lemStand: 0,
         cafe: 0,
         factory: 0
@@ -552,8 +614,10 @@ export const useGame = create<GameState>((set, get) => ({
         username: 'CryptoKing',
         rank: 1,
         creditBalance: 15420,
-        totalClicks: 892,
+        totalClicks: 892, // Legacy
+        totalWorkActions: 89,
         streakDays: 12,
+        workFrequency: 'expert',
         business: { clickBonusPerDay: 45, lemStand: 15, cafe: 8, factory: 3 },
         clan: 'Diamond Hands',
         level: 8,
@@ -568,8 +632,10 @@ export const useGame = create<GameState>((set, get) => ({
         username: 'SolanaWhale',
         rank: 2,
         creditBalance: 12850,
-        totalClicks: 756,
+        totalClicks: 756, // Legacy
+        totalWorkActions: 76,
         streakDays: 8,
+        workFrequency: 'skilled',
         business: { clickBonusPerDay: 38, lemStand: 12, cafe: 6, factory: 2 },
         clan: 'Solana Sharks',
         level: 7,
@@ -584,8 +650,10 @@ export const useGame = create<GameState>((set, get) => ({
         username: 'DefiMaster',
         rank: 3,
         creditBalance: 9640,
-        totalClicks: 623,
+        totalClicks: 623, // Legacy
+        totalWorkActions: 62,
         streakDays: 15,
+        workFrequency: 'skilled',
         business: { clickBonusPerDay: 32, lemStand: 10, cafe: 5, factory: 1 },
         level: 6,
         xp: 64,
@@ -599,8 +667,10 @@ export const useGame = create<GameState>((set, get) => ({
         username: 'TokenTycoon',
         rank: 4,
         creditBalance: 8320,
-        totalClicks: 487,
+        totalClicks: 487, // Legacy
+        totalWorkActions: 49,
         streakDays: 6,
+        workFrequency: 'apprentice',
         business: { clickBonusPerDay: 28, lemStand: 8, cafe: 4, factory: 1 },
         clan: 'Token Titans',
         level: 5,
@@ -615,8 +685,10 @@ export const useGame = create<GameState>((set, get) => ({
         username: 'WealthBuilder',
         rank: 5,
         creditBalance: 6750,
-        totalClicks: 412,
+        totalClicks: 412, // Legacy
+        totalWorkActions: 41,
         streakDays: 4,
+        workFrequency: 'novice',
         business: { clickBonusPerDay: 22, lemStand: 6, cafe: 3, factory: 0 },
         level: 4,
         xp: 78,

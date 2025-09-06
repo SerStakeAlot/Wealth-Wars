@@ -28,11 +28,17 @@ export interface Player {
   prestige: number;
   clanEligible: boolean;
   username: string;
-  creditBalance: number; // New: Credit balance that increases per click
+  creditBalance: number; // Credit balance that increases per work action
   streakDays: number;
-  lastClickDay: number;
+  lastClickDay: number; // Legacy - keeping for compatibility
+  lastWorkDay: number; // Day of last work action (for streak calculation)
+  lastWorkTime: number; // Timestamp of last work action (for cooldown)
+  workCooldown: number; // Current work cooldown in milliseconds
+  workFrequency: 'novice' | 'apprentice' | 'skilled' | 'expert' | 'master'; // Work frequency tier
+  totalWorkActions: number; // Total number of work actions performed
+  totalCreditsEarned: number; // Total credits earned from all work actions
   business: { 
-    clickBonusPerDay: number; 
+    clickBonusPerDay: number; // Legacy - keeping for compatibility
     lemStand: number; 
     cafe: number; 
     factory: number; 
@@ -58,10 +64,12 @@ export interface LeaderboardPlayer {
   username: string;
   rank: number;
   creditBalance: number;
-  totalClicks: number;
+  totalClicks: number; // Legacy - keeping for compatibility
+  totalWorkActions: number; // New - number of work actions performed
   streakDays: number;
+  workFrequency: 'novice' | 'apprentice' | 'skilled' | 'expert' | 'master';
   business: {
-    clickBonusPerDay: number;
+    clickBonusPerDay: number; // Legacy
     lemStand: number;
     cafe: number;
     factory: number;
