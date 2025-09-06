@@ -25,7 +25,7 @@ const TIER_COLORS = {
 };
 
 export function BusinessPopup({ isOpen, onClose }: BusinessPopupProps) {
-  const { enhancedBusinesses, credits, buyEnhancedBusiness } = useGame();
+  const { enhancedBusinesses, creditBalance, buyEnhancedBusiness } = useGame();
   const [selectedCategory, setSelectedCategory] = useState<string>('efficiency');
 
   if (!isOpen) return null;
@@ -40,13 +40,13 @@ export function BusinessPopup({ isOpen, onClose }: BusinessPopupProps) {
     const business = ENHANCED_BUSINESSES.find(b => b.id === businessId);
     if (!business) return;
 
-    if (credits >= business.cost) {
+    if (creditBalance >= business.cost) {
       buyEnhancedBusiness(businessId);
     }
   };
 
   const isOwned = (businessId: string) => {
-    return enhancedBusinesses.some(b => b.businessId === businessId);
+    return enhancedBusinesses.includes(businessId);
   };
 
   return (
@@ -74,7 +74,7 @@ export function BusinessPopup({ isOpen, onClose }: BusinessPopupProps) {
         <div className="business-grid">
           {categorizedBusinesses[selectedCategory]?.map((business) => {
             const owned = isOwned(business.id);
-            const canAfford = credits >= business.cost;
+            const canAfford = creditBalance >= business.cost;
             
             return (
               <div key={business.id} className={`business-card ${owned ? 'owned' : ''}`}>
