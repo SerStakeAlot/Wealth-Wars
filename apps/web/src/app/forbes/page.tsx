@@ -113,6 +113,7 @@ export default function ForbesListPage() {
               <th>Work Actions</th>
               <th>Streak</th>
               <th>Business Empire</th>
+              <th>Success Rate</th>
               <th>Clan</th>
               <th>Last Active</th>
             </tr>
@@ -154,6 +155,12 @@ export default function ForbesListPage() {
                     <div className="businessItem">🥤 {player.business.lemStand}</div>
                     <div className="businessItem">☕ {player.business.cafe}</div>
                     <div className="businessItem">🏭 {player.business.factory}</div>
+                  </div>
+                </td>
+                <td>
+                  <div className="successRateCell">
+                    <span className="successRate">{player.takeoverSuccessRate || 0}%</span>
+                    <span className="successLabel">({player.takeoverWins || 0}W/{player.takeoverLosses || 0}L)</span>
                   </div>
                 </td>
                 <td>
@@ -688,6 +695,24 @@ export default function ForbesListPage() {
           border-radius: 4px;
           font-size: 12px;
           border: 1px solid rgba(255,255,255,0.12);
+        }
+
+        .successRateCell {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 2px;
+        }
+
+        .successRate {
+          font-weight: 600;
+          font-size: 14px;
+          color: #10b981;
+        }
+
+        .successLabel {
+          font-size: 11px;
+          color: #9aa7bd;
         }
 
         .clan {

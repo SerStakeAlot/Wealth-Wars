@@ -1,8 +1,18 @@
 import { create } from 'zustand';
-import { Asset, Player, Derived, LeaderboardPlayer, EnhancedBusiness, BusinessSlot } from './types';
+import { Asset, Player, Derived, LeaderboardPlayer, EnhancedBusiness, BusinessSlot, TakeoverBid, TakeoverTarget, TakeoverEligibility, DefenseResponse, TakeoverResult } from './types';
 import { calculateAssetValue, calculateRisk, getPriceInSol, calculateProfitPerSecond, calculateOutletCost, calculateMultiplier, getNextMilestone, DEFAULT_CYCLE_MS, MILESTONES } from './balance';
 import { prestigeFromBehavior, CLAN_MIN_LEVEL } from './prestige';
 import { ENHANCED_BUSINESSES } from './businesses';
+import { 
+  calculateTakeoverEligibility, 
+  calculatePortfolioValue, 
+  canTargetBusiness, 
+  calculateTakeoverCost, 
+  validateTakeoverBid, 
+  executeTakeover, 
+  createBusinessTarget,
+  hasActiveProtection
+} from './takeover';
 
 interface GameState extends Player {
   assets: Asset[];
@@ -25,6 +35,13 @@ interface GameState extends Player {
   setBusinessActive: (businessId: string, slotIndex: number) => boolean;
   getActiveEffects: () => Record<string, any>;
   getMaxActiveSlots: () => number;
+  // Takeover System
+  getTakeoverEligibility: () => TakeoverEligibility;
+  canTargetPlayerBusiness: (targetPlayerId: string, businessId: string) => { canTarget: boolean; reason?: string; cost?: number };
+  initiateTakeover: (targetPlayerId: string, businessId: string, bidAmount: number, currency: 'credits' | 'wealth') => { success: boolean; reason?: string; takeoverId?: string };
+  defendTakeover: (takeoverId: string, defenseType: 'credit_counter' | 'business_protection' | 'cancel_payment', amount?: number, businessId?: string) => { success: boolean; reason?: string };
+  processPendingTakeovers: () => void;
+  updatePortfolioValue: () => void;
   // Solana integration functions
   initPlayerOnChain: () => Promise<void>;
   clickWorkOnChain: () => Promise<void>;
@@ -148,6 +165,15 @@ export const useGame = create<GameState>((set, get) => ({
   activeBusinessSlots: [],
   businessCooldowns: {},
   activeEffects: {},
+  
+  // Takeover System
+  accountCreated: Date.now(),
+  portfolioValue: 0,
+  takeoversReceived: [],
+  takeoversInitiated: [],
+  defenseHistory: [],
+  takeoverProtections: [],
+  lastTakeoverCheck: 0,
 
   // Solana state
   isOnChainMode: false,
@@ -580,6 +606,7 @@ export const useGame = create<GameState>((set, get) => ({
       return {
         creditBalance: state.creditBalance - cost,
         business: newBusiness,
+        portfolioValue: calculatePortfolioValue(state.enhancedBusinesses, newBusiness)
       };
     });
   },
@@ -606,6 +633,7 @@ export const useGame = create<GameState>((set, get) => ({
     set(state => ({
       creditBalance: state.creditBalance - business.cost,
       enhancedBusinesses: [...state.enhancedBusinesses, businessId],
+      portfolioValue: calculatePortfolioValue([...state.enhancedBusinesses, businessId], state.business)
     }));
     
     return true;
@@ -750,6 +778,14 @@ export const useGame = create<GameState>((set, get) => ({
       activeBusinessSlots: [],
       businessCooldowns: {},
       activeEffects: {},
+      // Takeover System initialization
+      accountCreated: Date.now(),
+      portfolioValue: 0,
+      takeoversReceived: [],
+      takeoversInitiated: [],
+      defenseHistory: [],
+      takeoverProtections: [],
+      lastTakeoverCheck: Date.now(),
       level: 1,
       xp: 0,
     }));
@@ -820,7 +856,10 @@ export const useGame = create<GameState>((set, get) => ({
         wealth: 2840,
         joinDate: '2025-08-15',
         lastActive: '2025-09-05T06:30:00Z',
-        avatar: '👑'
+        avatar: '👑',
+        takeoverWins: 8,
+        takeoverLosses: 2,
+        takeoverSuccessRate: 80
       },
       {
         id: '2',
@@ -838,7 +877,10 @@ export const useGame = create<GameState>((set, get) => ({
         wealth: 2180,
         joinDate: '2025-08-20',
         lastActive: '2025-09-05T05:45:00Z',
-        avatar: '🐋'
+        avatar: '🐋',
+        takeoverWins: 6,
+        takeoverLosses: 3,
+        takeoverSuccessRate: 67
       },
       {
         id: '3',
@@ -855,7 +897,10 @@ export const useGame = create<GameState>((set, get) => ({
         wealth: 1750,
         joinDate: '2025-08-25',
         lastActive: '2025-09-05T04:20:00Z',
-        avatar: '⚡'
+        avatar: '⚡',
+        takeoverWins: 12,
+        takeoverLosses: 3,
+        takeoverSuccessRate: 80
       },
       {
         id: '4',
@@ -873,7 +918,10 @@ export const useGame = create<GameState>((set, get) => ({
         wealth: 1420,
         joinDate: '2025-09-01',
         lastActive: '2025-09-05T03:10:00Z',
-        avatar: '💎'
+        avatar: '🎯',
+        takeoverWins: 5,
+        takeoverLosses: 5,
+        takeoverSuccessRate: 50
       },
       {
         id: '5',
@@ -890,7 +938,10 @@ export const useGame = create<GameState>((set, get) => ({
         wealth: 980,
         joinDate: '2025-09-03',
         lastActive: '2025-09-05T02:30:00Z',
-        avatar: '🏗️'
+        avatar: '🏗️',
+        takeoverWins: 3,
+        takeoverLosses: 7,
+        takeoverSuccessRate: 30
       }
     ];
     
@@ -901,5 +952,195 @@ export const useGame = create<GameState>((set, get) => ({
     const { leaderboardPlayers } = get();
     const player = leaderboardPlayers.find(p => p.id === playerId);
     set({ selectedPlayer: player || null });
+  },
+
+  // Takeover System Methods
+  getTakeoverEligibility: () => {
+    const state = get();
+    const eligibility = calculateTakeoverEligibility(state);
+    
+    // Update cached portfolio value
+    set({ portfolioValue: eligibility.portfolioValue });
+    
+    return eligibility;
+  },
+
+  canTargetPlayerBusiness: (targetPlayerId: string, businessId: string) => {
+    const state = get();
+    // In a real implementation, you'd fetch the target player's data
+    // For now, we'll simulate with current player's data as a demo
+    const targetPlayer = state; // Placeholder - would be fetched from server/blockchain
+    
+    return canTargetBusiness(state, targetPlayer, businessId);
+  },
+
+  initiateTakeover: (targetPlayerId: string, businessId: string, bidAmount: number, currency: 'credits' | 'wealth') => {
+    const state = get();
+    
+    // Validate the takeover bid
+    const targetPlayer = state; // Placeholder - would be fetched from server/blockchain
+    const validation = validateTakeoverBid(state, targetPlayer, businessId, bidAmount, currency);
+    
+    if (!validation.valid) {
+      return { success: false, reason: validation.reason };
+    }
+    
+    // Create takeover bid
+    const business = ENHANCED_BUSINESSES.find(b => b.id === businessId);
+    if (!business) {
+      return { success: false, reason: 'Business not found' };
+    }
+    
+    const takeoverId = `takeover_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const now = Date.now();
+    
+    const takeoverBid: TakeoverBid = {
+      id: takeoverId,
+      attackerId: state.username || 'anonymous',
+      targetPlayerId,
+      target: createBusinessTarget(business),
+      bidAmount,
+      bidCurrency: currency,
+      timestamp: now,
+      expiresAt: now + (24 * 60 * 60 * 1000), // 24 hours
+      status: 'pending'
+    };
+    
+    // Deduct bid amount (held in escrow)
+    const updates: any = {
+      takeoversInitiated: [...state.takeoversInitiated, takeoverBid]
+    };
+    
+    if (currency === 'credits') {
+      updates.creditBalance = state.creditBalance - bidAmount;
+    } else {
+      updates.wealth = state.wealth - bidAmount;
+    }
+    
+    set(updates);
+    
+    return { success: true, takeoverId };
+  },
+
+  defendTakeover: (takeoverId: string, defenseType: 'credit_counter' | 'business_protection' | 'cancel_payment', amount?: number, businessId?: string) => {
+    const state = get();
+    
+    // Find the takeover bid
+    const takeover = state.takeoversReceived.find(t => t.id === takeoverId);
+    if (!takeover) {
+      return { success: false, reason: 'Takeover not found' };
+    }
+    
+    if (takeover.status !== 'pending') {
+      return { success: false, reason: 'Takeover no longer active' };
+    }
+    
+    const now = Date.now();
+    if (now > takeover.expiresAt) {
+      return { success: false, reason: 'Takeover has expired' };
+    }
+    
+    let defenseSuccessful = false;
+    const updates: any = {};
+    
+    switch (defenseType) {
+      case 'cancel_payment':
+        // Pay 200% of bid to cancel the attack
+        const cancelCost = takeover.bidAmount * 2;
+        if (state.creditBalance < cancelCost) {
+          return { success: false, reason: 'Insufficient credits to cancel attack' };
+        }
+        updates.creditBalance = state.creditBalance - cancelCost;
+        defenseSuccessful = true;
+        break;
+        
+      case 'business_protection':
+        // Use defensive business ability
+        if (!businessId) {
+          return { success: false, reason: 'Business ID required for protection' };
+        }
+        
+        const protectionResult = hasActiveProtection(state, 'fortress');
+        if (!protectionResult) {
+          return { success: false, reason: 'No active protection available' };
+        }
+        
+        defenseSuccessful = true;
+        break;
+        
+      case 'credit_counter':
+        // Invest credits in defense
+        if (!amount || state.creditBalance < amount) {
+          return { success: false, reason: 'Insufficient credits for defense' };
+        }
+        updates.creditBalance = state.creditBalance - amount;
+        // Defense success depends on amount invested vs attack strength
+        defenseSuccessful = amount >= takeover.bidAmount * 0.75; // 75% of bid for successful defense
+        break;
+    }
+    
+    // Create defense response
+    const defense: DefenseResponse = {
+      defenderId: state.username || 'anonymous',
+      takeoverId,
+      defenseType,
+      defenseAmount: amount || 0,
+      businessUsed: businessId,
+      timestamp: now,
+      success: defenseSuccessful
+    };
+    
+    // Update takeover status and defense history
+    const updatedTakeovers = state.takeoversReceived.map(t => 
+      t.id === takeoverId 
+        ? { ...t, status: (defenseSuccessful ? 'defended' : 'active') as TakeoverBid['status'] }
+        : t
+    );
+    
+    updates.takeoversReceived = updatedTakeovers;
+    updates.defenseHistory = [...state.defenseHistory, defense];
+    
+    set(updates);
+    
+    return { success: true };
+  },
+
+  processPendingTakeovers: () => {
+    const state = get();
+    const now = Date.now();
+    
+    // Process expired takeovers
+    const updatedReceived = state.takeoversReceived.map(takeover => {
+      if (takeover.status === 'pending' && now > takeover.expiresAt) {
+        // Execute the takeover since defense window expired
+        const mockAttacker = { ...state, username: takeover.attackerId }; // Placeholder
+        const result = executeTakeover(mockAttacker, state, takeover);
+        
+        return { ...takeover, status: (result.success ? 'successful' : 'failed') as TakeoverBid['status'] };
+      }
+      return takeover;
+    });
+    
+    const updatedInitiated = state.takeoversInitiated.map(takeover => {
+      if (takeover.status === 'pending' && now > takeover.expiresAt) {
+        return { ...takeover, status: 'active' as TakeoverBid['status'] };
+      }
+      return takeover;
+    });
+    
+    set({
+      takeoversReceived: updatedReceived,
+      takeoversInitiated: updatedInitiated
+    });
+  },
+
+  updatePortfolioValue: () => {
+    const state = get();
+    const newValue = calculatePortfolioValue(state.enhancedBusinesses, state.business);
+    
+    set({ 
+      portfolioValue: newValue,
+      lastTakeoverCheck: Date.now()
+    });
   },
 }));

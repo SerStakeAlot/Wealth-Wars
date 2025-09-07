@@ -48,6 +48,14 @@ export interface Player {
   activeBusinessSlots: BusinessSlot[]; // Currently active business slots
   businessCooldowns: Record<string, number>; // Business ability cooldowns
   activeEffects: Record<string, { endTime: number; effect: any }>; // Active temporary effects
+  // Takeover System
+  accountCreated: number; // Timestamp for new player protection
+  portfolioValue: number; // Total value of owned businesses (cached)
+  takeoversReceived: TakeoverBid[]; // Incoming takeover attempts
+  takeoversInitiated: TakeoverBid[]; // Outgoing takeover attempts
+  defenseHistory: DefenseResponse[]; // Recent defense actions
+  takeoverProtections: string[]; // Active protection business IDs
+  lastTakeoverCheck: number; // Last time eligibility was calculated
 }
 
 export interface Derived {
@@ -86,6 +94,10 @@ export interface LeaderboardPlayer {
   joinDate: string;
   lastActive: string;
   avatar: string;
+  // Takeover Statistics
+  takeoverWins?: number;
+  takeoverLosses?: number;
+  takeoverSuccessRate?: number; // calculated percentage
 }
 
 // Enhanced Business System Types
@@ -104,6 +116,7 @@ export interface EnhancedBusiness {
   id: string;
   name: string;
   emoji: string;
+  description: string; // Added description field
   cost: number;
   workMultiplier: number;
   category: 'efficiency' | 'defensive' | 'offensive' | 'utility';
@@ -126,4 +139,58 @@ export interface PlayerBusinessState {
   businessCooldowns: Record<string, number>; // Ability cooldowns
   takeoversReceived: number;
   takeoversInitiated: number;
+}
+
+// Takeover System Types
+export interface TakeoverTarget {
+  type: 'business' | 'portfolio_stake' | 'work_streak' | 'active_slot' | 'wealth_reserve';
+  businessId?: string;
+  value: number; // Credits equivalent
+  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+  defenseDifficulty: number; // 1-100 scale
+}
+
+export interface TakeoverBid {
+  id: string;
+  attackerId: string;
+  targetPlayerId: string;
+  target: TakeoverTarget;
+  bidAmount: number; // Credits or wealth amount
+  bidCurrency: 'credits' | 'wealth';
+  timestamp: number;
+  expiresAt: number; // 24-hour bidding window
+  status: 'pending' | 'active' | 'defended' | 'successful' | 'failed' | 'cancelled';
+  currentHighestBid?: number;
+  currentHighestBidder?: string;
+}
+
+export interface DefenseResponse {
+  defenderId: string;
+  takeoverId: string;
+  defenseType: 'credit_counter' | 'business_protection' | 'alliance_support' | 'cancel_payment';
+  defenseAmount: number;
+  businessUsed?: string; // If using defensive business ability
+  timestamp: number;
+  success: boolean;
+}
+
+export interface TakeoverEligibility {
+  canBeTargeted: boolean;
+  reason?: string;
+  portfolioValue: number;
+  protectionLevel: 'absolute' | 'limited' | 'none';
+  protectedBusinesses: string[];
+  minimumAttackCost: number;
+}
+
+export interface TakeoverResult {
+  success: boolean;
+  attackerId: string;
+  defenderId: string;
+  target: TakeoverTarget;
+  finalBid: number;
+  currency: 'credits' | 'wealth';
+  defenseAttempted: boolean;
+  compensation?: number; // What defender received
+  timestamp: number;
 }

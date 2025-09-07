@@ -2,15 +2,18 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BusinessPopup } from './BusinessPopup';
+import { AttackCenter } from './AttackCenter';
 
 export function BulkBar() {
   const router = useRouter();
   const [isBusinessOpen, setIsBusinessOpen] = useState(false);
+  const [isAttackOpen, setIsAttackOpen] = useState(false);
   
   const handleEra = () => alert('Era page coming soon!');
   const handlePartnerships = () => alert('Partnerships system coming soon!');
   const handleEvents = () => alert('Events & Planets coming soon!');
   const handleBusiness = () => setIsBusinessOpen(true);
+  const handleAttack = () => setIsAttackOpen(true);
 
   return (
     <>
@@ -27,6 +30,9 @@ export function BulkBar() {
           </button>
           <button className="actionBtn events" onClick={handleEvents}>
             <span className="btnIcon">🌍</span><span className="btnText">Events</span>
+          </button>
+          <button className="actionBtn attack" onClick={handleAttack}>
+            <span className="btnIcon">⚔️</span><span className="btnText">Attack</span>
           </button>
         </div>
 
@@ -54,6 +60,8 @@ export function BulkBar() {
           .partnerships:hover { background: #78350f; border-color: #ffd700; }
           .events { border-color: #ffd700; color: #7c3aed; background: #312e81; }
           .events:hover { background: #3730a3; border-color: #ffd700; }
+          .attack { border-color: #ffd700; color: #dc2626; background: #7f1d1d; }
+          .attack:hover { background: #991b1b; border-color: #ffd700; }
           .btnIcon { font-size: 16px; }
           .btnText { font-size: 13px; }
           @media (max-width: 768px) {
@@ -64,6 +72,7 @@ export function BulkBar() {
       </div>
 
       <BusinessPopup isOpen={isBusinessOpen} onClose={() => setIsBusinessOpen(false)} />
+      <AttackCenter isOpen={isAttackOpen} onClose={() => setIsAttackOpen(false)} />
     </>
   );
 }

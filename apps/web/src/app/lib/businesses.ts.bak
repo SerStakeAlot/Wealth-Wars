@@ -56,10 +56,10 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     ability: {
       id: 'breakthrough',
       name: 'Breakthrough',
-      description: 'Permanent +15% work efficiency after activation',
-      type: 'triggered',
-      cooldown: 10 * 24 * 60 * 60 * 1000, // 10 days
-      cost: 300
+      description: 'Next work action provides 3x credits',
+      type: 'active',
+      cooldown: 4 * 24 * 60 * 60 * 1000, // 4 days
+      cost: 100
     }
   },
 
@@ -68,7 +68,6 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     id: 'security_firm',
     name: 'Security Firm',
     emoji: '🛡️',
-    description: 'Professional security services that protect your business from hostile takeovers and attacks.',
     cost: 250,
     workMultiplier: 50,
     category: 'defensive',
@@ -77,9 +76,9 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     ability: {
       id: 'fortress_protection',
       name: 'Fortress Protection',
-      description: 'Immunity to takeover attempts for 30 minutes',
+      description: 'Reduces takeover success rate against you by 50% for 48 hours',
       type: 'passive',
-      duration: 30 * 60 * 1000 // 30 minutes
+      duration: 48 * 60 * 60 * 1000, // 48 hours
     }
   },
 
@@ -87,7 +86,6 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     id: 'insurance_company',
     name: 'Insurance Company',
     emoji: '🏥',
-    description: 'Financial protection that reduces losses from failed defenses and hostile business actions.',
     cost: 180,
     workMultiplier: 40,
     category: 'defensive',
@@ -96,8 +94,8 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     ability: {
       id: 'damage_insurance',
       name: 'Damage Insurance',
-      description: 'Reduces takeover losses by 75%',
-      type: 'passive'
+      description: 'If work streak breaks, only lose 50% instead of resetting to 0',
+      type: 'passive',
     }
   },
 
@@ -105,39 +103,37 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     id: 'government_contract',
     name: 'Government Contract',
     emoji: '🏛️',
-    description: 'High-level government connections that provide diplomatic immunity and steady income streams.',
     cost: 1000,
     workMultiplier: 80,
     category: 'defensive',
     tier: 'legendary',
     rarity: 'legendary',
-    prerequisites: ['week_streak'],
+    prerequisites: ['100_work_actions', 'week_streak'],
     ability: {
       id: 'diplomatic_immunity',
       name: 'Diplomatic Immunity',
-      description: 'Cannot be targeted for business takeovers',
-      type: 'passive'
+      description: 'Cannot be targeted by takeovers. +10% multiplier to all businesses.',
+      type: 'passive',
     }
   },
 
-  // Offensive Category (⚔️ Aggression)
+  // Offensive Category (⚔️ Competition)
   {
     id: 'consulting_firm',
     name: 'Consulting Firm',
     emoji: '💼',
-    description: 'Strategic advisors that can infiltrate and disrupt competitor business operations.',
     cost: 350,
     workMultiplier: 45,
     category: 'offensive',
     tier: 'advanced',
     rarity: 'uncommon',
     ability: {
-      id: 'corporate_espionage',
-      name: 'Corporate Espionage',
-      description: 'Add 6 hours to target player\'s work cooldown',
+      id: 'hostile_takeover',
+      name: 'Hostile Takeover',
+      description: 'Attempt to take over another player\'s business',
       type: 'active',
-      cooldown: 3 * 24 * 60 * 60 * 1000, // 3 days
-      cost: 100
+      cooldown: 14 * 24 * 60 * 60 * 1000, // 14 days
+      cost: 500
     }
   },
 
@@ -145,19 +141,18 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     id: 'cyber_security',
     name: 'Cyber Security',
     emoji: '💻',
-    description: 'Elite hackers capable of disrupting digital infrastructure and business systems.',
     cost: 400,
     workMultiplier: 30,
     category: 'offensive',
     tier: 'advanced',
     rarity: 'rare',
     ability: {
-      id: 'system_disruption',
-      name: 'System Disruption',
-      description: 'Disable target\'s defensive businesses for 2 hours',
+      id: 'network_sabotage',
+      name: 'Network Sabotage',
+      description: 'Add 6 hours to target player\'s work cooldown',
       type: 'active',
-      cooldown: 5 * 24 * 60 * 60 * 1000, // 5 days
-      cost: 250
+      cooldown: 7 * 24 * 60 * 60 * 1000, // 7 days
+      cost: 200
     }
   },
 
@@ -165,7 +160,6 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     id: 'market_research',
     name: 'Market Research',
     emoji: '📊',
-    description: 'Intelligence gathering operation that reveals competitor weaknesses and market opportunities.',
     cost: 200,
     workMultiplier: 35,
     category: 'offensive',
@@ -174,31 +168,30 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     ability: {
       id: 'intelligence_gathering',
       name: 'Intelligence Gathering',
-      description: 'Reveal target player\'s business portfolio and cooldowns',
+      description: 'See target player\'s business portfolio and cooldown status',
       type: 'active',
-      cooldown: 2 * 24 * 60 * 60 * 1000, // 2 days
-      cost: 75
+      cooldown: 3 * 24 * 60 * 60 * 1000, // 3 days
+      cost: 50
     }
   },
 
-  // Utility Category (🎲 Special Operations)
+  // Utility Category (🎲 Special)
   {
     id: 'marketing_agency',
     name: 'Marketing Agency',
     emoji: '📢',
-    description: 'Professional marketing services that amplify your business presence and improve conversion rates.',
     cost: 250,
     workMultiplier: 30,
     category: 'utility',
     tier: 'basic',
     rarity: 'common',
     ability: {
-      id: 'market_boost',
-      name: 'Market Boost',
-      description: '25% better conversion rates for 12 hours',
+      id: 'viral_campaign',
+      name: 'Viral Campaign',
+      description: 'Double streak bonus for next 5 work actions',
       type: 'active',
-      cooldown: 4 * 24 * 60 * 60 * 1000, // 4 days
-      cost: 150
+      cooldown: 10 * 24 * 60 * 60 * 1000, // 10 days
+      cost: 100
     }
   },
 
@@ -206,7 +199,6 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     id: 'investment_bank',
     name: 'Investment Bank',
     emoji: '🏦',
-    description: 'Financial institution that provides compound interest and wealth multiplication services.',
     cost: 600,
     workMultiplier: 80,
     category: 'utility',
@@ -215,9 +207,9 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     ability: {
       id: 'compound_interest',
       name: 'Compound Interest',
-      description: 'Generate 5% interest on $WEALTH holdings daily for 7 days',
+      description: 'Credits grow by 5% every day for 7 days (if not spent)',
       type: 'active',
-      cooldown: 10 * 24 * 60 * 60 * 1000, // 10 days
+      cooldown: 14 * 24 * 60 * 60 * 1000, // 14 days
       cost: 300
     }
   },
@@ -226,36 +218,45 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     id: 'venture_capital',
     name: 'Venture Capital',
     emoji: '🎰',
-    description: 'High-risk investment firm that can provide massive returns or significant losses.',
     cost: 200,
     workMultiplier: 35,
     category: 'utility',
     tier: 'basic',
     rarity: 'common',
     ability: {
-      id: 'risky_investment',
-      name: 'Risky Investment',
-      description: '50% chance to double credits, 50% chance to lose half',
+      id: 'high_risk_investment',
+      name: 'High Risk Investment',
+      description: 'Gamble credits for 2x-5x return (60% loss chance)',
       type: 'active',
-      cooldown: 7 * 24 * 60 * 60 * 1000 // 7 days
-    }
-  },
-
-  {
-    id: 'trading_exchange',
-    name: 'Trading Exchange',
-    emoji: '💱',
-    description: 'Financial marketplace that provides better conversion rates between credits and wealth tokens.',
-    cost: 150,
-    workMultiplier: 25,
-    category: 'utility',
-    tier: 'basic',
-    rarity: 'common',
-    ability: {
-      id: 'arbitrage',
-      name: 'Arbitrage',
-      description: '15% better conversion rates between credits and $WEALTH',
-      type: 'passive'
+      cooldown: 24 * 60 * 60 * 1000, // Daily
     }
   }
 ];
+
+// Helper functions
+export function getBusinessById(id: string): EnhancedBusiness | undefined {
+  return ENHANCED_BUSINESSES.find(business => business.id === id);
+}
+
+export function getBusinessesByCategory(category: 'efficiency' | 'defensive' | 'offensive' | 'utility'): EnhancedBusiness[] {
+  return ENHANCED_BUSINESSES.filter(business => business.category === category);
+}
+
+export function getAvailableBusinesses(ownedBusinessIds: string[], totalWorkActions: number, streakDays: number): EnhancedBusiness[] {
+  return ENHANCED_BUSINESSES.filter(business => {
+    // Check if already owned
+    if (ownedBusinessIds.includes(business.id)) return false;
+    
+    // Check prerequisites
+    if (business.prerequisites) {
+      return business.prerequisites.every(req => {
+        if (req === '100_work_actions') return totalWorkActions >= 100;
+        if (req === 'week_streak') return streakDays >= 7;
+        // Add more prerequisite checks as needed
+        return true;
+      });
+    }
+    
+    return true;
+  });
+}

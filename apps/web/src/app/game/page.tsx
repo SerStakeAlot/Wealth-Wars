@@ -11,6 +11,7 @@ import { BulkBar } from '../../components/BulkBar';
 import { AvatarButton } from '../../components/AvatarButton';
 import { MenuSheet } from '../../components/MenuSheet';
 import { UsernameInput } from '../../components/UsernameInput';
+import { DefenseBanner } from '../../components/DefenseBanner';
 
 const inter = Inter({ subsets: ['latin'] });
 const orbitron = Orbitron({ subsets: ['latin'], weight: ['600', '800'] });
@@ -215,6 +216,9 @@ export default function GamePage() {
 
   return (
     <div className={`${inter.className} page`}>
+      {/* Defense Banner - Shows when under attack */}
+      <DefenseBanner />
+      
       {/* TOP BAR - Player Status & Settings */}
       <header className="topBar">
         <div className="playerSection">
