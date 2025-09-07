@@ -31,6 +31,10 @@ import {
   getWARRecommendations,
   checkWARAchievements
 } from './war';
+import { WealthWarsProgram, PlayerState, TreasuryState } from './solana/wealthWarsProgram';
+import { Connection, PublicKey } from '@solana/web3.js';
+import { AnchorWallet } from '@solana/wallet-adapter-react';
+import { toast } from 'react-hot-toast';
 
 interface GameState extends Player {
   assets: Asset[];
@@ -96,6 +100,15 @@ interface GameState extends Player {
   setOnChainMode: (enabled: boolean) => void;
   loading: boolean;
   setLoading: (loading: boolean) => void;
+  // On-chain program state
+  wealthWarsProgram: WealthWarsProgram | null;
+  onChainPlayerState: PlayerState | null;
+  treasuryState: TreasuryState | null;
+  connection: Connection | null;
+  wallet: AnchorWallet | null;
+  setWalletConnection: (connection: Connection, wallet: AnchorWallet) => void;
+  clearWalletConnection: () => void;
+  refreshTreasuryData: () => Promise<void>;
   
   // Leaderboard data
   leaderboardPlayers: LeaderboardPlayer[];
@@ -195,6 +208,13 @@ export const useGame = create<GameState>((set, get) => ({
   // Social Sharing System
   shareModalOpen: false,
   pendingWorkReward: null as { baseReward: number; isShared: boolean } | null,
+  
+  // On-chain program state
+  wealthWarsProgram: null,
+  onChainPlayerState: null,
+  treasuryState: null,
+  connection: null,
+  wallet: null,
   
   business: {
     clickBonusPerDay: 1, // Legacy - keeping for compatibility
@@ -949,40 +969,236 @@ export const useGame = create<GameState>((set, get) => ({
     set({ loading });
   },
 
+  setWalletConnection: (connection: Connection, wallet: AnchorWallet) => {
+    const program = new WealthWarsProgram(connection, wallet);
+    set({ 
+      connection, 
+      wallet, 
+      wealthWarsProgram: program 
+    });
+  },
+
+  clearWalletConnection: () => {
+    set({ 
+      connection: null, 
+      wallet: null, 
+      wealthWarsProgram: null,
+      onChainPlayerState: null 
+    });
+  },
+
   initPlayerOnChain: async () => {
-    // Placeholder for Solana on-chain player initialization
-    // This will be implemented when Anchor program is deployed
-    console.log('initPlayerOnChain called - requires Anchor program deployment');
+    const { wealthWarsProgram } = get();
+    if (!wealthWarsProgram) {
+      toast.error('Wallet not connected');
+      return;
+    }
+
+    try {
+      set({ loading: true });
+      const result = await wealthWarsProgram.initializePlayer();
+      
+      if (result.success) {
+        // Fetch updated player state
+        await get().refreshPlayerData();
+        toast.success('Player initialized on-chain!');
+      } else {
+        toast.error(result.error || 'Failed to initialize player');
+      }
+    } catch (error) {
+      console.error('Failed to initialize player:', error);
+      toast.error('Transaction failed');
+    } finally {
+      set({ loading: false });
+    }
   },
 
   clickWorkOnChain: async () => {
-    // Placeholder for Solana on-chain work clicking
-    // This will be implemented when Anchor program is deployed
-    console.log('clickWorkOnChain called - requires Anchor program deployment');
+    const { wealthWarsProgram, isOnChainMode } = get();
+    
+    if (!isOnChainMode) {
+      // Fall back to client-side work
+      return get().clickWork();
+    }
+    
+    if (!wealthWarsProgram) {
+      toast.error('Wallet not connected');
+      return;
+    }
+
+    try {
+      set({ loading: true });
+      const result = await wealthWarsProgram.doWork();
+      
+      if (result.success) {
+        // Show share modal with actual reward
+        set({ 
+          shareModalOpen: true,
+          pendingWorkReward: { 
+            baseReward: result.reward || 100, 
+            isShared: false 
+          }
+        });
+        
+        // Refresh on-chain state
+        await get().refreshPlayerData();
+        
+        toast.success(`Work completed! Earned ${result.reward} credits`);
+      } else {
+        if (result.cooldownRemaining) {
+          const hours = Math.floor(result.cooldownRemaining / 3600);
+          const minutes = Math.floor((result.cooldownRemaining % 3600) / 60);
+          toast.error(`Cooldown active: ${hours}h ${minutes}m remaining`);
+        } else {
+          toast.error(result.error || 'Work failed');
+        }
+      }
+    } catch (error) {
+      console.error('Work transaction failed:', error);
+      toast.error('Transaction failed');
+    } finally {
+      set({ loading: false });
+    }
   },
 
   buyBusinessOnChain: async (bizKind: number) => {
-    // Placeholder for Solana on-chain business purchases
-    // This will be implemented when Anchor program is deployed
-    console.log('buyBusinessOnChain called with:', bizKind, '- requires Anchor program deployment');
+    const { wealthWarsProgram, isOnChainMode } = get();
+    
+    if (!isOnChainMode) {
+      // Fall back to client-side purchase
+      return get().buyBusiness(bizKind);
+    }
+    
+    if (!wealthWarsProgram) {
+      toast.error('Wallet not connected');
+      return;
+    }
+
+    try {
+      set({ loading: true });
+      const result = await wealthWarsProgram.purchaseBusiness(bizKind);
+      
+      if (result.success) {
+        // Refresh on-chain state
+        await get().refreshPlayerData();
+        toast.success(`Business purchased for ${result.cost} credits!`);
+      } else {
+        toast.error(result.error || 'Purchase failed');
+      }
+    } catch (error) {
+      console.error('Business purchase failed:', error);
+      toast.error('Transaction failed');
+    } finally {
+      set({ loading: false });
+    }
   },
 
   swapCreditForWealth: async (amount: string) => {
-    // Placeholder for Solana on-chain credit to $WEALTH swaps
-    // This will be implemented when Anchor program is deployed
-    console.log('swapCreditForWealth called with amount:', amount, '- requires Anchor program deployment');
+    const { wealthWarsProgram, isOnChainMode } = get();
+    
+    if (!isOnChainMode) {
+      toast('Treasury requires on-chain mode');
+      return;
+    }
+    
+    if (!wealthWarsProgram) {
+      toast.error('Wallet not connected');
+      return;
+    }
+
+    try {
+      set({ loading: true });
+      const amountNum = parseFloat(amount);
+      const minOut = amountNum * 0.035; // Rough estimate minus slippage
+      
+      const result = await wealthWarsProgram.swapCreditsForWealth(amountNum, minOut);
+      
+      if (result.success) {
+        await get().refreshPlayerData();
+        await get().refreshTreasuryData();
+        toast.success(`Swapped ${amountNum} credits for ${result.amountOut} WEALTH!`);
+      } else {
+        toast.error(result.error || 'Swap failed');
+      }
+    } catch (error) {
+      console.error('Swap failed:', error);
+      toast.error('Transaction failed');
+    } finally {
+      set({ loading: false });
+    }
   },
 
   swapWealthForCredit: async (amount: string) => {
-    // Placeholder for Solana on-chain $WEALTH to credit swaps
-    // This will be implemented when Anchor program is deployed
-    console.log('swapWealthForCredit called with amount:', amount, '- requires Anchor program deployment');
+    const { wealthWarsProgram, isOnChainMode } = get();
+    
+    if (!isOnChainMode) {
+      toast('Treasury requires on-chain mode');
+      return;
+    }
+    
+    if (!wealthWarsProgram) {
+      toast.error('Wallet not connected');
+      return;
+    }
+
+    try {
+      set({ loading: true });
+      const amountNum = parseFloat(amount);
+      const minOut = amountNum * 25; // Rough estimate minus slippage
+      
+      const result = await wealthWarsProgram.swapWealthForCredits(amountNum, minOut);
+      
+      if (result.success) {
+        await get().refreshPlayerData();
+        await get().refreshTreasuryData();
+        toast.success(`Swapped ${amountNum} WEALTH for ${result.amountOut} credits!`);
+      } else {
+        toast.error(result.error || 'Swap failed');
+      }
+    } catch (error) {
+      console.error('Swap failed:', error);
+      toast.error('Transaction failed');
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  refreshTreasuryData: async () => {
+    const { wealthWarsProgram } = get();
+    if (!wealthWarsProgram) return;
+
+    try {
+      const treasuryState = await wealthWarsProgram.getTreasuryState();
+      set({ treasuryState });
+    } catch (error) {
+      console.error('Failed to refresh treasury data:', error);
+    }
   },
 
   refreshPlayerData: async () => {
-    // Placeholder for fetching player data from Solana blockchain
-    // This will be implemented when Anchor program is deployed
-    console.log('refreshPlayerData called - requires Anchor program deployment');
+    const { wealthWarsProgram } = get();
+    if (!wealthWarsProgram) return;
+
+    try {
+      const playerState = await wealthWarsProgram.getPlayerState();
+      
+      if (playerState) {
+        // Map on-chain level to client frequency
+        const frequencyMap = ['novice', 'apprentice', 'skilled', 'expert', 'master'] as const;
+        const workFrequency = frequencyMap[playerState.workFrequencyLevel] || 'novice';
+        
+        // Update local state with on-chain data
+        set({
+          onChainPlayerState: playerState,
+          creditBalance: playerState.credits.toNumber(),
+          streakDays: playerState.streakCount,
+          workFrequency,
+          totalWorkActions: playerState.totalWorkActions.toNumber(),
+        });
+      }
+    } catch (error) {
+      console.error('Failed to refresh player data:', error);
+    }
   },
 
   // Leaderboard functions

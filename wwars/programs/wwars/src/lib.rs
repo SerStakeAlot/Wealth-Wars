@@ -58,4 +58,36 @@ pub mod wwars {
     pub fn pause(ctx: Context<Pause>, paused: bool) -> Result<()> {
         instructions::set_params::pause(ctx, paused)
     }
+
+    pub fn initialize_player(ctx: Context<InitializePlayer>) -> Result<()> {
+        instructions::initialize_player::initialize_player(ctx)
+    }
+
+    pub fn do_work(ctx: Context<DoWork>) -> Result<()> {
+        instructions::work::do_work(ctx)
+    }
+
+    pub fn purchase_business(ctx: Context<PurchaseBusiness>, business_id: u8) -> Result<()> {
+        instructions::purchase_business::purchase_business(ctx, business_id)
+    }
+
+    pub fn initialize_treasury(ctx: Context<InitializeTreasury>, fee_bps: u16, max_trade_units: u64) -> Result<()> {
+        instructions::initialize_treasury::initialize_treasury(ctx, fee_bps, max_trade_units)
+    }
+
+    pub fn add_liquidity(ctx: Context<AddLiquidity>, base_amount: u64, quote_amount: u64) -> Result<()> {
+        instructions::add_liquidity::add_liquidity(ctx, base_amount, quote_amount)
+    }
+
+    pub fn swap_credits_for_wealth(ctx: Context<SwapCreditsForWealth>, credits_in: u64, min_wealth_out: u64) -> Result<()> {
+        instructions::swap_credits_for_wealth::swap_credits_for_wealth(ctx, credits_in, min_wealth_out)
+    }
+
+    pub fn swap_wealth_for_credits(ctx: Context<SwapWealthForCredits>, wealth_in: u64, min_credits_out: u64) -> Result<()> {
+        instructions::swap_wealth_for_credits::swap_wealth_for_credits(ctx, wealth_in, min_credits_out)
+    }
+
+    pub fn set_treasury_params(ctx: Context<SetTreasuryParams>, fee_bps: Option<u16>, max_trade_units: Option<u64>, paused: Option<bool>) -> Result<()> {
+        instructions::set_treasury_params::set_treasury_params(ctx, fee_bps, max_trade_units, paused)
+    }
 }

@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { Inter, Orbitron } from 'next/font/google';
 import { Connection, PublicKey, clusterApiUrl } from '@solana/web3.js';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { useGame } from '../lib/store';
+import { useWealthWarsProgram } from '../hooks/useWealthWarsProgram';
 import { BusinessRow } from '../../components/BusinessRow';
 import { BulkBar } from '../../components/BulkBar';
 import { AvatarButton } from '../../components/AvatarButton';
@@ -15,6 +16,7 @@ import { DefenseBanner } from '../../components/DefenseBanner';
 import { WARDisplay } from '../../components/WARDisplay';
 import { ShareModal } from '../../components/ShareModal';
 import { ENHANCED_BUSINESSES } from '../lib/businesses';
+import { MAINTENANCE_ACTIONS } from '../lib/maintenance';
 
 const inter = Inter({ subsets: ['latin'] });
 const orbitron = Orbitron({ subsets: ['latin'], weight: ['600', '800'] });
@@ -116,6 +118,9 @@ export default function GamePage() {
   const [sol, setSol] = useState(0);
   const connected = !!pubkey;
 
+  /* ---------- Solana integration ---------- */
+  const { isConnected, publicKey } = useWealthWarsProgram();
+
   /* ---------- Game state ---------- */
   const { 
     level, xp, wealth, liquidity, assets, collect, upgrade, defend, prestige, clanEligible, derived, tick, setWalletAddress,
@@ -124,11 +129,112 @@ export default function GamePage() {
     lastWorkTime, workCooldown, workFrequency, totalWorkActions, totalCreditsEarned,
     // Enhanced Business System
     enhancedBusinesses, buyEnhancedBusiness,
+    // Business Maintenance System
+    businessConditions, performBusinessMaintenance, maintenanceBudget,
     // Solana integration
     isOnChainMode, setOnChainMode, loading, setLoading,
     initPlayerOnChain, clickWorkOnChain, buyBusinessOnChain, 
-    swapCreditForWealth, swapWealthForCredit, refreshPlayerData
+    swapCreditForWealth, swapWealthForCredit, refreshPlayerData,
+    treasuryState, refreshTreasuryData
   } = useGame();
+
+  // Helper functions for maintenance
+  const getBusinessCondition = (businessId: string) => {
+    return businessConditions[businessId] || { condition: 100, isOffline: false };
+  };
+
+  const getConditionColor = (condition: number) => {
+    if (condition >= 80) return '#22c55e'; // Green
+    if (condition >= 60) return '#f59e0b'; // Orange  
+    if (condition >= 40) return '#ef4444'; // Red
+    return '#7c2d12'; // Dark red
+  };
+
+  const getConditionLabel = (condition: number) => {
+    if (condition >= 80) return 'Excellent';
+    if (condition >= 60) return 'Good';
+    if (condition >= 40) return 'Fair';
+    if (condition >= 20) return 'Poor';
+    return 'Critical';
+  };
+
+  const handleMaintenance = async (businessId: string, actionType: 'routine' | 'major' | 'upgrade' | 'emergency') => {
+    const result = performBusinessMaintenance(businessId, actionType);
+    if (result.success) {
+      toast.success(`Maintenance completed! Cost: ${result.cost?.toLocaleString()} credits`);
+    } else {
+      toast.error(result.reason || 'Maintenance failed');
+    }
+  };
+
+  // Treasury state and calculations
+  const [swapDirection, setSwapDirection] = useState<'credit-to-wealth' | 'wealth-to-credit'>('credit-to-wealth');
+  const [swapAmount, setSwapAmount] = useState('');
+  const [maxSlippage, setMaxSlippage] = useState(0.5);
+
+  const treasuryCalculations = useMemo(() => {
+    if (!treasuryState) {
+      return {
+        creditPrice: 0,
+        wealthPrice: 0,
+        totalLiquidity: 0,
+        poolShare: { credit: 0, wealth: 0 },
+        estimatedOutput: 0,
+        priceImpact: 0,
+        minimumReceived: 0
+      };
+    }
+
+    const { quoteReserve: creditReserves, baseReserve: wealthReserves } = treasuryState;
+    const totalLiquidity = creditReserves + wealthReserves;
+    const creditPrice = wealthReserves / creditReserves;
+    const wealthPrice = creditReserves / wealthReserves;
+    
+    const poolShare = {
+      credit: (creditReserves / totalLiquidity) * 100,
+      wealth: (wealthReserves / totalLiquidity) * 100
+    };
+
+    let estimatedOutput = 0;
+    let priceImpact = 0;
+    let minimumReceived = 0;
+
+    if (swapAmount && parseFloat(swapAmount) > 0) {
+      const inputAmount = parseFloat(swapAmount);
+      
+      if (swapDirection === 'credit-to-wealth') {
+        const k = creditReserves * wealthReserves;
+        const newCreditReserves = creditReserves + inputAmount;
+        const newWealthReserves = k / newCreditReserves;
+        estimatedOutput = wealthReserves - newWealthReserves;
+        
+        const originalPrice = wealthReserves / creditReserves;
+        const newPrice = estimatedOutput / inputAmount;
+        priceImpact = Math.abs((newPrice - originalPrice) / originalPrice) * 100;
+      } else {
+        const k = creditReserves * wealthReserves;
+        const newWealthReserves = wealthReserves + inputAmount;
+        const newCreditReserves = k / newWealthReserves;
+        estimatedOutput = creditReserves - newCreditReserves;
+        
+        const originalPrice = creditReserves / wealthReserves;
+        const newPrice = estimatedOutput / inputAmount;
+        priceImpact = Math.abs((newPrice - originalPrice) / originalPrice) * 100;
+      }
+
+      minimumReceived = estimatedOutput * (1 - maxSlippage / 100);
+    }
+
+    return {
+      creditPrice,
+      wealthPrice,
+      totalLiquidity,
+      poolShare,
+      estimatedOutput,
+      priceImpact,
+      minimumReceived
+    };
+  }, [treasuryState, swapAmount, swapDirection, maxSlippage]);
 
   useEffect(() => {
     const p = typeof window !== 'undefined' ? window.solana : undefined;
@@ -284,7 +390,29 @@ export default function GamePage() {
               <span className="statLabel">Total Work</span>
               <span className="statValue">{totalWorkActions}</span>
             </div>
+            <div className="workStat">
+              <span className="statLabel">Mode</span>
+              <span className="statValue">
+                {isOnChainMode ? '⛓️ On-Chain' : '💻 Local'}
+              </span>
+            </div>
           </div>
+
+          {/* On-chain initialization section */}
+          {isConnected && !isOnChainMode && (
+            <div className="onChainInit">
+              <button 
+                className="initBtn" 
+                onClick={initPlayerOnChain}
+                disabled={loading}
+              >
+                {loading ? 'Initializing...' : '⛓️ Initialize On-Chain'}
+              </button>
+              <p className="initText">
+                Connect to Solana blockchain for verifiable timing and rewards
+              </p>
+            </div>
+          )}
 
           {(() => {
             const now = Date.now();
@@ -301,11 +429,17 @@ export default function GamePage() {
               (business.factory * 100);
             const workValue = baseCredits + streakBonus + businessBonus;
 
+            // Determine which work function to use
+            const handleWork = isOnChainMode ? clickWorkOnChain : clickWork;
+
             if (canWork) {
               return (
-                <button className="workBtn" onClick={clickWork}>
+                <button className="workBtn" onClick={handleWork} disabled={loading}>
                   <span className="workIcon">💼</span>
-                  <span className="workText">Clock in</span>
+                  <span className="workText">
+                    {loading ? 'Working...' : 'Clock in'}
+                    {isOnChainMode && <span className="onChainBadge">⛓️</span>}
+                  </span>
                   <span className="workEarn">+{workValue} credits</span>
                 </button>
               );
@@ -381,32 +515,93 @@ export default function GamePage() {
           </div>
 
           {/* Enhanced Businesses */}
-          {ENHANCED_BUSINESSES.slice(0, 3).map((enhancedBiz) => (
-            <div key={enhancedBiz.id} className="businessCard enhanced">
-              <div className="businessHeader">
-                <span className="businessIcon">{enhancedBiz.emoji}</span>
-                <span className="businessName">{enhancedBiz.name}</span>
-                <span className="businessCategory">{enhancedBiz.category}</span>
+          {ENHANCED_BUSINESSES.slice(0, 3).map((enhancedBiz) => {
+            const isOwned = enhancedBusinesses.includes(enhancedBiz.id);
+            const condition = getBusinessCondition(enhancedBiz.id);
+            const conditionColor = getConditionColor(condition.condition);
+            const conditionLabel = getConditionLabel(condition.condition);
+            
+            return (
+              <div key={enhancedBiz.id} className="businessCard enhanced">
+                <div className="businessHeader">
+                  <span className="businessIcon">{enhancedBiz.emoji}</span>
+                  <div className="businessTitleInfo">
+                    <span className="businessName">{enhancedBiz.name}</span>
+                    <span className="businessCategory">{enhancedBiz.category}</span>
+                  </div>
+                  {condition.isOffline && (
+                    <span className="offlineIndicator">🔧 OFFLINE</span>
+                  )}
+                </div>
+                
+                {isOwned && (
+                  <div className="healthSection">
+                    <div className="healthHeader">
+                      <span className="healthLabel">Condition: {conditionLabel}</span>
+                      <span className="healthValue" style={{ color: conditionColor }}>
+                        {Math.floor(condition.condition)}%
+                      </span>
+                    </div>
+                    <div className="healthBar">
+                      <div 
+                        className="healthFill" 
+                        style={{ 
+                          width: `${condition.condition}%`, 
+                          backgroundColor: conditionColor 
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                <div className="businessStats">
+                  <span className="businessOwned">
+                    {isOwned ? 'Owned ✓' : 'Not Owned'}
+                  </span>
+                  <span className="businessIncome">+{enhancedBiz.workMultiplier} credits per work</span>
+                  <span className="businessDescription">{enhancedBiz.description}</span>
+                </div>
+                
+                {isOwned ? (
+                  <div className="maintenanceActions">
+                    <button 
+                      className="maintenanceBtn routine"
+                      onClick={() => handleMaintenance(enhancedBiz.id, 'routine')}
+                      disabled={condition.condition >= 90}
+                      title="Routine maintenance - Low cost, moderate repair"
+                    >
+                      🔧 Routine
+                    </button>
+                    <button 
+                      className="maintenanceBtn major"
+                      onClick={() => handleMaintenance(enhancedBiz.id, 'major')}
+                      disabled={condition.condition >= 90}
+                      title="Major overhaul - Higher cost, significant repair"
+                    >
+                      ⚙️ Major
+                    </button>
+                    {condition.condition <= 20 && (
+                      <button 
+                        className="maintenanceBtn emergency"
+                        onClick={() => handleMaintenance(enhancedBiz.id, 'emergency')}
+                        title="Emergency repair - Expensive but instant"
+                      >
+                        🚨 Emergency
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button 
+                    className="buyBtn enhanced"
+                    onClick={() => buyEnhancedBusiness(enhancedBiz.id)}
+                    disabled={creditBalance < enhancedBiz.cost}
+                  >
+                    Buy for {enhancedBiz.cost.toLocaleString()} credits
+                  </button>
+                )}
               </div>
-              <div className="businessStats">
-                <span className="businessOwned">
-                  {enhancedBusinesses.includes(enhancedBiz.id) ? 'Owned ✓' : 'Not Owned'}
-                </span>
-                <span className="businessIncome">+{enhancedBiz.workMultiplier} credits per work</span>
-                <span className="businessDescription">{enhancedBiz.description}</span>
-              </div>
-              <button 
-                className="buyBtn enhanced"
-                onClick={() => buyEnhancedBusiness(enhancedBiz.id)}
-                disabled={enhancedBusinesses.includes(enhancedBiz.id) || creditBalance < enhancedBiz.cost}
-              >
-                {enhancedBusinesses.includes(enhancedBiz.id) 
-                  ? 'Owned' 
-                  : `Buy for ${enhancedBiz.cost.toLocaleString()} credits`
-                }
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Treasury & Swap Section */}
@@ -438,56 +633,139 @@ export default function GamePage() {
             </div>
           )}
 
-          <div className="swapGrid">
-            <div className="swapCard">
-              <div className="swapHeader">
-                <span>Credits → $WEALTH</span>
+          {/* Pool Information */}
+          <div className="poolInfo">
+            <h3>Liquidity Pool Stats</h3>
+            <div className="poolStatsGrid">
+              <div className="poolStat">
+                <span className="statLabel">Total Value Locked:</span>
+                <span className="statValue">{treasuryCalculations.totalLiquidity.toLocaleString()} USD</span>
               </div>
-              <div className="swapInputGroup">
-                <input 
-                  type="number" 
-                  placeholder="Amount of credits"
-                  className="swapInput"
-                />
-                <button 
-                  className="swapBtn"
-                  disabled={loading}
-                  onClick={() => swapCreditForWealth("0")}
-                >
-                  Swap
-                </button>
+              <div className="poolStat">
+                <span className="statLabel">Credit Price:</span>
+                <span className="statValue">${treasuryCalculations.creditPrice.toFixed(4)}</span>
               </div>
+              <div className="poolStat">
+                <span className="statLabel">$WEALTH Price:</span>
+                <span className="statValue">${treasuryCalculations.wealthPrice.toFixed(4)}</span>
+              </div>
+              <div className="poolStat">
+                <span className="statLabel">Pool Composition:</span>
+                <span className="statValue">
+                  {treasuryCalculations.poolShare.credit.toFixed(1)}% Credits / {treasuryCalculations.poolShare.wealth.toFixed(1)}% $WEALTH
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Swap Interface */}
+          <div className="swapInterface">
+            <div className="swapDirection">
+              <button 
+                className={`directionBtn ${swapDirection === 'credit-to-wealth' ? 'active' : ''}`}
+                onClick={() => setSwapDirection('credit-to-wealth')}
+              >
+                Credits → $WEALTH
+              </button>
+              <button 
+                className={`directionBtn ${swapDirection === 'wealth-to-credit' ? 'active' : ''}`}
+                onClick={() => setSwapDirection('wealth-to-credit')}
+              >
+                $WEALTH → Credits
+              </button>
             </div>
 
             <div className="swapCard">
-              <div className="swapHeader">
-                <span>$WEALTH → Credits</span>
-              </div>
               <div className="swapInputGroup">
+                <label className="inputLabel">
+                  You're swapping: {swapDirection === 'credit-to-wealth' ? 'Credits' : '$WEALTH'}
+                </label>
                 <input 
                   type="number" 
-                  placeholder="Amount of $WEALTH"
+                  value={swapAmount}
+                  onChange={(e) => setSwapAmount(e.target.value)}
+                  placeholder={`Amount of ${swapDirection === 'credit-to-wealth' ? 'Credits' : '$WEALTH'}`}
                   className="swapInput"
                 />
-                <button 
-                  className="swapBtn"
-                  disabled={loading}
-                  onClick={() => swapWealthForCredit("0")}
-                >
-                  Swap
-                </button>
               </div>
+
+              {swapAmount && parseFloat(swapAmount) > 0 && (
+                <div className="swapPreview">
+                  <div className="previewItem">
+                    <span>You'll receive:</span>
+                    <span className="outputAmount">
+                      {treasuryCalculations.estimatedOutput.toFixed(4)} {swapDirection === 'credit-to-wealth' ? '$WEALTH' : 'Credits'}
+                    </span>
+                  </div>
+                  <div className="previewItem">
+                    <span>Price Impact:</span>
+                    <span className={`priceImpact ${treasuryCalculations.priceImpact > 5 ? 'high' : treasuryCalculations.priceImpact > 2 ? 'medium' : 'low'}`}>
+                      {treasuryCalculations.priceImpact.toFixed(2)}%
+                    </span>
+                  </div>
+                  <div className="previewItem">
+                    <span>Minimum received (slippage: {maxSlippage}%):</span>
+                    <span>{treasuryCalculations.minimumReceived.toFixed(4)} {swapDirection === 'credit-to-wealth' ? '$WEALTH' : 'Credits'}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="slippageSettings">
+                <label className="inputLabel">Max Slippage: {maxSlippage}%</label>
+                <input 
+                  type="range"
+                  min="0.1"
+                  max="5"
+                  step="0.1"
+                  value={maxSlippage}
+                  onChange={(e) => setMaxSlippage(parseFloat(e.target.value))}
+                  className="slippageSlider"
+                />
+                <div className="slippageOptions">
+                  {[0.5, 1, 2, 5].map(value => (
+                    <button 
+                      key={value}
+                      className={`slippageBtn ${maxSlippage === value ? 'active' : ''}`}
+                      onClick={() => setMaxSlippage(value)}
+                    >
+                      {value}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button 
+                className="swapBtn"
+                disabled={loading || !swapAmount || parseFloat(swapAmount) <= 0 || treasuryCalculations.priceImpact > 10}
+                onClick={() => {
+                  if (swapDirection === 'credit-to-wealth') {
+                    swapCreditForWealth(swapAmount);
+                  } else {
+                    swapWealthForCredit(swapAmount);
+                  }
+                }}
+              >
+                {loading ? 'Processing...' : 
+                 treasuryCalculations.priceImpact > 10 ? 'Price impact too high' :
+                 !swapAmount || parseFloat(swapAmount) <= 0 ? 'Enter amount' :
+                 `Swap ${swapDirection === 'credit-to-wealth' ? 'Credits' : '$WEALTH'}`}
+              </button>
             </div>
           </div>
 
           <div className="treasuryInfo">
             <div className="treasuryStats">
               <span className="statLabel">Treasury Status:</span>
-              <span className="statValue">Ready for swaps</span>
+              <span className="statValue">{treasuryState ? 'Active' : 'Not Initialized'}</span>
             </div>
             <div className="treasuryStats">
-              <span className="statLabel">$WEALTH Rate:</span>
-              <span className="statValue">1:1 (demo)</span>
+              <span className="statLabel">Exchange Rate:</span>
+              <span className="statValue">
+                {treasuryState ? 
+                  `1 Credit = ${treasuryCalculations.creditPrice.toFixed(4)} $WEALTH` : 
+                  'Calculating...'
+                }
+              </span>
             </div>
           </div>
         </div>
@@ -941,6 +1219,179 @@ export default function GamePage() {
           color: #6b7280;
         }
 
+        .healthSection {
+          margin-top: 8px;
+          padding: 6px 8px;
+          background: rgba(0,0,0,0.2);
+          border-radius: 4px;
+        }
+
+        .healthBar {
+          width: 100%;
+          height: 4px;
+          background: rgba(255,255,255,0.1);
+          border-radius: 2px;
+          overflow: hidden;
+          margin-bottom: 4px;
+        }
+
+        .healthFill {
+          height: 100%;
+          transition: width 0.3s ease;
+        }
+
+        .healthFill.excellent {
+          background: linear-gradient(90deg, #22c55e, #16a34a);
+        }
+
+        .healthFill.good {
+          background: linear-gradient(90deg, #eab308, #ca8a04);
+        }
+
+        .healthFill.poor {
+          background: linear-gradient(90deg, #f97316, #ea580c);
+        }
+
+        .healthFill.critical {
+          background: linear-gradient(90deg, #ef4444, #dc2626);
+        }
+
+        .conditionText {
+          font-size: 10px;
+          text-align: center;
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .conditionText.excellent {
+          color: #22c55e;
+        }
+
+        .conditionText.good {
+          color: #eab308;
+        }
+
+        .conditionText.poor {
+          color: #f97316;
+        }
+
+        .conditionText.critical {
+          color: #ef4444;
+        }
+
+        .maintenanceActions {
+          display: flex;
+          gap: 4px;
+          margin-top: 6px;
+        }
+
+        .maintenanceBtn {
+          flex: 1;
+          padding: 4px 6px;
+          font-size: 9px;
+          border: none;
+          border-radius: 3px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.3px;
+        }
+
+        .maintenanceBtn.routine {
+          background: linear-gradient(180deg, #3b82f6, #2563eb);
+          color: white;
+        }
+
+        .maintenanceBtn.routine:hover {
+          box-shadow: 0 2px 6px rgba(59,130,246,0.3);
+          transform: translateY(-1px);
+        }
+
+        .maintenanceBtn.major {
+          background: linear-gradient(180deg, #f59e0b, #d97706);
+          color: white;
+        }
+
+        .maintenanceBtn.major:hover {
+          box-shadow: 0 2px 6px rgba(245,158,11,0.3);
+          transform: translateY(-1px);
+        }
+
+        .maintenanceBtn.emergency {
+          background: linear-gradient(180deg, #ef4444, #dc2626);
+          color: white;
+        }
+
+        .maintenanceBtn.emergency:hover {
+          box-shadow: 0 2px 6px rgba(239,68,68,0.3);
+          transform: translateY(-1px);
+        }
+
+        .maintenanceBtn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .offlineIndicator {
+          position: absolute;
+          top: 4px;
+          right: 4px;
+          padding: 2px 6px;
+          background: rgba(156,163,175,0.9);
+          color: white;
+          font-size: 8px;
+          border-radius: 8px;
+          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.5px;
+        }
+
+        .onChainInit {
+          margin-top: 16px;
+          padding: 16px;
+          background: rgba(34,197,94,0.05);
+          border: 1px solid rgba(34,197,94,0.2);
+          border-radius: 8px;
+          text-align: center;
+        }
+
+        .initBtn {
+          background: linear-gradient(180deg, #22c55e, #16a34a);
+          border: 1px solid rgba(34,197,94,0.3);
+          border-radius: 6px;
+          padding: 10px 20px;
+          color: white;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          margin-bottom: 8px;
+        }
+
+        .initBtn:hover:not(:disabled) {
+          box-shadow: 0 4px 12px rgba(34,197,94,0.3);
+          transform: translateY(-1px);
+        }
+
+        .initBtn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .initText {
+          font-size: 12px;
+          color: rgba(255,255,255,0.6);
+          margin: 0;
+        }
+
+        .onChainBadge {
+          margin-left: 4px;
+          font-size: 10px;
+        }
+
         .resetSection {
           display: flex;
           justify-content: center;
@@ -1125,6 +1576,159 @@ export default function GamePage() {
         .statValue {
           color: #e6edf5;
           font-weight: 600;
+        }
+
+        /* Enhanced Treasury AMM Styles */
+        .poolInfo {
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 8px;
+          padding: 16px;
+          margin-bottom: 20px;
+        }
+
+        .poolInfo h3 {
+          margin: 0 0 12px 0;
+          color: #e6edf5;
+          font-size: 16px;
+        }
+
+        .poolStatsGrid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 12px;
+        }
+
+        .poolStat {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .swapInterface {
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 8px;
+          padding: 16px;
+          margin-bottom: 20px;
+        }
+
+        .swapDirection {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+
+        .directionBtn {
+          flex: 1;
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 8px;
+          padding: 12px 16px;
+          color: #9aa7bd;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-weight: 600;
+        }
+
+        .directionBtn.active {
+          background: linear-gradient(180deg, #3b82f6, #2563eb);
+          border-color: #3b82f6;
+          color: white;
+        }
+
+        .directionBtn:hover:not(.active) {
+          background: rgba(255,255,255,0.12);
+          color: #e6edf5;
+        }
+
+        .inputLabel {
+          display: block;
+          color: #9aa7bd;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-bottom: 6px;
+        }
+
+        .swapPreview {
+          background: rgba(255,255,255,0.02);
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 6px;
+          padding: 12px;
+          margin: 12px 0;
+        }
+
+        .previewItem {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+          font-size: 14px;
+        }
+
+        .previewItem:last-child {
+          margin-bottom: 0;
+        }
+
+        .outputAmount {
+          font-weight: 700;
+          color: #10b981;
+        }
+
+        .priceImpact {
+          font-weight: 600;
+        }
+
+        .priceImpact.low {
+          color: #10b981;
+        }
+
+        .priceImpact.medium {
+          color: #f59e0b;
+        }
+
+        .priceImpact.high {
+          color: #ef4444;
+        }
+
+        .slippageSettings {
+          margin: 16px 0;
+        }
+
+        .slippageSlider {
+          width: 100%;
+          margin: 8px 0;
+          background: rgba(255,255,255,0.1);
+          border-radius: 4px;
+        }
+
+        .slippageOptions {
+          display: flex;
+          gap: 8px;
+          margin-top: 8px;
+        }
+
+        .slippageBtn {
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 4px;
+          padding: 4px 8px;
+          color: #9aa7bd;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-size: 12px;
+        }
+
+        .slippageBtn.active {
+          background: linear-gradient(180deg, #3b82f6, #2563eb);
+          border-color: #3b82f6;
+          color: white;
+        }
+
+        .slippageBtn:hover:not(.active) {
+          background: rgba(255,255,255,0.12);
+          color: #e6edf5;
         }
 
 
