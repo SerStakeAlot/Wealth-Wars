@@ -37,6 +37,11 @@ export interface Player {
   workFrequency: 'novice' | 'apprentice' | 'skilled' | 'expert' | 'master'; // Work frequency tier
   totalWorkActions: number; // Total number of work actions performed
   totalCreditsEarned: number; // Total credits earned from all work actions
+  
+  // Social Sharing System
+  shareModalOpen: boolean;
+  pendingWorkReward: { baseReward: number; isShared: boolean } | null;
+  
   business: { 
     clickBonusPerDay: number; // Legacy - keeping for compatibility
     lemStand: number; 

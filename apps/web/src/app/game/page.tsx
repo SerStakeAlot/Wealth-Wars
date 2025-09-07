@@ -13,6 +13,7 @@ import { MenuSheet } from '../../components/MenuSheet';
 import { UsernameInput } from '../../components/UsernameInput';
 import { DefenseBanner } from '../../components/DefenseBanner';
 import { WARDisplay } from '../../components/WARDisplay';
+import { ShareModal } from '../../components/ShareModal';
 import { ENHANCED_BUSINESSES } from '../lib/businesses';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -555,6 +556,9 @@ export default function GamePage() {
 
       {/* MENU SHEET */}
       <MenuSheet isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
+
+      {/* SHARE MODAL */}
+      <ShareModal />
 
       {/* BOTTOM BAR */}
       <BulkBar />

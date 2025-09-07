@@ -47,6 +47,10 @@ interface GameState extends Player {
   clickWork: () => void;
   buyBusiness: (bizKind: number) => void;
   initPlayer: () => void;
+  // Social Sharing System
+  shareToX: () => void;
+  skipShare: () => void;
+  closeShareModal: () => void;
   // Enhanced Business System
   buyEnhancedBusiness: (businessId: string) => boolean;
   activateBusinessAbility: (businessId: string) => boolean;
@@ -187,6 +191,11 @@ export const useGame = create<GameState>((set, get) => ({
   workFrequency: 'novice',
   totalWorkActions: 0,
   totalCreditsEarned: 0,
+  
+  // Social Sharing System
+  shareModalOpen: false,
+  pendingWorkReward: null as { baseReward: number; isShared: boolean } | null,
+  
   business: {
     clickBonusPerDay: 1, // Legacy - keeping for compatibility
     lemStand: 0,
@@ -621,20 +630,62 @@ export const useGame = create<GameState>((set, get) => ({
       const newXp = state.xp + xpGain;
       const newLevel = newXp >= 100 ? state.level + 1 : state.level;
       
+      // Store pending reward and show share modal
       return {
-        creditBalance: state.creditBalance + workValue,
         streakDays: newStreakDays,
         lastWorkDay: currentDay,
         lastWorkTime: now,
         workCooldown: adjustedBaseCooldown,
         workFrequency,
         totalWorkActions: (state.totalWorkActions || 0) + 1,
-        totalCreditsEarned: (state.totalCreditsEarned || 0) + workValue,
         xp: newXp >= 100 ? 0 : newXp,
         level: newLevel,
         clanEligible: newLevel >= CLAN_MIN_LEVEL,
+        shareModalOpen: true,
+        pendingWorkReward: {
+          baseReward: workValue,
+          isShared: false
+        }
       };
     });
+  },
+
+  // Social Sharing functions
+  shareToX: () => {
+    const state = get();
+    if (!state.pendingWorkReward) return;
+
+    const sharedReward = Math.floor(state.pendingWorkReward.baseReward * 1.5);
+    const tweetText = encodeURIComponent(
+      `Just clocked in at Wealth Wars and earned ${sharedReward} credits! 💰 Building my business empire one work action at a time. #WealthWars #GameFi #Crypto`
+    );
+    
+    // Open Twitter share dialog
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${tweetText}`;
+    window.open(twitterUrl, '_blank', 'width=600,height=400');
+
+    set(state => ({
+      creditBalance: state.creditBalance + sharedReward,
+      totalCreditsEarned: (state.totalCreditsEarned || 0) + sharedReward,
+      shareModalOpen: false,
+      pendingWorkReward: null
+    }));
+  },
+
+  skipShare: () => {
+    const state = get();
+    if (!state.pendingWorkReward) return;
+
+    set(state => ({
+      creditBalance: state.creditBalance + state.pendingWorkReward!.baseReward,
+      totalCreditsEarned: (state.totalCreditsEarned || 0) + state.pendingWorkReward!.baseReward,
+      shareModalOpen: false,
+      pendingWorkReward: null
+    }));
+  },
+
+  closeShareModal: () => {
+    set({ shareModalOpen: false, pendingWorkReward: null });
   },
 
   buyBusiness: (bizKind: number) => {
@@ -818,6 +869,9 @@ export const useGame = create<GameState>((set, get) => ({
       workFrequency: 'novice',
       totalWorkActions: 0,
       totalCreditsEarned: 0,
+      // Social Sharing System reset
+      shareModalOpen: false,
+      pendingWorkReward: null,
       business: {
         clickBonusPerDay: 1, // Legacy
         lemStand: 0,
