@@ -43,11 +43,10 @@ export interface Player {
     cafe: number; 
     factory: number; 
   };
-  // Enhanced Business System
-  enhancedBusinesses: string[]; // Owned enhanced business IDs
-  activeBusinessSlots: BusinessSlot[]; // Currently active business slots
-  businessCooldowns: Record<string, number>; // Business ability cooldowns
-  activeEffects: Record<string, { endTime: number; effect: any }>; // Active temporary effects
+    // Enhanced Business System
+  enhancedBusinesses: string[];
+  businessCooldowns: Record<string, number>;
+  activeEffects: Record<string, any>;
   // Takeover System
   accountCreated: number; // Timestamp for new player protection
   portfolioValue: number; // Total value of owned businesses (cached)
@@ -56,6 +55,19 @@ export interface Player {
   defenseHistory: DefenseResponse[]; // Recent defense actions
   takeoverProtections: string[]; // Active protection business IDs
   lastTakeoverCheck: number; // Last time eligibility was calculated
+  // Business Maintenance
+  businessConditions: Record<string, BusinessCondition>;
+  maintenanceBudget: number;
+  lastMaintenanceCheck: number;
+  maintenanceNotifications: MaintenanceNotification[];
+  totalMaintenanceSpent: number;
+
+  // WAR (Wealth Asset Ratio) System
+  war: WealthAssetRatio;
+  warHistory: WARHistoryEntry[];
+
+  // Business Slot Management System
+  businessSlots: BusinessSlotSystem;
 }
 
 export interface Derived {
@@ -97,7 +109,18 @@ export interface LeaderboardPlayer {
   // Takeover Statistics
   takeoverWins?: number;
   takeoverLosses?: number;
-  takeoverSuccessRate?: number; // calculated percentage
+  takeoverSuccessRate?: number;
+
+  // Business Maintenance
+  businessConditions: Record<string, BusinessCondition>;
+  maintenanceBudget: number;
+  lastMaintenanceCheck: number;
+  maintenanceNotifications: MaintenanceNotification[];
+  totalMaintenanceSpent: number;
+
+  // WAR (Wealth Asset Ratio) System
+  war: WealthAssetRatio;
+  warHistory: WARHistoryEntry[];
 }
 
 // Enhanced Business System Types
@@ -185,12 +208,101 @@ export interface TakeoverEligibility {
 
 export interface TakeoverResult {
   success: boolean;
-  attackerId: string;
-  defenderId: string;
-  target: TakeoverTarget;
-  finalBid: number;
-  currency: 'credits' | 'wealth';
-  defenseAttempted: boolean;
-  compensation?: number; // What defender received
+  message: string;
+  newOwner?: string;
+  compensationPaid?: number;
+  businessTransferred?: string;
+}
+
+// Business Maintenance System
+export interface MaintenanceRecord {
+  id: string;
   timestamp: number;
+  type: 'routine' | 'major' | 'upgrade' | 'emergency';
+  cost: number;
+  conditionBefore: number;
+  conditionAfter: number;
+  downtime: number; // hours offline
+  description: string;
+}
+
+export interface BusinessCondition {
+  businessId: string;
+  condition: number; // 0-100 (100 = perfect, 0 = broken)
+  lastMaintained: number;
+  degradationRate: number; // % per day
+  maintenanceCost: number;
+  efficiencyMultiplier: number; // 0.0-1.0 based on condition
+  warningLevel: 'good' | 'caution' | 'critical' | 'broken';
+  maintenanceHistory: MaintenanceRecord[];
+  isOffline: boolean; // true during maintenance
+  offlineUntil?: number; // timestamp when maintenance completes
+  upgradeBonus: number; // permanent efficiency bonus from upgrades
+}
+
+export interface MaintenanceAction {
+  type: 'routine' | 'major' | 'upgrade' | 'emergency';
+  name: string;
+  costMultiplier: number; // % of business value
+  conditionRestored: number; // points restored
+  duration: number; // hours offline
+  preventsDegradation: number; // days of slower degradation
+  description: string;
+  upgradeBonus?: number; // permanent efficiency bonus
+}
+
+export interface MaintenanceNotification {
+  id: string;
+  businessId: string;
+  businessName: string;
+  type: 'warning' | 'critical' | 'broken' | 'maintenance_complete';
+  message: string;
+  action: string;
+  timestamp: number;
+  dismissed: boolean;
+}
+
+// WAR (Wealth Asset Ratio) System
+export interface WealthAssetRatio {
+  current: number;           // Current WAR score
+  peak: number;             // Highest WAR ever achieved
+  trend: 'rising' | 'falling' | 'stable';  // 7-day trend
+  rank: number;             // WAR leaderboard position
+  efficiency: 'poor' | 'average' | 'good' | 'excellent' | 'legendary';
+}
+
+export interface WARHistoryEntry {
+  timestamp: number;
+  war: number;
+  trigger: string;
+  portfolioValue: number;
+  wealthAmount: number;
+}
+
+// Business Slot Management System
+export interface ActiveSlot {
+  slotId: number;
+  businessId: string | null;
+  activatedAt: number; // timestamp when business was placed in slot
+}
+
+export interface SlotManagement {
+  activeSlots: ActiveSlot[];
+  maxSlots: number; // based on work frequency level
+  lastSlotChange: number; // timestamp of last portfolio edit
+  slotCooldownUntil: number; // timestamp when cooldown ends
+  canEditSlots: boolean; // derived field for UI
+}
+
+export interface SynergyBonus {
+  category: 'efficiency' | 'defensive' | 'offensive' | 'utility';
+  count: number;
+  bonus: number; // percentage bonus (25, 50, 75)
+  description: string;
+}
+
+export interface BusinessSlotSystem {
+  slotManagement: SlotManagement;
+  synergyBonuses: SynergyBonus[];
+  totalSynergyMultiplier: number; // combined bonus from all synergies
 }

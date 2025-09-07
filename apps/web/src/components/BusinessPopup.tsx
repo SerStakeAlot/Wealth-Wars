@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useGame } from '../app/lib/store';
 import { ENHANCED_BUSINESSES } from '../app/lib/businesses';
 import { EnhancedBusiness } from '../app/lib/types';
+import { BusinessSlotManager } from './BusinessSlotManager';
 
 interface BusinessPopupProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ const CATEGORY_INFO = {
 export function BusinessPopup({ isOpen, onClose }: BusinessPopupProps) {
   const { enhancedBusinesses, creditBalance, buyEnhancedBusiness } = useGame();
   const [selectedCategory, setSelectedCategory] = useState<string>('efficiency');
+  const [isSlotManagerOpen, setIsSlotManagerOpen] = useState(false);
 
   if (!isOpen) return null;
 
@@ -73,10 +75,30 @@ export function BusinessPopup({ isOpen, onClose }: BusinessPopupProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ padding: '20px', borderBottom: '2px solid #ffd700', textAlign: 'center' }}>
-          <h2 style={{ color: '#ffd700', margin: 0, fontSize: '24px', fontWeight: 'bold' }}>
-            🏢 Strategic Businesses
-          </h2>
-          <p style={{ color: '#94a3b8', margin: '8px 0 0 0', fontSize: '14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <h2 style={{ color: '#ffd700', margin: 0, fontSize: '24px', fontWeight: 'bold' }}>
+              🏢 Strategic Businesses
+            </h2>
+            <button
+              onClick={() => setIsSlotManagerOpen(true)}
+              style={{
+                background: '#fbbf24',
+                color: 'white',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseEnter={(e) => (e.target as HTMLButtonElement).style.background = '#f59e0b'}
+              onMouseLeave={(e) => (e.target as HTMLButtonElement).style.background = '#fbbf24'}
+            >
+              🎯 Manage Slots
+            </button>
+          </div>
+          <p style={{ color: '#94a3b8', margin: '0', fontSize: '14px' }}>
             Build your empire with enhanced businesses
           </p>
         </div>
@@ -194,6 +216,12 @@ export function BusinessPopup({ isOpen, onClose }: BusinessPopupProps) {
           })}
         </div>
       </div>
+
+      {/* Business Slot Manager Modal */}
+      <BusinessSlotManager
+        isOpen={isSlotManagerOpen}
+        onClose={() => setIsSlotManagerOpen(false)}
+      />
     </div>
   );
 }

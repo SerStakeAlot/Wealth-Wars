@@ -12,6 +12,8 @@ import { AvatarButton } from '../../components/AvatarButton';
 import { MenuSheet } from '../../components/MenuSheet';
 import { UsernameInput } from '../../components/UsernameInput';
 import { DefenseBanner } from '../../components/DefenseBanner';
+import { WARDisplay } from '../../components/WARDisplay';
+import { ENHANCED_BUSINESSES } from '../lib/businesses';
 
 const inter = Inter({ subsets: ['latin'] });
 const orbitron = Orbitron({ subsets: ['latin'], weight: ['600', '800'] });
@@ -119,6 +121,8 @@ export default function GamePage() {
     // Daily Work System state
     creditBalance, streakDays, business, clickWork, buyBusiness, initPlayer,
     lastWorkTime, workCooldown, workFrequency, totalWorkActions, totalCreditsEarned,
+    // Enhanced Business System
+    enhancedBusinesses, buyEnhancedBusiness,
     // Solana integration
     isOnChainMode, setOnChainMode, loading, setLoading,
     initPlayerOnChain, clickWorkOnChain, buyBusinessOnChain, 
@@ -234,9 +238,8 @@ export default function GamePage() {
             <span className="wealthLabel">$WEALTH</span>
             <span className={`${orbitron.className} wealthValue`}>{wealth.toLocaleString()}</span>
           </div>
-          <div className="profitRate">
-            <span className="rateLabel">Profit/sec</span>
-            <span className={`${orbitron.className} rateValue`}>{profitPerSecond.toFixed(1)}</span>
+          <div className="warCompact">
+            <WARDisplay compact={true} />
           </div>
         </div>
 
@@ -301,7 +304,7 @@ export default function GamePage() {
               return (
                 <button className="workBtn" onClick={clickWork}>
                   <span className="workIcon">💼</span>
-                  <span className="workText">Do Work</span>
+                  <span className="workText">Clock in</span>
                   <span className="workEarn">+{workValue} credits</span>
                 </button>
               );
@@ -321,6 +324,7 @@ export default function GamePage() {
         </div>
 
         <div className="businessGrid">
+          {/* Basic Businesses */}
           <div className="businessCard">
             <div className="businessHeader">
               <span className="businessIcon">🥤</span>
@@ -374,6 +378,34 @@ export default function GamePage() {
               Buy for 200 credits
             </button>
           </div>
+
+          {/* Enhanced Businesses */}
+          {ENHANCED_BUSINESSES.slice(0, 3).map((enhancedBiz) => (
+            <div key={enhancedBiz.id} className="businessCard enhanced">
+              <div className="businessHeader">
+                <span className="businessIcon">{enhancedBiz.emoji}</span>
+                <span className="businessName">{enhancedBiz.name}</span>
+                <span className="businessCategory">{enhancedBiz.category}</span>
+              </div>
+              <div className="businessStats">
+                <span className="businessOwned">
+                  {enhancedBusinesses.includes(enhancedBiz.id) ? 'Owned ✓' : 'Not Owned'}
+                </span>
+                <span className="businessIncome">+{enhancedBiz.workMultiplier} credits per work</span>
+                <span className="businessDescription">{enhancedBiz.description}</span>
+              </div>
+              <button 
+                className="buyBtn enhanced"
+                onClick={() => buyEnhancedBusiness(enhancedBiz.id)}
+                disabled={enhancedBusinesses.includes(enhancedBiz.id) || creditBalance < enhancedBiz.cost}
+              >
+                {enhancedBusinesses.includes(enhancedBiz.id) 
+                  ? 'Owned' 
+                  : `Buy for ${enhancedBiz.cost.toLocaleString()} credits`
+                }
+              </button>
+            </div>
+          ))}
         </div>
 
         {/* Treasury & Swap Section */}
@@ -577,6 +609,10 @@ export default function GamePage() {
         .wealthLabel { font-size: 12px; color: #9aa7bd; letter-spacing: 0.08em; text-transform: uppercase; }
         .wealthValue { font-size: 24px; font-weight: 800; color: #e6edf5; }
 
+        .warCompact {
+          margin-top: 8px;
+        }
+
         .profitRate { display: flex; flex-direction: column; align-items: center; margin-top: 4px; }
         .rateLabel { font-size: 11px; color: #9aa7bd; letter-spacing: 0.06em; text-transform: uppercase; }
         .rateValue { font-size: 16px; font-weight: 600; color: #3b82f6; }
@@ -606,6 +642,14 @@ export default function GamePage() {
           gap: 16px;
           padding: 16px;
           padding-bottom: 120px; /* Space for bottom bar */
+          max-width: 800px;
+          margin: 0 auto;
+          width: 100%;
+        }
+
+        /* WAR Section styles */
+        .warSection {
+          padding: 0 16px;
           max-width: 800px;
           margin: 0 auto;
           width: 100%;
@@ -781,6 +825,29 @@ export default function GamePage() {
           box-shadow: 0 4px 16px rgba(255,215,0,0.1);
         }
 
+        .businessCard.enhanced {
+          background: linear-gradient(135deg, rgba(34,197,94,0.08), rgba(16,185,129,0.08));
+          border: 1px solid rgba(34,197,94,0.3);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .businessCard.enhanced::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          right: 0;
+          width: 0;
+          height: 0;
+          border-left: 20px solid transparent;
+          border-top: 20px solid rgba(34,197,94,0.6);
+        }
+
+        .businessCard.enhanced:hover {
+          border-color: #22c55e;
+          box-shadow: 0 4px 16px rgba(34,197,94,0.3);
+        }
+
         .businessHeader {
           display: flex;
           align-items: center;
@@ -795,6 +862,17 @@ export default function GamePage() {
         .businessName {
           font-weight: 600;
           color: #e6edf5;
+        }
+
+        .businessCategory {
+          background: rgba(34,197,94,0.2);
+          color: #22c55e;
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-weight: 600;
         }
 
         .businessStats {
@@ -813,6 +891,13 @@ export default function GamePage() {
           color: #22c55e;
           font-size: 14px;
           font-weight: 600;
+        }
+
+        .businessDescription {
+          color: #94a3b8;
+          font-size: 12px;
+          line-height: 1.4;
+          margin-top: 4px;
         }
 
         .buyBtn {
@@ -836,6 +921,20 @@ export default function GamePage() {
           background: rgba(255,255,255,0.08);
           color: #9aa7bd;
           cursor: not-allowed;
+        }
+
+        .buyBtn.enhanced {
+          background: linear-gradient(180deg, #22c55e, #16a34a);
+          border: 1px solid rgba(34,197,94,0.3);
+        }
+
+        .buyBtn.enhanced:hover:not(:disabled) {
+          box-shadow: 0 4px 12px rgba(34,197,94,0.3);
+        }
+
+        .buyBtn.enhanced:disabled {
+          background: rgba(34,197,94,0.1);
+          color: #6b7280;
         }
 
         .resetSection {

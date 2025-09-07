@@ -1,8 +1,9 @@
 import { create } from 'zustand';
-import { Asset, Player, Derived, LeaderboardPlayer, EnhancedBusiness, BusinessSlot, TakeoverBid, TakeoverTarget, TakeoverEligibility, DefenseResponse, TakeoverResult } from './types';
+import { Asset, Player, Derived, LeaderboardPlayer, EnhancedBusiness, BusinessSlot, TakeoverBid, TakeoverTarget, TakeoverEligibility, DefenseResponse, TakeoverResult, BusinessCondition, MaintenanceNotification, MaintenanceRecord, WealthAssetRatio, WARHistoryEntry, BusinessSlotSystem } from './types';
 import { calculateAssetValue, calculateRisk, getPriceInSol, calculateProfitPerSecond, calculateOutletCost, calculateMultiplier, getNextMilestone, DEFAULT_CYCLE_MS, MILESTONES } from './balance';
 import { prestigeFromBehavior, CLAN_MIN_LEVEL } from './prestige';
 import { ENHANCED_BUSINESSES } from './businesses';
+import * as SlotManagement from './slotManagement';
 import { 
   calculateTakeoverEligibility, 
   calculatePortfolioValue, 
@@ -13,6 +14,23 @@ import {
   createBusinessTarget,
   hasActiveProtection
 } from './takeover';
+import { 
+  processDegradation, 
+  performMaintenance, 
+  generateMaintenanceNotifications, 
+  initializeBusinessCondition, 
+  MAINTENANCE_ACTIONS,
+  calculateMaintenanceCost,
+  getMaintenanceRecommendations,
+  getEfficiencyMultiplier
+} from './maintenance';
+import {
+  calculateWAR,
+  updatePlayerWAR,
+  calculateWARRankings,
+  getWARRecommendations,
+  checkWARAchievements
+} from './war';
 
 interface GameState extends Player {
   assets: Asset[];
@@ -32,7 +50,6 @@ interface GameState extends Player {
   // Enhanced Business System
   buyEnhancedBusiness: (businessId: string) => boolean;
   activateBusinessAbility: (businessId: string) => boolean;
-  setBusinessActive: (businessId: string, slotIndex: number) => boolean;
   getActiveEffects: () => Record<string, any>;
   getMaxActiveSlots: () => number;
   // Takeover System
@@ -42,6 +59,23 @@ interface GameState extends Player {
   defendTakeover: (takeoverId: string, defenseType: 'credit_counter' | 'business_protection' | 'cancel_payment', amount?: number, businessId?: string) => { success: boolean; reason?: string };
   processPendingTakeovers: () => void;
   updatePortfolioValue: () => void;
+  // Business Maintenance System
+  performBusinessMaintenance: (businessId: string, actionType: keyof typeof MAINTENANCE_ACTIONS) => { success: boolean; reason?: string; cost?: number };
+  processDegradationCheck: () => void;
+  getMaintenanceNotifications: () => MaintenanceNotification[];
+  dismissMaintenanceNotification: (notificationId: string) => void;
+  getMaintenanceRecommendations: () => Array<{businessId: string; businessName: string; action: any; cost: number; priority: number}>;
+  setMaintenanceBudget: (amount: number) => void;
+  simulateBusinessDegradation: () => void; // Demo function
+  // WAR (Wealth Asset Ratio) System
+  updateWAR: () => void;
+  getWARRecommendations: () => Array<{type: 'warning' | 'suggestion' | 'opportunity'; title: string; description: string; action: string}>;
+  getWARAchievements: () => Array<{id: string; name: string; description: string; achieved: boolean; progress?: number}>;
+  // Slot Management
+  assignBusinessToSlot: (businessId: string, slotId: number) => void;
+  removeBusinessFromSlot: (slotId: number) => void;
+  updateSlotSystem: () => void;
+  getSlotCooldownTime: () => number;
   // Solana integration functions
   initPlayerOnChain: () => Promise<void>;
   clickWorkOnChain: () => Promise<void>;
@@ -162,7 +196,6 @@ export const useGame = create<GameState>((set, get) => ({
 
   // Enhanced Business System
   enhancedBusinesses: [],
-  activeBusinessSlots: [],
   businessCooldowns: {},
   activeEffects: {},
   
@@ -174,6 +207,24 @@ export const useGame = create<GameState>((set, get) => ({
   defenseHistory: [],
   takeoverProtections: [],
   lastTakeoverCheck: 0,
+  // Business Maintenance
+  businessConditions: {},
+  maintenanceBudget: 1000,
+  lastMaintenanceCheck: Date.now(),
+  maintenanceNotifications: [],
+  totalMaintenanceSpent: 0,
+  // WAR (Wealth Asset Ratio) System
+  war: {
+    current: 0,
+    peak: 0,
+    trend: 'stable',
+    rank: 0,
+    efficiency: 'poor'
+  },
+  warHistory: [],
+
+  // Business Slot Management System
+  businessSlots: SlotManagement.initializeSlotSystem('novice'),
 
   // Solana state
   isOnChainMode: false,
@@ -518,16 +569,22 @@ export const useGame = create<GameState>((set, get) => ({
         (state.business.cafe * 25) +        // +25 credits per coffee cafe
         (state.business.factory * 100);     // +100 credits per widget factory
       
-      // Enhanced business bonuses
+      // Enhanced business bonuses from active slots
       let enhancedBusinessBonus = 0;
-      state.activeBusinessSlots.forEach(slot => {
-        if (slot.isActive && slot.businessId) {
+      const activeBusinessSlots = state.businessSlots.slotManagement.activeSlots;
+      
+      activeBusinessSlots.forEach(slot => {
+        if (slot.businessId) {
           const business = ENHANCED_BUSINESSES.find(b => b.id === slot.businessId);
           if (business) {
             enhancedBusinessBonus += business.workMultiplier;
           }
         }
       });
+      
+      // Apply synergy multiplier to enhanced business bonus
+      const synergyMultiplier = state.businessSlots.totalSynergyMultiplier;
+      enhancedBusinessBonus = Math.floor(enhancedBusinessBonus * synergyMultiplier);
       
       // Apply active effects
       const activeEffects = get().getActiveEffects();
@@ -630,11 +687,42 @@ export const useGame = create<GameState>((set, get) => ({
       if (!meetsPrereqs) return false;
     }
     
-    set(state => ({
-      creditBalance: state.creditBalance - business.cost,
-      enhancedBusinesses: [...state.enhancedBusinesses, businessId],
-      portfolioValue: calculatePortfolioValue([...state.enhancedBusinesses, businessId], state.business)
-    }));
+    set(state => {
+      // Auto-assign to first empty slot
+      const slots = state.businessSlots.slotManagement.activeSlots;
+      const emptySlotIndex = slots.findIndex(slot => slot.businessId === null);
+      
+      let updatedBusinessSlots = state.businessSlots;
+      if (emptySlotIndex !== -1 && emptySlotIndex < state.businessSlots.slotManagement.maxSlots) {
+        const updatedSlots = slots.map((slot, index) => 
+          index === emptySlotIndex 
+            ? { ...slot, businessId, activatedAt: Date.now() }
+            : slot
+        );
+        
+        updatedBusinessSlots = {
+          ...state.businessSlots,
+          slotManagement: {
+            ...state.businessSlots.slotManagement,
+            activeSlots: updatedSlots
+          }
+        };
+      }
+
+      return {
+        creditBalance: state.creditBalance - business.cost,
+        enhancedBusinesses: [...state.enhancedBusinesses, businessId],
+        businessConditions: {
+          ...state.businessConditions,
+          [businessId]: initializeBusinessCondition(business)
+        },
+        portfolioValue: calculatePortfolioValue([...state.enhancedBusinesses, businessId], state.business),
+        businessSlots: updatedBusinessSlots
+      };
+    });
+    
+    // Update synergy bonuses after purchase
+    get().updateSlotSystem();
     
     return true;
   },
@@ -684,43 +772,6 @@ export const useGame = create<GameState>((set, get) => ({
     return true;
   },
 
-  setBusinessActive: (businessId: string, slotIndex: number) => {
-    const state = get();
-    const maxSlots = get().getMaxActiveSlots();
-    
-    if (slotIndex >= maxSlots) return false;
-    if (!state.enhancedBusinesses.includes(businessId)) return false;
-    
-    set(state => {
-      const newSlots = [...state.activeBusinessSlots];
-      
-      // Ensure we have enough slots
-      while (newSlots.length <= slotIndex) {
-        newSlots.push({ businessId: null, isActive: false });
-      }
-      
-      // Deactivate any existing slot with this business
-      newSlots.forEach(slot => {
-        if (slot.businessId === businessId) {
-          slot.businessId = null;
-          slot.isActive = false;
-        }
-      });
-      
-      // Set new slot
-      newSlots[slotIndex] = {
-        businessId,
-        isActive: true,
-        abilityLastUsed: 0,
-        abilityUsesRemaining: undefined
-      };
-      
-      return { activeBusinessSlots: newSlots };
-    });
-    
-    return true;
-  },
-
   getActiveEffects: () => {
     const state = get();
     const now = Date.now();
@@ -758,7 +809,7 @@ export const useGame = create<GameState>((set, get) => ({
     // Initialize or reset player to demo state
     set(state => ({
       ...state,
-      creditBalance: 10, // Starting credits
+      creditBalance: 2000, // Starting credits (increased for maintenance testing)
       streakDays: 0,
       lastClickDay: 0, // Legacy
       lastWorkDay: 0,
@@ -774,10 +825,52 @@ export const useGame = create<GameState>((set, get) => ({
         factory: 0
       },
       // Enhanced Business System initialization
-      enhancedBusinesses: [],
-      activeBusinessSlots: [],
+      enhancedBusinesses: ['trading_exchange', 'investment_bank', 'automation_factory'], // Demo businesses for testing
       businessCooldowns: {},
       activeEffects: {},
+      // Business Maintenance initialization - with demo conditions
+      businessConditions: {
+        'trading_exchange': {
+          businessId: 'trading_exchange',
+          condition: 75, // Good condition
+          lastMaintained: Date.now() - (7 * 24 * 60 * 60 * 1000), // Last maintained 7 days ago
+          degradationRate: 2.0,
+          maintenanceCost: 75,
+          efficiencyMultiplier: 0.95,
+          warningLevel: 'good',
+          maintenanceHistory: [],
+          isOffline: false,
+          upgradeBonus: 0
+        },
+        'investment_bank': {
+          businessId: 'investment_bank',
+          condition: 45, // Fair condition - needs attention
+          lastMaintained: Date.now() - (14 * 24 * 60 * 60 * 1000), // Last maintained 14 days ago
+          degradationRate: 1.5,
+          maintenanceCost: 100,
+          efficiencyMultiplier: 0.85,
+          warningLevel: 'caution',
+          maintenanceHistory: [],
+          isOffline: false,
+          upgradeBonus: 0
+        },
+        'automation_factory': {
+          businessId: 'automation_factory',
+          condition: 15, // Critical condition!
+          lastMaintained: Date.now() - (30 * 24 * 60 * 60 * 1000), // Last maintained 30 days ago
+          degradationRate: 2.5,
+          maintenanceCost: 125,
+          efficiencyMultiplier: 0.50,
+          warningLevel: 'critical',
+          maintenanceHistory: [],
+          isOffline: false,
+          upgradeBonus: 0
+        }
+      },
+      maintenanceBudget: 1000,
+      lastMaintenanceCheck: Date.now(),
+      maintenanceNotifications: [],
+      totalMaintenanceSpent: 0,
       // Takeover System initialization
       accountCreated: Date.now(),
       portfolioValue: 0,
@@ -788,6 +881,8 @@ export const useGame = create<GameState>((set, get) => ({
       lastTakeoverCheck: Date.now(),
       level: 1,
       xp: 0,
+      // Initialize business slots for novice level
+      businessSlots: SlotManagement.initializeSlotSystem('novice'),
     }));
   },
 
@@ -859,7 +954,22 @@ export const useGame = create<GameState>((set, get) => ({
         avatar: '👑',
         takeoverWins: 8,
         takeoverLosses: 2,
-        takeoverSuccessRate: 80
+        takeoverSuccessRate: 80,
+        // Business Maintenance
+        businessConditions: {},
+        maintenanceBudget: 2000,
+        lastMaintenanceCheck: Date.now(),
+        maintenanceNotifications: [],
+        totalMaintenanceSpent: 1200,
+        // WAR System
+        war: {
+          current: 0.825,
+          peak: 0.892,
+          trend: 'stable',
+          rank: 1,
+          efficiency: 'legendary'
+        },
+        warHistory: []
       },
       {
         id: '2',
@@ -880,7 +990,22 @@ export const useGame = create<GameState>((set, get) => ({
         avatar: '🐋',
         takeoverWins: 6,
         takeoverLosses: 3,
-        takeoverSuccessRate: 67
+        takeoverSuccessRate: 67,
+        // Business Maintenance
+        businessConditions: {},
+        maintenanceBudget: 1500,
+        lastMaintenanceCheck: Date.now(),
+        maintenanceNotifications: [],
+        totalMaintenanceSpent: 800,
+        // WAR System
+        war: {
+          current: 0.642,
+          peak: 0.701,
+          trend: 'rising',
+          rank: 2,
+          efficiency: 'excellent'
+        },
+        warHistory: []
       },
       {
         id: '3',
@@ -900,7 +1025,22 @@ export const useGame = create<GameState>((set, get) => ({
         avatar: '⚡',
         takeoverWins: 12,
         takeoverLosses: 3,
-        takeoverSuccessRate: 80
+        takeoverSuccessRate: 80,
+        // Business Maintenance
+        businessConditions: {},
+        maintenanceBudget: 800,
+        lastMaintenanceCheck: Date.now(),
+        maintenanceNotifications: [],
+        totalMaintenanceSpent: 400,
+        // WAR System
+        war: {
+          current: 0.551,
+          peak: 0.624,
+          trend: 'stable',
+          rank: 3,
+          efficiency: 'excellent'
+        },
+        warHistory: []
       },
       {
         id: '4',
@@ -921,7 +1061,22 @@ export const useGame = create<GameState>((set, get) => ({
         avatar: '🎯',
         takeoverWins: 5,
         takeoverLosses: 5,
-        takeoverSuccessRate: 50
+        takeoverSuccessRate: 50,
+        // Business Maintenance
+        businessConditions: {},
+        maintenanceBudget: 800,
+        lastMaintenanceCheck: Date.now(),
+        maintenanceNotifications: [],
+        totalMaintenanceSpent: 400,
+        // WAR System
+        war: {
+          current: 0.347,
+          peak: 0.412,
+          trend: 'falling',
+          rank: 4,
+          efficiency: 'good'
+        },
+        warHistory: []
       },
       {
         id: '5',
@@ -941,7 +1096,22 @@ export const useGame = create<GameState>((set, get) => ({
         avatar: '🏗️',
         takeoverWins: 3,
         takeoverLosses: 7,
-        takeoverSuccessRate: 30
+        takeoverSuccessRate: 30,
+        // Business Maintenance
+        businessConditions: {},
+        maintenanceBudget: 500,
+        lastMaintenanceCheck: Date.now(),
+        maintenanceNotifications: [],
+        totalMaintenanceSpent: 200,
+        // WAR System
+        war: {
+          current: 0.196,
+          peak: 0.234,
+          trend: 'stable',
+          rank: 5,
+          efficiency: 'poor'
+        },
+        warHistory: []
       }
     ];
     
@@ -1142,5 +1312,211 @@ export const useGame = create<GameState>((set, get) => ({
       portfolioValue: newValue,
       lastTakeoverCheck: Date.now()
     });
+  },
+
+  // Business Maintenance System
+  performBusinessMaintenance: (businessId: string, actionType: keyof typeof MAINTENANCE_ACTIONS) => {
+    const state = get();
+    const business = ENHANCED_BUSINESSES.find(b => b.id === businessId);
+    const condition = state.businessConditions[businessId];
+    
+    if (!business || !condition) {
+      return { success: false, reason: 'Business or condition not found' };
+    }
+    
+    const cost = calculateMaintenanceCost(business, actionType);
+    
+    if (state.creditBalance < cost) {
+      return { success: false, reason: 'Insufficient credits for maintenance', cost };
+    }
+    
+    const { updatedCondition, record } = performMaintenance(condition, business, actionType);
+    
+    set({
+      businessConditions: {
+        ...state.businessConditions,
+        [businessId]: updatedCondition
+      },
+      creditBalance: state.creditBalance - cost,
+      totalMaintenanceSpent: state.totalMaintenanceSpent + cost,
+      maintenanceNotifications: state.maintenanceNotifications.filter(n => 
+        !(n.businessId === businessId && (n.type === 'warning' || n.type === 'critical'))
+      )
+    });
+    
+    return { success: true, cost };
+  },
+
+  processDegradationCheck: () => {
+    const state = get();
+    const updatedConditions = processDegradation(state.businessConditions, state.lastMaintenanceCheck);
+    const newNotifications = generateMaintenanceNotifications(updatedConditions, 
+      ENHANCED_BUSINESSES.reduce((acc, b) => ({ ...acc, [b.id]: b }), {})
+    );
+    
+    set({
+      businessConditions: updatedConditions,
+      lastMaintenanceCheck: Date.now(),
+      maintenanceNotifications: [
+        ...state.maintenanceNotifications.filter(n => !n.dismissed),
+        ...newNotifications
+      ]
+    });
+  },
+
+  getMaintenanceNotifications: () => {
+    const state = get();
+    return state.maintenanceNotifications.filter(n => !n.dismissed);
+  },
+
+  dismissMaintenanceNotification: (notificationId: string) => {
+    const state = get();
+    set({
+      maintenanceNotifications: state.maintenanceNotifications.map(n =>
+        n.id === notificationId ? { ...n, dismissed: true } : n
+      )
+    });
+  },
+
+  getMaintenanceRecommendations: () => {
+    const state = get();
+    return getMaintenanceRecommendations(
+      state.businessConditions,
+      ENHANCED_BUSINESSES.reduce((acc, b) => ({ ...acc, [b.id]: b }), {}),
+      state.creditBalance
+    );
+  },
+
+  setMaintenanceBudget: (amount: number) => {
+    set({ maintenanceBudget: amount });
+  },
+
+  // Demo function to simulate degradation for testing
+  simulateBusinessDegradation: () => {
+    const state = get();
+    const businessesToDegrade = state.enhancedBusinesses.slice(0, 3); // Degrade first 3 businesses
+    
+    const updatedConditions = { ...state.businessConditions };
+    
+    businessesToDegrade.forEach(businessId => {
+      if (updatedConditions[businessId]) {
+        updatedConditions[businessId] = {
+          ...updatedConditions[businessId],
+          condition: Math.max(0, updatedConditions[businessId].condition - Math.random() * 50 + 10), // Random degradation
+          efficiencyMultiplier: getEfficiencyMultiplier(updatedConditions[businessId].condition)
+        };
+      }
+    });
+    
+    set({ businessConditions: updatedConditions });
+  },
+
+  // WAR (Wealth Asset Ratio) System Functions
+  updateWAR: () => {
+    const state = get();
+    const { war, warHistory } = updatePlayerWAR(state, state.wealth, state.portfolioValue, 'manual_update');
+    
+    set({ war, warHistory });
+  },
+
+  getWARRecommendations: () => {
+    const state = get();
+    return getWARRecommendations(state);
+  },
+
+  getWARAchievements: () => {
+    const state = get();
+    return checkWARAchievements(state);
+  },
+
+  // Slot Management Functions
+  assignBusinessToSlot: (businessId: string, slotId: number) => {
+    const state = get();
+    const currentPlayer = {
+      ...state,
+      enhancedBusinesses: state.enhancedBusinesses || [],
+      businessSlots: state.businessSlots
+    } as Player;
+
+    const result = SlotManagement.assignBusinessToSlot(currentPlayer, businessId, slotId);
+    
+    if (result.success && result.updatedSlots) {
+      const now = Date.now();
+      
+      set(state => ({
+        businessSlots: {
+          ...state.businessSlots,
+          slotManagement: {
+            ...state.businessSlots.slotManagement,
+            activeSlots: result.updatedSlots!,
+            lastSlotChange: now,
+            slotCooldownUntil: now + SlotManagement.SLOT_COOLDOWN_DURATION,
+            canEditSlots: false
+          }
+        }
+      }));
+
+      // Update synergy bonuses
+      get().updateSlotSystem();
+    }
+    
+    console.log(result.message);
+  },
+
+  removeBusinessFromSlot: (slotId: number) => {
+    const state = get();
+    const currentPlayer = {
+      ...state,
+      enhancedBusinesses: state.enhancedBusinesses || [],
+      businessSlots: state.businessSlots
+    } as Player;
+
+    const result = SlotManagement.removeBusinessFromSlot(currentPlayer, slotId);
+    
+    if (result.success && result.updatedSlots) {
+      const now = Date.now();
+      
+      set(state => ({
+        businessSlots: {
+          ...state.businessSlots,
+          slotManagement: {
+            ...state.businessSlots.slotManagement,
+            activeSlots: result.updatedSlots!,
+            lastSlotChange: now,
+            slotCooldownUntil: now + SlotManagement.SLOT_COOLDOWN_DURATION,
+            canEditSlots: false
+          }
+        }
+      }));
+
+      // Update synergy bonuses
+      get().updateSlotSystem();
+    }
+    
+    console.log(result.message);
+  },
+
+  updateSlotSystem: () => {
+    const state = get();
+    const currentPlayer = {
+      ...state,
+      enhancedBusinesses: state.enhancedBusinesses || [],
+      businessSlots: state.businessSlots,
+      workFrequency: state.workFrequency
+    } as Player;
+
+    const updatedSlotSystem = SlotManagement.updateSlotSystem(currentPlayer);
+    
+    set(state => ({
+      businessSlots: updatedSlotSystem
+    }));
+  },
+
+  getSlotCooldownTime: () => {
+    const state = get();
+    const now = Date.now();
+    const cooldownEnd = state.businessSlots.slotManagement.slotCooldownUntil;
+    
+    return Math.max(0, cooldownEnd - now);
   },
 }));

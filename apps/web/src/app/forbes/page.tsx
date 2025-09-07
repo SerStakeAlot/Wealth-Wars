@@ -38,6 +38,25 @@ export default function ForbesListPage() {
     return 'Just now';
   };
 
+  const calculatePlayerWAR = (player: any) => {
+    // Calculate portfolio value from business assets
+    const portfolioValue = 
+      (player.business?.lemStand || 0) * 10 +
+      (player.business?.cafe || 0) * 50 +
+      (player.business?.factory || 0) * 200;
+    
+    if (portfolioValue === 0) return 0;
+    return player.wealth / portfolioValue;
+  };
+
+  const getWARRating = (warScore: number) => {
+    if (warScore >= 0.8) return { icon: '👑', color: '#f59e0b' };
+    if (warScore >= 0.6) return { icon: '💎', color: '#10b981' };
+    if (warScore >= 0.4) return { icon: '⭐', color: '#3b82f6' };
+    if (warScore >= 0.2) return { icon: '📈', color: '#f97316' };
+    return { icon: '⚠️', color: '#ef4444' };
+  };
+
   return (
     <div className={`${inter.className} page`}>
       {/* HEADER / HUD */}
@@ -131,7 +150,18 @@ export default function ForbesListPage() {
                     <span className="avatar">{player.avatar}</span>
                     <div className="playerInfo">
                       <span className="username">{player.username}</span>
-                      <span className="level">Level {player.level}</span>
+                      <div className="levelWarInfo">
+                        <span className="level">Level {player.level}</span>
+                        {(() => {
+                          const warScore = calculatePlayerWAR(player);
+                          const warRating = getWARRating(warScore);
+                          return (
+                            <span className="warScore" style={{ color: warRating.color }}>
+                              {warRating.icon} {warScore.toFixed(3)}
+                            </span>
+                          );
+                        })()}
+                      </div>
                     </div>
                   </div>
                 </td>
@@ -554,6 +584,12 @@ export default function ForbesListPage() {
           flex: 1;
         }
 
+        .warSection {
+          padding: 0 16px 16px 16px;
+          max-width: 800px;
+          margin: 0 auto;
+        }
+
         .tableHeader {
           margin-bottom: 16px;
           text-align: center;
@@ -646,6 +682,20 @@ export default function ForbesListPage() {
         .level {
           font-size: 12px;
           color: #9aa7bd;
+        }
+
+        .levelWarInfo {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .warScore {
+          font-size: 11px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 2px;
         }
 
         .creditsCell {
