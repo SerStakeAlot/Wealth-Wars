@@ -20,6 +20,14 @@ export interface Asset {
   multiplier?: number;
 }
 
+// Enhanced Work Session System for Strategic $WEALTH Conversion
+export interface WorkSession {
+  clicksInSession: number; // Number of clicks in current session (0-4)
+  sessionStartTime: number; // Timestamp when session started
+  isInExtendedCooldown: boolean; // Whether in 6-hour cooldown after 4th click
+  extendedCooldownStart: number; // When extended cooldown started
+}
+
 export interface Player {
   level: number;
   xp: number;
@@ -35,12 +43,21 @@ export interface Player {
   lastWorkTime: number; // Timestamp of last work action (for cooldown)
   workCooldown: number; // Current work cooldown in milliseconds
   workFrequency: 'novice' | 'apprentice' | 'skilled' | 'expert' | 'master'; // Work frequency tier
+  workSession?: WorkSession; // Enhanced work session tracking for strategic conversion
   totalWorkActions: number; // Total number of work actions performed
   totalCreditsEarned: number; // Total credits earned from all work actions
   
   // Social Sharing System
   shareModalOpen: boolean;
-  pendingWorkReward: { baseReward: number; isShared: boolean } | null;
+  pendingWorkReward: { 
+    baseReward: number; 
+    isShared: boolean;
+    sessionProgress?: {
+      clicksInSession: number;
+      creditsTowardNextWealth: number;
+      canConvertToWealth: boolean;
+    };
+  } | null;
   
   business: { 
     clickBonusPerDay: number; // Legacy - keeping for compatibility

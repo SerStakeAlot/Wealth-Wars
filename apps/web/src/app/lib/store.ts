@@ -88,6 +88,7 @@ interface GameState extends Player {
   initPlayerOnChain: () => Promise<void>;
   clickWorkOnChain: () => Promise<void>;
   buyBusinessOnChain: (bizKind: number) => Promise<void>;
+  convertCreditsToWealth: (creditAmount?: number) => void;
   swapCreditForWealth: (amount: string) => Promise<void>;
   swapWealthForCredit: (amount: string) => Promise<void>;
   refreshPlayerData: () => Promise<void>;
@@ -556,90 +557,106 @@ export const useGame = create<GameState>((set, get) => ({
     set({ walletAddress: address, username });
   },
 
-  // Daily Work System (new tokenomics)
+  // Enhanced Daily Work System with Strategic $WEALTH Conversion
   clickWork: () => {
     const now = Date.now();
     set(state => {
-      // Check if work cooldown is ready
-      const timeSinceLastWork = now - (state.lastWorkTime || 0);
-      const requiredCooldown = state.workCooldown || (24 * 60 * 60 * 1000); // 24 hours default
+      // Check work session state
+      const workSession = state.workSession || {
+        clicksInSession: 0,
+        sessionStartTime: 0,
+        isInExtendedCooldown: false,
+        extendedCooldownStart: 0
+      };
       
-      if (timeSinceLastWork < requiredCooldown) {
+      // Check if we're in extended cooldown (6 hours after 4th click)
+      if (workSession.isInExtendedCooldown) {
+        const timeSinceExtendedCooldown = now - workSession.extendedCooldownStart;
+        const extendedCooldownDuration = 6 * 60 * 60 * 1000; // 6 hours
+        
+        if (timeSinceExtendedCooldown < extendedCooldownDuration) {
+          // Still in extended cooldown
+          return state;
+        } else {
+          // Extended cooldown completed, reset session
+          workSession.clicksInSession = 0;
+          workSession.isInExtendedCooldown = false;
+          workSession.extendedCooldownStart = 0;
+          workSession.sessionStartTime = now;
+        }
+      }
+      
+      // Check regular work cooldown (2 hours between clicks)
+      const timeSinceLastWork = now - (state.lastWorkTime || 0);
+      const regularCooldown = 2 * 60 * 60 * 1000; // 2 hours
+      
+      if (timeSinceLastWork < regularCooldown) {
         // Return current state - work not ready
         return state;
       }
       
-      // Calculate work frequency based on progression
-      const totalBusinesses = state.business.lemStand + state.business.cafe + state.business.factory;
-      const totalCreditsEarned = state.totalCreditsEarned || 0;
+      // Calculate work value: Fixed 25 credits per click
+      const baseWorkValue = 25;
       
-      let workFrequency: 'novice' | 'apprentice' | 'skilled' | 'expert' | 'master' = 'novice';
-      let baseCooldown = 24 * 60 * 60 * 1000; // 24 hours
-      
-      if (totalCreditsEarned >= 1000000 || totalBusinesses >= 25) {
-        workFrequency = 'master';
-        baseCooldown = 6 * 60 * 60 * 1000; // 6 hours
-      } else if (totalCreditsEarned >= 200000 || totalBusinesses >= 15) {
-        workFrequency = 'expert';
-        baseCooldown = 8 * 60 * 60 * 1000; // 8 hours
-      } else if (totalCreditsEarned >= 50000 || totalBusinesses >= 8) {
-        workFrequency = 'skilled';
-        baseCooldown = 12 * 60 * 60 * 1000; // 12 hours
-      } else if (state.streakDays >= 7 && totalBusinesses >= 3) {
-        workFrequency = 'apprentice';
-        baseCooldown = 18 * 60 * 60 * 1000; // 18 hours
-      }
-      
-      // Calculate work value
-      const baseCredits = 10; // Base work value
-      const streakBonus = state.streakDays * 2; // 2 credits per consecutive day
-      const businessBonus = 
-        (state.business.lemStand * 5) +     // +5 credits per lemonade stand
-        (state.business.cafe * 25) +        // +25 credits per coffee cafe
-        (state.business.factory * 100);     // +100 credits per widget factory
+      // Apply business multipliers (these affect credits earned)
+      const businessMultiplier = 1 + 
+        (state.business.lemStand * 0.2) +     // +20% per lemonade stand
+        (state.business.cafe * 0.5) +         // +50% per coffee cafe  
+        (state.business.factory * 1.0);       // +100% per widget factory
       
       // Enhanced business bonuses from active slots
-      let enhancedBusinessBonus = 0;
+      let enhancedBusinessMultiplier = 1;
       const activeBusinessSlots = state.businessSlots.slotManagement.activeSlots;
       
       activeBusinessSlots.forEach(slot => {
         if (slot.businessId) {
           const business = ENHANCED_BUSINESSES.find(b => b.id === slot.businessId);
           if (business) {
-            enhancedBusinessBonus += business.workMultiplier;
+            // Convert work multiplier to percentage bonus
+            enhancedBusinessMultiplier += business.workMultiplier / 100;
           }
         }
       });
       
       // Apply synergy multiplier to enhanced business bonus
       const synergyMultiplier = state.businessSlots.totalSynergyMultiplier;
-      enhancedBusinessBonus = Math.floor(enhancedBusinessBonus * synergyMultiplier);
+      enhancedBusinessMultiplier *= synergyMultiplier;
       
       // Apply active effects
       const activeEffects = get().getActiveEffects();
-      let workMultiplier = 1;
-      let streakMultiplier = 1;
-      let cooldownReduction = 0;
+      let effectMultiplier = 1;
       
       Object.values(activeEffects).forEach(effect => {
         const ability = effect.effect;
-        if (ability.id === 'rapid_processing') {
-          cooldownReduction = 0.5; // 50% cooldown reduction
-        } else if (ability.id === 'breakthrough') {
-          workMultiplier = 3; // 3x credits for this work action
+        if (ability.id === 'breakthrough') {
+          effectMultiplier *= 3; // 3x credits for this work action
         } else if (ability.id === 'quick_service') {
-          workMultiplier = 1.2; // 20% bonus
-        } else if (ability.id === 'viral_campaign') {
-          streakMultiplier = 2; // Double streak bonus
+          effectMultiplier *= 1.2; // 20% bonus
         }
       });
       
-      const adjustedStreakBonus = Math.floor(streakBonus * streakMultiplier);
-      const totalBaseValue = baseCredits + adjustedStreakBonus + businessBonus + enhancedBusinessBonus;
-      const workValue = Math.floor(totalBaseValue * workMultiplier);
+      // Calculate final work value
+      const totalMultiplier = businessMultiplier * enhancedBusinessMultiplier * effectMultiplier;
+      const workValue = Math.floor(baseWorkValue * totalMultiplier);
       
-      // Apply cooldown reduction
-      const adjustedBaseCooldown = Math.floor(baseCooldown * (1 - cooldownReduction));
+      // Update work session tracking
+      const newClicksInSession = workSession.clicksInSession + 1;
+      const isSessionComplete = newClicksInSession >= 4;
+      
+      let updatedWorkSession = {
+        ...workSession,
+        clicksInSession: newClicksInSession,
+        sessionStartTime: workSession.sessionStartTime || now
+      };
+      
+      // If this is the 4th click, trigger extended cooldown
+      if (isSessionComplete) {
+        updatedWorkSession = {
+          ...updatedWorkSession,
+          isInExtendedCooldown: true,
+          extendedCooldownStart: now
+        };
+      }
       
       // Check if it's a new day for streak calculation
       const currentDay = Math.floor(now / (24 * 60 * 60 * 1000));
@@ -655,8 +672,7 @@ export const useGame = create<GameState>((set, get) => ({
         streakDays: newStreakDays,
         lastWorkDay: currentDay,
         lastWorkTime: now,
-        workCooldown: adjustedBaseCooldown,
-        workFrequency,
+        workSession: updatedWorkSession,
         totalWorkActions: (state.totalWorkActions || 0) + 1,
         xp: newXp >= 100 ? 0 : newXp,
         level: newLevel,
@@ -664,7 +680,12 @@ export const useGame = create<GameState>((set, get) => ({
         shareModalOpen: true,
         pendingWorkReward: {
           baseReward: workValue,
-          isShared: false
+          isShared: false,
+          sessionProgress: {
+            clicksInSession: newClicksInSession,
+            creditsTowardNextWealth: (state.creditBalance + workValue) % 100,
+            canConvertToWealth: (state.creditBalance + workValue) >= 100
+          }
         }
       };
     });
@@ -1091,6 +1112,25 @@ export const useGame = create<GameState>((set, get) => ({
     } finally {
       set({ loading: false });
     }
+  },
+
+  // Strategic Credit to $WEALTH Conversion (100 credits = 1 $WEALTH)
+  convertCreditsToWealth: (creditAmount?: number) => {
+    set(state => {
+      const amountToConvert = creditAmount || 100; // Default to 100 credits
+      
+      if (state.creditBalance < amountToConvert) {
+        return state; // Not enough credits
+      }
+      
+      const wealthToAdd = Math.floor(amountToConvert / 100); // 100 credits = 1 $WEALTH
+      const creditsUsed = wealthToAdd * 100; // Exact amount used
+      
+      return {
+        creditBalance: state.creditBalance - creditsUsed,
+        wealth: state.wealth + wealthToAdd
+      };
+    });
   },
 
   swapCreditForWealth: async (amount: string) => {

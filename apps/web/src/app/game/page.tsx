@@ -126,7 +126,7 @@ export default function GamePage() {
     level, xp, wealth, liquidity, assets, collect, upgrade, defend, prestige, clanEligible, derived, tick, setWalletAddress,
     // Daily Work System state
     creditBalance, streakDays, business, clickWork, buyBusiness, initPlayer,
-    lastWorkTime, workCooldown, workFrequency, totalWorkActions, totalCreditsEarned,
+    lastWorkTime, workCooldown, workFrequency, totalWorkActions, totalCreditsEarned, workSession,
     // Enhanced Business System
     enhancedBusinesses, buyEnhancedBusiness,
     // Business Maintenance System
@@ -134,7 +134,7 @@ export default function GamePage() {
     // Solana integration
     isOnChainMode, setOnChainMode, loading, setLoading,
     initPlayerOnChain, clickWorkOnChain, buyBusinessOnChain, 
-    swapCreditForWealth, swapWealthForCredit, refreshPlayerData,
+    convertCreditsToWealth, swapCreditForWealth, swapWealthForCredit, refreshPlayerData,
     treasuryState, refreshTreasuryData
   } = useGame();
 
@@ -416,42 +416,130 @@ export default function GamePage() {
 
           {(() => {
             const now = Date.now();
-            const timeSinceLastWork = now - (lastWorkTime || 0);
-            const timeUntilWork = (workCooldown || (24 * 60 * 60 * 1000)) - timeSinceLastWork;
-            const canWork = timeUntilWork <= 0;
+            const session = workSession || { clicksInSession: 0, isInExtendedCooldown: false, extendedCooldownStart: 0 };
             
-            // Calculate work value
-            const baseCredits = 10;
-            const streakBonus = streakDays * 2;
-            const businessBonus = 
-              (business.lemStand * 5) +
-              (business.cafe * 25) + 
-              (business.factory * 100);
-            const workValue = baseCredits + streakBonus + businessBonus;
+            // Check if in extended cooldown (6 hours after 4th click)
+            if (session.isInExtendedCooldown) {
+              const timeSinceExtended = now - session.extendedCooldownStart;
+              const extendedCooldownDuration = 6 * 60 * 60 * 1000; // 6 hours
+              
+              if (timeSinceExtended < extendedCooldownDuration) {
+                const timeRemaining = extendedCooldownDuration - timeSinceExtended;
+                const hours = Math.floor(timeRemaining / (60 * 60 * 1000));
+                const minutes = Math.floor((timeRemaining % (60 * 60 * 1000)) / (60 * 1000));
+                
+                return (
+                  <div className="workCooldown">
+                    <span className="cooldownIcon">😴</span>
+                    <span className="cooldownText">Extended Rest Period</span>
+                    <span className="cooldownTime">{hours}h {minutes}m</span>
+                    <div className="sessionInfo">
+                      Session completed! You can convert {creditBalance >= 100 ? Math.floor(creditBalance / 100) : 0} $WEALTH
+                    </div>
+                    {creditBalance >= 100 && (
+                      <button 
+                        className="convertBtn"
+                        onClick={() => convertCreditsToWealth()}
+                        style={{
+                          marginTop: '8px',
+                          padding: '8px 16px',
+                          background: '#ffd700',
+                          color: '#1e293b',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Convert 100 credits → 1 $WEALTH
+                      </button>
+                    )}
+                  </div>
+                );
+              }
+            }
+            
+            // Check regular work cooldown (2 hours between clicks)
+            const timeSinceLastWork = now - (lastWorkTime || 0);
+            const regularCooldown = 2 * 60 * 60 * 1000; // 2 hours
+            const canWork = timeSinceLastWork >= regularCooldown;
+            
+            // Work value is always 25 credits base + multipliers
+            const baseWorkValue = 25;
+            const workValue = baseWorkValue; // For display purposes, show base value
 
             // Determine which work function to use
             const handleWork = isOnChainMode ? clickWorkOnChain : clickWork;
 
             if (canWork) {
               return (
-                <button className="workBtn" onClick={handleWork} disabled={loading}>
-                  <span className="workIcon">💼</span>
-                  <span className="workText">
-                    {loading ? 'Working...' : 'Clock in'}
-                    {isOnChainMode && <span className="onChainBadge">⛓️</span>}
-                  </span>
-                  <span className="workEarn">+{workValue} credits</span>
-                </button>
+                <div className="workSection">
+                  <button className="workBtn" onClick={handleWork} disabled={loading}>
+                    <span className="workIcon">💼</span>
+                    <span className="workText">
+                      {loading ? 'Working...' : 'Clock in'}
+                      {isOnChainMode && <span className="onChainBadge">⛓️</span>}
+                    </span>
+                    <span className="workEarn">+{workValue} credits</span>
+                  </button>
+                  
+                  {/* Work Session Progress */}
+                  <div className="sessionProgress" style={{ marginTop: '8px', fontSize: '14px', color: '#94a3b8' }}>
+                    <div>Session: {session.clicksInSession}/4 clicks</div>
+                    <div>Next $WEALTH: {100 - (creditBalance % 100)} credits away</div>
+                    {creditBalance >= 100 && (
+                      <button 
+                        className="convertBtn"
+                        onClick={() => convertCreditsToWealth()}
+                        style={{
+                          marginTop: '4px',
+                          padding: '6px 12px',
+                          background: '#ffd700',
+                          color: '#1e293b',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Convert 100 → 1 $WEALTH
+                      </button>
+                    )}
+                  </div>
+                </div>
               );
             } else {
-              const hours = Math.floor(timeUntilWork / (60 * 60 * 1000));
-              const minutes = Math.floor((timeUntilWork % (60 * 60 * 1000)) / (60 * 1000));
+              const timeRemaining = regularCooldown - timeSinceLastWork;
+              const hours = Math.floor(timeRemaining / (60 * 60 * 1000));
+              const minutes = Math.floor((timeRemaining % (60 * 60 * 1000)) / (60 * 1000));
               
               return (
                 <div className="workCooldown">
                   <span className="cooldownIcon">⏰</span>
                   <span className="cooldownText">Next work available in</span>
                   <span className="cooldownTime">{hours}h {minutes}m</span>
+                  <div className="sessionInfo" style={{ fontSize: '14px', color: '#94a3b8', marginTop: '4px' }}>
+                    Session: {session.clicksInSession}/4 clicks | {100 - (creditBalance % 100)} credits to next $WEALTH
+                  </div>
+                  {creditBalance >= 100 && (
+                    <button 
+                      className="convertBtn"
+                      onClick={() => convertCreditsToWealth()}
+                      style={{
+                        marginTop: '8px',
+                        padding: '8px 16px',
+                        background: '#ffd700',
+                        color: '#1e293b',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontWeight: '600',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Convert 100 credits → 1 $WEALTH
+                    </button>
+                  )}
                 </div>
               );
             }
@@ -558,8 +646,13 @@ export default function GamePage() {
                   <span className="businessOwned">
                     {isOwned ? 'Owned ✓' : 'Not Owned'}
                   </span>
-                  <span className="businessIncome">+{enhancedBiz.workMultiplier} credits per work</span>
-                  <span className="businessDescription">{enhancedBiz.description}</span>
+                  <span className="businessIncome">+{enhancedBiz.workMultiplier}% credits per work</span>
+                  <span className="businessTier" style={{ fontSize: '12px', color: '#ffd700' }}>
+                    {enhancedBiz.cost <= 20 ? 'Entry Tier' : 
+                     enhancedBiz.cost <= 50 ? 'Mid Tier' : 
+                     enhancedBiz.cost <= 100 ? 'Premium Tier' : 'Elite Tier'} • {Math.round(enhancedBiz.cost / 3)} sessions
+                  </span>
+                  <span className="businessDescription" style={{ fontSize: '12px' }}>{enhancedBiz.description}</span>
                 </div>
                 
                 {isOwned ? (
@@ -594,9 +687,9 @@ export default function GamePage() {
                   <button 
                     className="buyBtn enhanced"
                     onClick={() => buyEnhancedBusiness(enhancedBiz.id)}
-                    disabled={creditBalance < enhancedBiz.cost}
+                    disabled={wealth < enhancedBiz.cost}
                   >
-                    Buy for {enhancedBiz.cost.toLocaleString()} credits
+                    Buy for {enhancedBiz.cost.toLocaleString()} $WEALTH
                   </button>
                 )}
               </div>

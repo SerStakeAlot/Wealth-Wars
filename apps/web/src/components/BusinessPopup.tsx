@@ -157,7 +157,11 @@ export function BusinessPopup({ isOpen, onClose }: BusinessPopupProps) {
                     </h3>
                     <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
                       {business.tier.charAt(0).toUpperCase() + business.tier.slice(1)} • 
-                      {business.workMultiplier}x Work Rate
+                      +{business.workMultiplier}% Work Rate
+                    </div>
+                    {/* Show investment time in hours/days */}
+                    <div style={{ fontSize: '11px', color: '#ffd700', marginTop: '2px' }}>
+                      {Math.round(business.cost * 8)} hours ({Math.round(business.cost / 3)} sessions)
                     </div>
                   </div>
                 </div>
@@ -169,17 +173,26 @@ export function BusinessPopup({ isOpen, onClose }: BusinessPopupProps) {
                 <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '12px' }}>
                   {business.ability && (
                     <div>
-                      <strong style={{ color: '#e2e8f0' }}>Ability:</strong> {business.ability.description}
-                      <div style={{ marginTop: '4px', fontSize: '11px' }}>
-                        Activation Cost: {business.ability.cost} $WEALTH
-                      </div>
+                      <strong style={{ color: '#e2e8f0' }}>Special Ability:</strong> {business.ability.description}
+                      {business.ability.cost && (
+                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#fbbf24' }}>
+                          ⚡ Activation: {business.ability.cost} $WEALTH ({business.ability.cost * 8} hours value)
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ color: '#ffd700', fontWeight: '600', fontSize: '14px' }}>
-                    💰 {business.cost.toLocaleString()} $WEALTH
+                  <div>
+                    <div style={{ color: '#ffd700', fontWeight: '600', fontSize: '14px' }}>
+                      💰 {business.cost.toLocaleString()} $WEALTH
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                      {business.cost <= 20 ? 'Entry Tier' : 
+                       business.cost <= 50 ? 'Mid Tier' : 
+                       business.cost <= 100 ? 'Premium Tier' : 'Elite Tier'}
+                    </div>
                   </div>
                   {!owned ? (
                     <button
@@ -196,7 +209,7 @@ export function BusinessPopup({ isOpen, onClose }: BusinessPopupProps) {
                         cursor: canAfford ? 'pointer' : 'not-allowed'
                       }}
                     >
-                      {canAfford ? 'Purchase' : 'Not Enough Credits'}
+                      {canAfford ? 'Purchase' : 'Not Enough $WEALTH'}
                     </button>
                   ) : (
                     <div style={{

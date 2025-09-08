@@ -1,5 +1,15 @@
 import { EnhancedBusiness } from './types';
 
+// Phased $WEALTH Cost Structure for 300M Community Allocation
+// Based on 5M $WEALTH monthly distribution from Land NFT Pool + Season Pass rewards
+// Designed for sustainable economy with growing player base
+
+// Cost Tiers:
+// Entry: 5-15 $WEALTH (40-120 hours of play, 1-2 weeks active)
+// Mid: 25-50 $WEALTH (200-400 hours of play, 3-7 weeks active) 
+// Premium: 75-100 $WEALTH (600-800 hours of play, 10-13 weeks active)
+// Elite: 150+ $WEALTH (1200+ hours of play, 20+ weeks active)
+
 export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
   // Efficiency Category (⚡ Time Management)
   {
@@ -7,7 +17,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     name: 'Automation Factory',
     emoji: '🏭',
     description: 'A cutting-edge facility that automates your business processes, dramatically reducing work cooldowns when activated.',
-    cost: 500,
+    cost: 75, // Premium tier - significant investment for game-changing ability
     workMultiplier: 100,
     category: 'efficiency',
     tier: 'premium',
@@ -15,11 +25,11 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     ability: {
       id: 'rapid_processing',
       name: 'Rapid Processing',
-      description: 'Reduces all cooldowns by 50% for 24 hours',
+      description: 'Reduces work cooldown to 1 hour for the next 6 work actions',
       type: 'active',
       cooldown: 7 * 24 * 60 * 60 * 1000, // 7 days
-      duration: 24 * 60 * 60 * 1000, // 24 hours
-      cost: 200
+      duration: 6 * 60 * 60 * 1000, // 6 hours (6 work actions)
+      cost: 15 // Allows completing a full session in 6 hours instead of 8
     }
   },
   
@@ -28,7 +38,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     name: 'Fast Food Chain',
     emoji: '🍔',
     description: 'A network of quick-service restaurants that provide steady income and rapid customer service capabilities.',
-    cost: 300,
+    cost: 35, // Mid tier - accessible but meaningful investment
     workMultiplier: 75,
     category: 'efficiency',
     tier: 'advanced',
@@ -36,10 +46,10 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     ability: {
       id: 'quick_service',
       name: 'Quick Service',
-      description: 'Next 3 work actions provide 20% bonus credits',
+      description: 'Next 4 work actions earn 40 credits instead of 25 (complete 1.6 $WEALTH)',
       type: 'active',
       cooldown: 5 * 24 * 60 * 60 * 1000, // 5 days
-      cost: 150
+      cost: 8 // Pays for itself in the bonus credits gained
     }
   },
 
@@ -48,7 +58,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     name: 'Innovation Lab',
     emoji: '🔬',
     description: 'A research facility that develops new technologies and processes to improve your business efficiency.',
-    cost: 400,
+    cost: 50, // Mid-Premium tier - high-value permanent upgrade
     workMultiplier: 60,
     category: 'efficiency',
     tier: 'advanced',
@@ -56,10 +66,10 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     ability: {
       id: 'breakthrough',
       name: 'Breakthrough',
-      description: 'Permanent +15% work efficiency after activation',
+      description: 'Permanently increase work earnings from 25 to 30 credits per action',
       type: 'triggered',
       cooldown: 10 * 24 * 60 * 60 * 1000, // 10 days
-      cost: 300
+      cost: 20 // High cost for permanent 20% increase in earning rate
     }
   },
 
@@ -69,7 +79,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     name: 'Security Firm',
     emoji: '🛡️',
     description: 'Professional security services that protect your business from hostile takeovers and attacks.',
-    cost: 250,
+    cost: 40, // Mid tier - valuable for PvP protection
     workMultiplier: 50,
     category: 'defensive',
     tier: 'advanced',
@@ -77,9 +87,9 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     ability: {
       id: 'fortress_protection',
       name: 'Fortress Protection',
-      description: 'Immunity to takeover attempts for 30 minutes',
+      description: 'Immune to PvP attacks and cannot lose $WEALTH to other players',
       type: 'passive',
-      duration: 30 * 60 * 1000 // 30 minutes
+      duration: 30 * 60 * 1000 // Always active when owned
     }
   },
 
@@ -88,7 +98,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     name: 'Insurance Company',
     emoji: '🏥',
     description: 'Financial protection that reduces losses from failed defenses and hostile business actions.',
-    cost: 180,
+    cost: 15, // Entry tier - accessible defensive option
     workMultiplier: 40,
     category: 'defensive',
     tier: 'basic',
@@ -96,7 +106,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     ability: {
       id: 'damage_insurance',
       name: 'Damage Insurance',
-      description: 'Reduces takeover losses by 75%',
+      description: 'When PvP attacked, automatically counter-attack for 2x damage',
       type: 'passive'
     }
   },
@@ -106,7 +116,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     name: 'Government Contract',
     emoji: '🏛️',
     description: 'High-level government connections that provide diplomatic immunity and steady income streams.',
-    cost: 1000,
+    cost: 200, // Elite tier - ultimate defensive business
     workMultiplier: 80,
     category: 'defensive',
     tier: 'legendary',
@@ -115,7 +125,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     ability: {
       id: 'diplomatic_immunity',
       name: 'Diplomatic Immunity',
-      description: 'Cannot be targeted for business takeovers',
+      description: 'Generate 1 $WEALTH per day automatically + immune to all PvP',
       type: 'passive'
     }
   },
@@ -126,7 +136,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     name: 'Consulting Firm',
     emoji: '💼',
     description: 'Strategic advisors that can infiltrate and disrupt competitor business operations.',
-    cost: 350,
+    cost: 45, // Mid tier - powerful PvP tool
     workMultiplier: 45,
     category: 'offensive',
     tier: 'advanced',
@@ -137,7 +147,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
       description: 'Add 6 hours to target player\'s work cooldown',
       type: 'active',
       cooldown: 3 * 24 * 60 * 60 * 1000, // 3 days
-      cost: 100
+      cost: 10 // Moderate cost for significant disruption
     }
   },
 
@@ -146,7 +156,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     name: 'Cyber Security',
     emoji: '💻',
     description: 'Elite hackers capable of disrupting digital infrastructure and business systems.',
-    cost: 400,
+    cost: 60, // Premium tier - advanced offensive capabilities
     workMultiplier: 30,
     category: 'offensive',
     tier: 'advanced',
@@ -157,7 +167,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
       description: 'Disable target\'s defensive businesses for 2 hours',
       type: 'active',
       cooldown: 5 * 24 * 60 * 60 * 1000, // 5 days
-      cost: 250
+      cost: 15 // High cost for disabling defenses
     }
   },
 
@@ -166,7 +176,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     name: 'Market Research',
     emoji: '📊',
     description: 'Intelligence gathering operation that reveals competitor weaknesses and market opportunities.',
-    cost: 200,
+    cost: 12, // Entry tier - accessible intel gathering
     workMultiplier: 35,
     category: 'offensive',
     tier: 'basic',
@@ -177,7 +187,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
       description: 'Reveal target player\'s business portfolio and cooldowns',
       type: 'active',
       cooldown: 2 * 24 * 60 * 60 * 1000, // 2 days
-      cost: 75
+      cost: 3 // Low cost for information gathering
     }
   },
 
@@ -187,7 +197,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     name: 'Marketing Agency',
     emoji: '📢',
     description: 'Professional marketing services that amplify your business presence and improve conversion rates.',
-    cost: 250,
+    cost: 30, // Mid tier - useful economic tool
     workMultiplier: 30,
     category: 'utility',
     tier: 'basic',
@@ -198,7 +208,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
       description: '25% better conversion rates for 12 hours',
       type: 'active',
       cooldown: 4 * 24 * 60 * 60 * 1000, // 4 days
-      cost: 150
+      cost: 8 // Moderate cost for economic benefit
     }
   },
 
@@ -207,7 +217,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     name: 'Investment Bank',
     emoji: '🏦',
     description: 'Financial institution that provides compound interest and wealth multiplication services.',
-    cost: 600,
+    cost: 100, // Premium tier - powerful wealth generation
     workMultiplier: 80,
     category: 'utility',
     tier: 'premium',
@@ -218,7 +228,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
       description: 'Generate 5% interest on $WEALTH holdings daily for 7 days',
       type: 'active',
       cooldown: 10 * 24 * 60 * 60 * 1000, // 10 days
-      cost: 300
+      cost: 25 // High cost for wealth generation
     }
   },
 
@@ -227,7 +237,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     name: 'Venture Capital',
     emoji: '🎰',
     description: 'High-risk investment firm that can provide massive returns or significant losses.',
-    cost: 200,
+    cost: 20, // Entry tier - accessible gambling option
     workMultiplier: 35,
     category: 'utility',
     tier: 'basic',
@@ -235,9 +245,10 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     ability: {
       id: 'risky_investment',
       name: 'Risky Investment',
-      description: '50% chance to double credits, 50% chance to lose half',
+      description: '60% chance to earn +50 bonus credits, 40% chance to lose 25 credits',
       type: 'active',
-      cooldown: 7 * 24 * 60 * 60 * 1000 // 7 days
+      cooldown: 6 * 60 * 60 * 1000, // 6 hours
+      cost: 5 // Low cost for frequent gambling
     }
   },
 
@@ -246,7 +257,7 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     name: 'Trading Exchange',
     emoji: '💱',
     description: 'Financial marketplace that provides better conversion rates between credits and wealth tokens.',
-    cost: 150,
+    cost: 8, // Entry tier - foundational economic tool
     workMultiplier: 25,
     category: 'utility',
     tier: 'basic',

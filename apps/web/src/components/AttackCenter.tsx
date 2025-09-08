@@ -150,7 +150,7 @@ export function AttackCenter({ isOpen, onClose }: AttackCenterProps) {
                           <span className="businessEmoji">{business.emoji}</span>
                           <span className="businessName">{business.name}</span>
                         </div>
-                        <div className="businessValue">Value: {business.cost} credits</div>
+                        <div className="businessValue">Value: {business.cost} $WEALTH</div>
                         <div className="businessCategory">{business.category} • {business.tier}</div>
                       </button>
                     ) : null;
