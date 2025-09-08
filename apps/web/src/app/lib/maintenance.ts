@@ -1,11 +1,12 @@
 import { BusinessCondition, MaintenanceAction, MaintenanceNotification, MaintenanceRecord, EnhancedBusiness } from './types';
+import { calculateSynergyEffects, calculateActiveSynergies } from './synergies';
 
 // Maintenance action definitions
 export const MAINTENANCE_ACTIONS: Record<string, MaintenanceAction> = {
   routine: {
     type: 'routine',
     name: 'Routine Maintenance',
-    costMultiplier: 0.15, // 15% of business value
+    costMultiplier: 0.08, // 8% of business value (reduced from 15%)
     conditionRestored: 25,
     duration: 2, // 2 hours offline
     preventsDegradation: 3, // 3 days slower degradation
@@ -14,7 +15,7 @@ export const MAINTENANCE_ACTIONS: Record<string, MaintenanceAction> = {
   major: {
     type: 'major',
     name: 'Major Overhaul',
-    costMultiplier: 0.40, // 40% of business value
+    costMultiplier: 0.20, // 20% of business value (reduced from 40%)
     conditionRestored: 60,
     duration: 8, // 8 hours offline
     preventsDegradation: 7, // 1 week slower degradation
@@ -23,7 +24,7 @@ export const MAINTENANCE_ACTIONS: Record<string, MaintenanceAction> = {
   upgrade: {
     type: 'upgrade',
     name: 'Technology Upgrade',
-    costMultiplier: 0.75, // 75% of business value
+    costMultiplier: 0.35, // 35% of business value (reduced from 75%)
     conditionRestored: 100,
     duration: 24, // 24 hours offline
     preventsDegradation: 14, // 2 weeks slower degradation
@@ -33,7 +34,7 @@ export const MAINTENANCE_ACTIONS: Record<string, MaintenanceAction> = {
   emergency: {
     type: 'emergency',
     name: 'Emergency Repair',
-    costMultiplier: 2.0, // 200% of business value (expensive!)
+    costMultiplier: 1.0, // 100% of business value (reduced from 200%)
     conditionRestored: 30,
     duration: 0, // Instant repair
     preventsDegradation: 0,
@@ -78,10 +79,36 @@ export const getWarningLevel = (condition: number): 'good' | 'caution' | 'critic
   return 'broken';
 };
 
-// Calculate maintenance cost for a business
-export const calculateMaintenanceCost = (business: EnhancedBusiness, actionType: keyof typeof MAINTENANCE_ACTIONS): number => {
+// Calculate maintenance cost for a business with progressive scaling and synergy discounts
+export const calculateMaintenanceCost = (
+  business: EnhancedBusiness, 
+  actionType: keyof typeof MAINTENANCE_ACTIONS,
+  ownedBusinessIds?: string[]
+): number => {
   const action = MAINTENANCE_ACTIONS[actionType];
-  return Math.floor(business.cost * action.costMultiplier);
+  
+  // Progressive scaling to make expensive businesses less punishing to maintain
+  // This encourages synergy building by making multiple businesses affordable
+  let scalingFactor = 1.0;
+  if (business.cost > 100) {
+    scalingFactor = 0.8; // 20% discount for premium businesses
+  } else if (business.cost > 50) {
+    scalingFactor = 0.9; // 10% discount for mid-tier businesses
+  }
+  
+  // Alliance synergy discount - owning multiple businesses for synergies reduces maintenance overhead
+  let synergyDiscount = 1.0;
+  if (ownedBusinessIds && ownedBusinessIds.length > 0) {
+    const activeSynergies = calculateActiveSynergies(ownedBusinessIds);
+    if (activeSynergies.length > 0) {
+      // 5% discount per active synergy (max 25% for Complete Monopoly)
+      const discountPercent = Math.min(25, activeSynergies.length * 5);
+      synergyDiscount = 1 - (discountPercent / 100);
+    }
+  }
+  
+  const baseCost = business.cost * action.costMultiplier * scalingFactor * synergyDiscount;
+  return Math.floor(Math.max(1, baseCost)); // Minimum 1 credit cost
 };
 
 // Initialize business condition when first purchased
@@ -143,10 +170,11 @@ export const processDegradation = (businessConditions: Record<string, BusinessCo
 export const performMaintenance = (
   businessCondition: BusinessCondition, 
   business: EnhancedBusiness, 
-  actionType: keyof typeof MAINTENANCE_ACTIONS
+  actionType: keyof typeof MAINTENANCE_ACTIONS,
+  ownedBusinessIds?: string[]
 ): { updatedCondition: BusinessCondition; cost: number; record: MaintenanceRecord } => {
   const action = MAINTENANCE_ACTIONS[actionType];
-  const cost = calculateMaintenanceCost(business, actionType);
+  const cost = calculateMaintenanceCost(business, actionType, ownedBusinessIds);
   const now = Date.now();
   
   const conditionBefore = businessCondition.condition;
@@ -249,13 +277,14 @@ export const generateMaintenanceNotifications = (
 export const calculatePortfolioMaintenanceCost = (
   businessConditions: Record<string, BusinessCondition>,
   businesses: Record<string, EnhancedBusiness>,
-  actionType: keyof typeof MAINTENANCE_ACTIONS = 'routine'
+  actionType: keyof typeof MAINTENANCE_ACTIONS = 'routine',
+  ownedBusinessIds?: string[]
 ): number => {
   return Object.entries(businessConditions).reduce((total, [businessId, condition]) => {
     const business = businesses[businessId];
     if (!business || condition.warningLevel === 'good') return total;
     
-    return total + calculateMaintenanceCost(business, actionType);
+    return total + calculateMaintenanceCost(business, actionType, ownedBusinessIds);
   }, 0);
 };
 
@@ -263,7 +292,8 @@ export const calculatePortfolioMaintenanceCost = (
 export const getMaintenanceRecommendations = (
   businessConditions: Record<string, BusinessCondition>,
   businesses: Record<string, EnhancedBusiness>,
-  availableBudget: number
+  availableBudget: number,
+  ownedBusinessIds?: string[]
 ): Array<{businessId: string; businessName: string; action: MaintenanceAction; cost: number; priority: number}> => {
   const recommendations: Array<{businessId: string; businessName: string; action: MaintenanceAction; cost: number; priority: number}> = [];
   
@@ -290,7 +320,7 @@ export const getMaintenanceRecommendations = (
       return; // No maintenance needed
     }
     
-    const cost = calculateMaintenanceCost(business, recommendedAction);
+    const cost = calculateMaintenanceCost(business, recommendedAction, ownedBusinessIds);
     if (cost <= availableBudget) {
       recommendations.push({
         businessId,

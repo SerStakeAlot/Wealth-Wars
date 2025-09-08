@@ -16,6 +16,8 @@ export interface BattleState {
     playerId: string;
     expiry: number;
   }>;
+  // Track cooldowns per attack type
+  lastAttackByType: Record<string, number>;
 }
 
 export interface AttackResult {
@@ -26,12 +28,79 @@ export interface AttackResult {
   raidTriggered: boolean;
   message: string;
   finalSuccessRate: number;
+  attackType: string;
 }
 
+// Tiered attack system
+export const ATTACK_TYPES = {
+  STANDARD: {
+    id: 'standard',
+    name: 'Standard Attack',
+    cost: 15,
+    currency: 'credits' as const,
+    cooldown: 4 * 60 * 60 * 1000, // 4 hours
+    maxWealthTheft: 0.10, // 10%
+    bypassDefenses: false,
+    canTriggerLandRaid: false,
+    description: 'Basic attack using credits. Affected by defensive businesses.'
+  },
+  
+  WEALTH_ASSAULT: {
+    id: 'wealth_assault',
+    name: 'Wealth Assault',
+    cost: 10, // 10 $WEALTH
+    currency: 'wealth' as const,
+    cooldown: 12 * 60 * 60 * 1000, // 12 hours
+    maxWealthTheft: 0.25, // 25%
+    bypassDefenses: true, // Ignores defensive businesses
+    canTriggerLandRaid: false,
+    description: 'Premium attack that bypasses Security Firm, Insurance Company, and defensive synergies.'
+  },
+  
+  LAND_SIEGE: {
+    id: 'land_siege',
+    name: 'Land Siege',
+    cost: 25, // Elite tier cost
+    currency: 'wealth' as const,
+    cooldown: 24 * 60 * 60 * 1000, // 24 hours
+    maxWealthTheft: 0.35, // 35%
+    bypassDefenses: true,
+    canTriggerLandRaid: true, // Can trigger Land NFT yield theft
+    description: 'Ultimate attack that bypasses defenses and can trigger Land NFT raids.'
+  }
+} as const;
+
+export type AttackType = keyof typeof ATTACK_TYPES;
+
+// Shield system with updated costs
+export const SHIELD_TYPES = {
+  BASIC: {
+    id: 'basic',
+    name: 'Basic Shield',
+    cost: 25, // $WEALTH
+    duration: 24 * 60 * 60 * 1000, // 24 hours
+    description: 'Basic protection for 24 hours. Good for short-term safety.'
+  },
+  ADVANCED: {
+    id: 'advanced', 
+    name: 'Advanced Shield',
+    cost: 50, // $WEALTH
+    duration: 48 * 60 * 60 * 1000, // 48 hours
+    description: 'Enhanced protection for 48 hours. Suitable for weekend safety.'
+  },
+  ELITE: {
+    id: 'elite',
+    name: 'Elite Shield',
+    cost: 100, // $WEALTH (reduced from 500)
+    duration: 72 * 60 * 60 * 1000, // 72 hours
+    description: 'Maximum protection for 72 hours. Ultimate defensive investment.'
+  }
+} as const;
+
+export type ShieldType = keyof typeof SHIELD_TYPES;
+
 export const BATTLE_CONFIG = {
-  ATTACK_COST: 10, // credits
   BASE_SUCCESS_RATE: 0.6,
-  ATTACK_COOLDOWN: 4 * 60 * 60 * 1000, // 4 hours
   DEFENSE_IMMUNITY: 2 * 60 * 60 * 1000, // 2 hours
   COUNTER_ATTACK_CHANCE: 0.25,
   
@@ -50,12 +119,10 @@ export const BATTLE_CONFIG = {
     WHALE: { min: 301, max: Infinity, rate: 0.15, successMod: 0.2, maxTheft: 50 }
   },
   
-  // Protection Costs
-  LAND_SHIELD_COST: 500, // $WEALTH
-  LAND_SHIELD_DURATION: 72 * 60 * 60 * 1000, // 72 hours
-  ALLIANCE_DEFENSE_COST: 100, // $WEALTH
-  TRIBUTE_COST: 200, // $WEALTH
+  // Protection Costs (updated for new tiered system)
+  TRIBUTE_COST: 50, // $WEALTH (reduced from 200)
   TRIBUTE_DURATION: 48 * 60 * 60 * 1000, // 48 hours
+  ALLIANCE_DEFENSE_COST: 75, // $WEALTH (reduced from 100)
   
   // Business Modifiers
   BUSINESS_MODIFIERS: {
@@ -99,16 +166,23 @@ export function calculateAttackSuccess(
   attackerWealth: number,
   defenderWealth: number,
   attackerBusinesses: string[],
-  defenderBusinesses: string[]
+  defenderBusinesses: string[],
+  attackType: AttackType = 'STANDARD',
+  attackerSynergyEffects?: { attackSuccessBonus?: number; defenseBonus?: number },
+  defenderSynergyEffects?: { attackSuccessBonus?: number; defenseBonus?: number }
 ): { successRate: number; breakdown: any } {
   let successRate = BATTLE_CONFIG.BASE_SUCCESS_RATE;
+  const attack = ATTACK_TYPES[attackType];
   
   const breakdown = {
     base: BATTLE_CONFIG.BASE_SUCCESS_RATE,
     attackerWealthMod: 0,
     defenderWealthMod: 0,
     attackerBusinessMod: 0,
-    defenderBusinessMod: 0
+    defenderBusinessMod: 0,
+    attackerSynergyMod: 0,
+    defenderSynergyMod: 0,
+    bypassedDefenses: attack.bypassDefenses
   };
   
   // Wealth tier modifiers
@@ -123,13 +197,27 @@ export function calculateAttackSuccess(
   
   // Business modifiers
   const attackerMods = calculateBusinessModifiers(attackerBusinesses);
-  const defenderMods = calculateBusinessModifiers(defenderBusinesses);
-  
   breakdown.attackerBusinessMod = attackerMods.attackBonus;
-  breakdown.defenderBusinessMod = -defenderMods.defenseBonus;
-  
   successRate += breakdown.attackerBusinessMod;
-  successRate += breakdown.defenderBusinessMod;
+  
+  // Defender business modifiers (only if NOT bypassing defenses)
+  if (!attack.bypassDefenses) {
+    const defenderMods = calculateBusinessModifiers(defenderBusinesses);
+    breakdown.defenderBusinessMod = -defenderMods.defenseBonus;
+    successRate += breakdown.defenderBusinessMod;
+  }
+  
+  // Synergy effects
+  if (attackerSynergyEffects?.attackSuccessBonus) {
+    breakdown.attackerSynergyMod = attackerSynergyEffects.attackSuccessBonus / 100;
+    successRate += breakdown.attackerSynergyMod;
+  }
+  
+  // Defender synergy effects (only if NOT bypassing defenses)
+  if (!attack.bypassDefenses && defenderSynergyEffects?.defenseBonus) {
+    breakdown.defenderSynergyMod = -defenderSynergyEffects.defenseBonus / 100;
+    successRate += breakdown.defenderSynergyMod;
+  }
   
   // Clamp between 10% and 95%
   successRate = Math.max(0.1, Math.min(0.95, successRate));
@@ -139,19 +227,40 @@ export function calculateAttackSuccess(
 
 export function calculateWealthTheft(
   defenderWealth: number,
-  attackSuccess: boolean
+  attackSuccess: boolean,
+  attackType: AttackType = 'STANDARD',
+  attackerSynergyEffects?: { wealthTheftBonus?: number }
 ): { stolen: number; lost: number } {
+  const attack = ATTACK_TYPES[attackType];
+  
   if (!attackSuccess) {
-    return { stolen: 0, lost: BATTLE_CONFIG.ATTACK_COST + 5 }; // Attack cost + penalty
+    return { 
+      stolen: 0, 
+      lost: attack.currency === 'wealth' ? attack.cost : 15 // Attack cost + penalty
+    };
   }
   
   const tier = getWealthTier(defenderWealth);
   const tierConfig = BATTLE_CONFIG.THEFT_RATES[tier];
   
-  const theftAmount = Math.floor(defenderWealth * tierConfig.rate);
-  const stolen = Math.min(tierConfig.maxTheft, theftAmount);
+  // Use attack type's max theft rate
+  const baseTheftRate = Math.min(attack.maxWealthTheft, tierConfig.rate * 1.5);
+  let theftAmount = Math.floor(defenderWealth * baseTheftRate);
   
-  return { stolen, lost: BATTLE_CONFIG.ATTACK_COST }; // Just attack cost
+  // Apply synergy wealth theft bonus
+  if (attackerSynergyEffects?.wealthTheftBonus) {
+    const synergyMultiplier = 1 + (attackerSynergyEffects.wealthTheftBonus / 100);
+    theftAmount = Math.floor(theftAmount * synergyMultiplier);
+  }
+  
+  // Apply attack type limits
+  const maxTheftByType = Math.floor(defenderWealth * attack.maxWealthTheft);
+  const stolen = Math.min(maxTheftByType, theftAmount);
+  
+  return { 
+    stolen, 
+    lost: attack.currency === 'wealth' ? attack.cost : 15
+  };
 }
 
 export function checkRaidEligibility(
@@ -180,18 +289,29 @@ export function isWithinAttackRange(attackerWealth: number, defenderWealth: numb
 
 export function canAttackTarget(
   attacker: { wealth: number; battleState: BattleState; creditBalance: number },
-  defender: { wealth: number; battleState: BattleState }
+  defender: { wealth: number; battleState: BattleState },
+  attackType: AttackType = 'STANDARD'
 ): { canAttack: boolean; reason?: string } {
-  // Check cooldown
-  const timeSinceLastAttack = Date.now() - attacker.battleState.lastAttackTime;
-  if (timeSinceLastAttack < BATTLE_CONFIG.ATTACK_COOLDOWN) {
-    const minutesRemaining = Math.ceil((BATTLE_CONFIG.ATTACK_COOLDOWN - timeSinceLastAttack) / 1000 / 60);
-    return { canAttack: false, reason: `Cooldown: ${minutesRemaining} minutes remaining` };
+  const attack = ATTACK_TYPES[attackType];
+  
+  // Check attack type cooldown
+  const lastAttackKey = attack.id;
+  const lastAttackTime = attacker.battleState.lastAttackByType?.[lastAttackKey] || 0;
+  const timeSinceLastAttack = Date.now() - lastAttackTime;
+  
+  if (timeSinceLastAttack < attack.cooldown) {
+    const minutesRemaining = Math.ceil((attack.cooldown - timeSinceLastAttack) / 1000 / 60);
+    return { canAttack: false, reason: `${attack.name} cooldown: ${minutesRemaining} minutes remaining` };
   }
   
-  // Check credits
-  if (attacker.creditBalance < BATTLE_CONFIG.ATTACK_COST) {
-    return { canAttack: false, reason: `Need ${BATTLE_CONFIG.ATTACK_COST} credits to attack` };
+  // Check resources
+  const hasResources = attack.currency === 'wealth' 
+    ? attacker.wealth >= attack.cost
+    : attacker.creditBalance >= attack.cost;
+    
+  if (!hasResources) {
+    const resourceName = attack.currency === 'wealth' ? '$WEALTH' : 'credits';
+    return { canAttack: false, reason: `Need ${attack.cost} ${resourceName} for ${attack.name}` };
   }
   
   // Check wealth range

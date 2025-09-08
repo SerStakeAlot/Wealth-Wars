@@ -16,6 +16,7 @@ import { DefenseBanner } from '../../components/DefenseBanner';
 import { WARDisplay } from '../../components/WARDisplay';
 import { ShareModal } from '../../components/ShareModal';
 import { BattleCenter } from '../../components/BattleCenter';
+import { SynergyDisplay } from '../../components/SynergyDisplay';
 import { ENHANCED_BUSINESSES } from '../lib/businesses';
 import { MAINTENANCE_ACTIONS } from '../lib/maintenance';
 
@@ -815,6 +816,9 @@ export default function GamePage() {
             );
           })}
         </div>
+
+        {/* Business Alliance Synergies */}
+        <SynergyDisplay className="mt-6" />
 
         {/* Treasury & Swap Section */}
         <div className="treasurySection">

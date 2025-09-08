@@ -4,6 +4,7 @@ import { calculateAssetValue, calculateRisk, getPriceInSol, calculateProfitPerSe
 import { prestigeFromBehavior, CLAN_MIN_LEVEL } from './prestige';
 import { ENHANCED_BUSINESSES } from './businesses';
 import * as SlotManagement from './slotManagement';
+import { calculateActiveSynergies, calculateSynergyEffects, getSynergyProgressTowardsNext } from './synergies';
 import { 
   calculateTakeoverEligibility, 
   calculatePortfolioValue, 
@@ -35,6 +36,10 @@ import {
   BattleState, 
   AttackResult, 
   BATTLE_CONFIG, 
+  ATTACK_TYPES,
+  AttackType,
+  SHIELD_TYPES,
+  ShieldType,
   calculateAttackSuccess, 
   calculateWealthTheft, 
   checkRaidEligibility, 
@@ -73,6 +78,10 @@ interface GameState extends Player {
   activateBusinessAbility: (businessId: string) => boolean;
   getActiveEffects: () => Record<string, any>;
   getMaxActiveSlots: () => number;
+  // Business Synergy System
+  getActiveSynergies: () => import('./synergies').BusinessSynergy[];
+  getSynergyEffects: () => Record<string, number>;
+  getSynergyProgress: () => Array<{synergy: import('./synergies').BusinessSynergy; progress: string; missingRequirements: string[]}>;
   // Takeover System
   getTakeoverEligibility: () => TakeoverEligibility;
   canTargetPlayerBusiness: (targetPlayerId: string, businessId: string) => { canTarget: boolean; reason?: string; cost?: number };
@@ -98,8 +107,8 @@ interface GameState extends Player {
   updateSlotSystem: () => void;
   getSlotCooldownTime: () => number;
   // Battle System
-  attackPlayer: (targetId: string, targetData?: { wealth: number; enhancedBusinesses: string[]; battleState: BattleState; landNfts: number }) => Promise<AttackResult>;
-  activateLandShield: () => boolean;
+  attackPlayer: (targetId: string, attackType?: AttackType, targetData?: { wealth: number; enhancedBusinesses: string[]; battleState: BattleState; landNfts: number }) => Promise<AttackResult>;
+  activateShield: (shieldType: ShieldType) => boolean;
   payTribute: (targetId: string) => boolean;
   defendAlly: (allyId: string, attackerId: string) => boolean;
   canAttack: (targetWealth: number) => { canAttack: boolean; reason?: string };
@@ -287,7 +296,8 @@ export const useGame = create<GameState>((set, get) => ({
     shieldExpiry: 0,
     consecutiveAttacksFrom: {},
     activeRaids: [],
-    tributePaid: []
+    tributePaid: [],
+    lastAttackByType: {}
   },
   landNfts: 0,
 
@@ -657,6 +667,10 @@ export const useGame = create<GameState>((set, get) => ({
       const synergyMultiplier = state.businessSlots.totalSynergyMultiplier;
       enhancedBusinessMultiplier *= synergyMultiplier;
       
+      // Apply synergy effects
+      const synergyEffects = get().getSynergyEffects();
+      const synergyWorkBonus = 1 + (synergyEffects.workMultiplierBonus || 0) / 100;
+      
       // Apply active effects
       const activeEffects = get().getActiveEffects();
       let effectMultiplier = 1;
@@ -671,7 +685,7 @@ export const useGame = create<GameState>((set, get) => ({
       });
       
       // Calculate final work value
-      const totalMultiplier = businessMultiplier * enhancedBusinessMultiplier * effectMultiplier;
+      const totalMultiplier = businessMultiplier * enhancedBusinessMultiplier * effectMultiplier * synergyWorkBonus;
       const workValue = Math.floor(baseWorkValue * totalMultiplier);
       
       // Update work session tracking
@@ -947,6 +961,23 @@ export const useGame = create<GameState>((set, get) => ({
       case 'master': return 5;
       default: return 1;
     }
+  },
+
+  // Business Synergy System
+  getActiveSynergies: () => {
+    const state = get();
+    return calculateActiveSynergies(state.enhancedBusinesses);
+  },
+
+  getSynergyEffects: () => {
+    const state = get();
+    const activeSynergies = calculateActiveSynergies(state.enhancedBusinesses);
+    return calculateSynergyEffects(activeSynergies);
+  },
+
+  getSynergyProgress: () => {
+    const state = get();
+    return getSynergyProgressTowardsNext(state.enhancedBusinesses);
   },
 
   initPlayer: () => {
@@ -1686,13 +1717,13 @@ export const useGame = create<GameState>((set, get) => ({
       return { success: false, reason: 'Business or condition not found' };
     }
     
-    const cost = calculateMaintenanceCost(business, actionType);
+    const cost = calculateMaintenanceCost(business, actionType, state.enhancedBusinesses);
     
     if (state.creditBalance < cost) {
       return { success: false, reason: 'Insufficient credits for maintenance', cost };
     }
     
-    const { updatedCondition, record } = performMaintenance(condition, business, actionType);
+    const { updatedCondition, record } = performMaintenance(condition, business, actionType, state.enhancedBusinesses);
     
     set({
       businessConditions: {
@@ -1883,7 +1914,7 @@ export const useGame = create<GameState>((set, get) => ({
   },
 
   // Battle System Functions
-  attackPlayer: async (targetId: string, targetData?: { wealth: number; enhancedBusinesses: string[]; battleState: BattleState; landNfts: number }): Promise<AttackResult> => {
+  attackPlayer: async (targetId: string, attackType: AttackType = 'STANDARD', targetData?: { wealth: number; enhancedBusinesses: string[]; battleState: BattleState; landNfts: number }): Promise<AttackResult> => {
     const state = get();
     
     // Mock target data if not provided (for testing)
@@ -1929,16 +1960,24 @@ export const useGame = create<GameState>((set, get) => ({
       };
     }
 
+    // Get synergy effects for both players
+    const attackerSynergyEffects = get().getSynergyEffects();
+    const defenderSynergyEffects = targetData?.enhancedBusinesses ? 
+      calculateSynergyEffects(calculateActiveSynergies(targetData.enhancedBusinesses)) : 
+      { attackSuccessBonus: 0, defenseBonus: 0, wealthTheftBonus: 0 };
+
     // Calculate attack success
     const { successRate } = calculateAttackSuccess(
       state.wealth,
       target.wealth,
       state.enhancedBusinesses,
-      target.enhancedBusinesses
+      target.enhancedBusinesses,
+      attackerSynergyEffects,
+      defenderSynergyEffects
     );
 
     const attackSuccess = Math.random() < successRate;
-    const { stolen, lost } = calculateWealthTheft(target.wealth, attackSuccess);
+    const { stolen, lost } = calculateWealthTheft(target.wealth, attackSuccess, attackerSynergyEffects);
 
     // Check for counter-attack
     const counterAttack = !attackSuccess && Math.random() < BATTLE_CONFIG.COUNTER_ATTACK_CHANCE;
@@ -2011,16 +2050,12 @@ export const useGame = create<GameState>((set, get) => ({
     return result;
   },
 
-  activateLandShield: (): boolean => {
+  activateShield: (shieldType: ShieldType): boolean => {
     const state = get();
+    const shield = SHIELD_TYPES[shieldType];
     
-    if (state.wealth < BATTLE_CONFIG.LAND_SHIELD_COST) {
-      toast.error(`Need ${BATTLE_CONFIG.LAND_SHIELD_COST} $WEALTH to activate shield`);
-      return false;
-    }
-    
-    if (state.landNfts === 0) {
-      toast.error('Only Land NFT owners can activate shields');
+    if (state.wealth < shield.cost) {
+      toast.error(`Need ${shield.cost} $WEALTH to activate ${shield.name}`);
       return false;
     }
 
@@ -2030,14 +2065,15 @@ export const useGame = create<GameState>((set, get) => ({
     }
 
     set(state => ({
-      wealth: state.wealth - BATTLE_CONFIG.LAND_SHIELD_COST,
+      wealth: state.wealth - shield.cost,
       battleState: {
         ...state.battleState,
-        shieldExpiry: Date.now() + BATTLE_CONFIG.LAND_SHIELD_DURATION
+        shieldExpiry: Date.now() + shield.duration
       }
     }));
 
-    toast.success('🛡️ Land Shield activated for 72 hours!');
+    const hours = shield.duration / (1000 * 60 * 60);
+    toast.success(`🛡️ ${shield.name} activated for ${hours} hours!`);
     return true;
   },
 
