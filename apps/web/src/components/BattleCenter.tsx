@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useGame } from '../app/lib/store';
-import { BATTLE_CONFIG } from '../app/lib/battle-system';
+import { BATTLE_CONFIG, ATTACK_TYPES, SHIELD_TYPES } from '../app/lib/battle-system';
 
 interface BattleCenterProps {
   isOpen: boolean;
@@ -12,7 +12,7 @@ interface BattleCenterProps {
 export function BattleCenter({ isOpen, onClose }: BattleCenterProps) {
   const { 
     attackPlayer, 
-    activateLandShield, 
+    activateShield, 
     payTribute, 
     canAttack,
     getBattleStats,
@@ -51,19 +51,25 @@ export function BattleCenter({ isOpen, onClose }: BattleCenterProps) {
         shieldExpiry: 0,
         consecutiveAttacksFrom: {},
         activeRaids: [],
-        tributePaid: []
+        tributePaid: [],
+        lastAttackByType: {
+          STANDARD: 0,
+          WEALTH_ASSAULT: 0,
+          LAND_SIEGE: 0
+        }
       },
       landNfts: Math.random() > 0.7 ? 1 : 0
     };
     
-    const result = await attackPlayer(targetId, mockTargetData);
+    const result = await attackPlayer(targetId, 'STANDARD', mockTargetData);
     setBattleResult(result.message);
     setIsAttacking(false);
   };
 
   const timeSinceLastAttack = Date.now() - battleState.lastAttackTime;
-  const attackCooldownRemaining = Math.max(0, BATTLE_CONFIG.ATTACK_COOLDOWN - timeSinceLastAttack);
-  const canAttackNow = attackCooldownRemaining === 0 && creditBalance >= BATTLE_CONFIG.ATTACK_COST;
+  const standardAttack = ATTACK_TYPES.STANDARD;
+  const attackCooldownRemaining = Math.max(0, standardAttack.cooldown - timeSinceLastAttack);
+  const canAttackNow = attackCooldownRemaining === 0 && creditBalance >= standardAttack.cost;
 
   const isShieldActive = battleState.shieldExpiry > Date.now();
   const shieldTimeRemaining = Math.max(0, battleState.shieldExpiry - Date.now());
@@ -146,7 +152,7 @@ export function BattleCenter({ isOpen, onClose }: BattleCenterProps) {
                   : 'bg-gray-600 text-gray-400 cursor-not-allowed'
               }`}
             >
-              {isAttacking ? 'Attacking...' : `⚔️ Attack (${BATTLE_CONFIG.ATTACK_COST} credits)`}
+              {isAttacking ? 'Attacking...' : `⚔️ Attack (${standardAttack.cost} credits)`}
             </button>
           </div>
 
@@ -154,7 +160,7 @@ export function BattleCenter({ isOpen, onClose }: BattleCenterProps) {
             <div className="text-yellow-400 text-sm mb-2">
               {attackCooldownRemaining > 0 
                 ? `⏱️ Cooldown: ${Math.ceil(attackCooldownRemaining / 1000 / 60)} minutes remaining`
-                : `💳 Need ${BATTLE_CONFIG.ATTACK_COST} credits to attack`
+                : `💳 Need ${standardAttack.cost} credits to attack`
               }
             </div>
           )}
@@ -181,15 +187,15 @@ export function BattleCenter({ isOpen, onClose }: BattleCenterProps) {
                   }
                 </p>
                 <button
-                  onClick={() => activateLandShield()}
-                  disabled={isShieldActive || wealth < BATTLE_CONFIG.LAND_SHIELD_COST}
+                  onClick={() => activateShield('BASIC')}
+                  disabled={isShieldActive || wealth < SHIELD_TYPES.BASIC.cost}
                   className={`w-full py-2 px-4 rounded text-sm font-semibold transition-colors ${
-                    !isShieldActive && wealth >= BATTLE_CONFIG.LAND_SHIELD_COST
+                    !isShieldActive && wealth >= SHIELD_TYPES.BASIC.cost
                       ? 'bg-green-600 hover:bg-green-700 text-white'
                       : 'bg-gray-600 text-gray-400 cursor-not-allowed'
                   }`}
                 >
-                  Activate Shield ({BATTLE_CONFIG.LAND_SHIELD_COST} $WEALTH)
+                  Activate Shield ({SHIELD_TYPES.BASIC.cost} $WEALTH)
                 </button>
               </div>
               
@@ -226,7 +232,7 @@ export function BattleCenter({ isOpen, onClose }: BattleCenterProps) {
             <h3 className="text-lg font-semibold text-red-300 mb-3">⚔️ Attack Mechanics</h3>
             <div className="text-sm space-y-1">
               <p>• Base success rate: 60%</p>
-              <p>• Attack cost: {BATTLE_CONFIG.ATTACK_COST} credits</p>
+              <p>• Attack cost: {standardAttack.cost} credits</p>
               <p>• Cooldown: 4 hours between attacks</p>
               <p>• Target range: ±50% of your wealth</p>
               <p>• Wealth theft: 5-15% of target's wealth</p>

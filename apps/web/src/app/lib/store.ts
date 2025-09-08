@@ -1930,7 +1930,12 @@ export const useGame = create<GameState>((set, get) => ({
         shieldExpiry: 0,
         consecutiveAttacksFrom: {},
         activeRaids: [],
-        tributePaid: []
+        tributePaid: [],
+        lastAttackByType: {
+          STANDARD: 0,
+          WEALTH_ASSAULT: 0,
+          LAND_SIEGE: 0
+        }
       },
       landNfts: Math.random() > 0.8 ? 1 : 0
     };
@@ -1956,7 +1961,8 @@ export const useGame = create<GameState>((set, get) => ({
         counterAttack: false,
         raidTriggered: false,
         message: attackCheck.reason || 'Attack not allowed',
-        finalSuccessRate: 0
+        finalSuccessRate: 0,
+        attackType
       };
     }
 
@@ -1972,12 +1978,13 @@ export const useGame = create<GameState>((set, get) => ({
       target.wealth,
       state.enhancedBusinesses,
       target.enhancedBusinesses,
+      attackType,
       attackerSynergyEffects,
       defenderSynergyEffects
     );
 
     const attackSuccess = Math.random() < successRate;
-    const { stolen, lost } = calculateWealthTheft(target.wealth, attackSuccess, attackerSynergyEffects);
+    const { stolen, lost } = calculateWealthTheft(target.wealth, attackSuccess, attackType);
 
     // Check for counter-attack
     const counterAttack = !attackSuccess && Math.random() < BATTLE_CONFIG.COUNTER_ATTACK_CHANCE;
@@ -2013,9 +2020,15 @@ export const useGame = create<GameState>((set, get) => ({
       toast.success(`🏴‍☠️ Land Raid Triggered! You'll receive ${Math.floor(raidYield / 7)} $WEALTH daily for 7 days!`);
     }
 
+    // Calculate attack cost
+    const attackConfig = ATTACK_TYPES[attackType];
+    const costUpdate = attackConfig.currency === 'credits' 
+      ? { creditBalance: state.creditBalance - attackConfig.cost }
+      : { wealth: state.wealth - attackConfig.cost };
+
     // Update state
     set(state => ({
-      creditBalance: state.creditBalance - BATTLE_CONFIG.ATTACK_COST,
+      ...costUpdate,
       wealth: attackSuccess ? state.wealth + stolen - lost : state.wealth - finalLoss,
       battleState: {
         ...state.battleState,
@@ -2033,6 +2046,7 @@ export const useGame = create<GameState>((set, get) => ({
       counterAttack,
       raidTriggered,
       finalSuccessRate: successRate,
+      attackType,
       message: attackSuccess 
         ? `✅ Attack successful! Stolen ${stolen} $WEALTH${raidTriggered ? ' + Land Raid triggered!' : ''}` 
         : counterAttack 
@@ -2147,7 +2161,12 @@ export const useGame = create<GameState>((set, get) => ({
           shieldExpiry: 0, 
           consecutiveAttacksFrom: {}, 
           activeRaids: [], 
-          tributePaid: [] 
+          tributePaid: [],
+          lastAttackByType: {
+            STANDARD: 0,
+            WEALTH_ASSAULT: 0,
+            LAND_SIEGE: 0
+          }
         } 
       }
     );
