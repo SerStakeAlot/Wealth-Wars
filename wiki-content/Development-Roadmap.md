@@ -81,10 +81,10 @@
 ### 2.4 Land NFT System
 
 #### Land NFT Collection (300 Total Pieces)
-- [ ] Tier-based NFT collection with varying yield potentials
+- [ ] Premium NFT collection with 400 $WEALTH mint price
 - [ ] Metaplex Token Standard implementation for land ownership
-- [ ] Rarity distribution: Common (150), Rare (90), Epic (45), Legendary (15)
-- [ ] Geographic and thematic categorization of land parcels
+- [ ] Equal yield distribution: 16,667 $WEALTH monthly per NFT
+- [ ] Post-Month 1 launch: 240 public mint, 30 team, 30 community
 - [ ] Secondary marketplace integration for land trading
 
 #### Monthly Yield Distribution

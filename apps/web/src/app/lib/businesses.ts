@@ -1,13 +1,16 @@
 import { EnhancedBusiness } from './types';
 
 // Phased $WEALTH Cost Structure for 300M Community Allocation
-// Based on 5M $WEALTH monthly distribution from Land NFT Pool + Season Pass rewards
+// Based on 5M $WEALTH monthly distribution from Land NFT Pool (300 NFTs @ 16,667 each)
+// Land NFT mint price: 400 $WEALTH (premium tier above all businesses)
 // Designed for sustainable economy with growing player base
 
 // Cost Tiers:
-// Entry: 5-15 $WEALTH (40-120 hours of play, 1-2 weeks active)
-// Mid: 25-50 $WEALTH (200-400 hours of play, 3-7 weeks active) 
-// Premium: 75-100 $WEALTH (600-800 hours of play, 10-13 weeks active)
+// Entry: 8-20 $WEALTH (Accessible starter businesses)
+// Mid: 30-50 $WEALTH (Solid mid-tier investments) 
+// Premium: 60-100 $WEALTH (Advanced business capabilities)
+// Elite: 150-200 $WEALTH (Top-tier business empire)
+// Land NFT: 400 $WEALTH (Ultimate passive income tier)
 // Elite: 150+ $WEALTH (1200+ hours of play, 20+ weeks active)
 
 export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [

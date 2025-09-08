@@ -90,6 +90,28 @@ This document provides an in-depth analysis of Wealth Wars' economic model, incl
 - **PvP volume**: 500,000 $WEALTH/month
 - **Total**: 4,750,000 $WEALTH/month
 
+## 3.5 Land NFT Economics
+
+### 3.5.1 Collection Overview
+- **Total Supply**: 300 Land NFTs
+- **Mint Price**: 400 $WEALTH per Land NFT
+- **Total Mint Revenue**: 120,000 $WEALTH (300 × 400)
+- **Yield Pool**: 300M $WEALTH over 5 years (5M monthly)
+- **Individual Monthly Yield**: 16,667 $WEALTH per Land NFT
+
+### 3.5.2 Economic Impact
+- **ROI Period**: 24 days (400 ÷ 16,667 × 30)
+- **Lifetime Value**: 1,000,000+ $WEALTH per Land NFT over 5 years
+- **Market Positioning**: Premium tier (2x most expensive business)
+- **Whale Economics**: Targets serious $WEALTH investors
+- **Secondary Market**: Expected premium trading above mint price
+
+### 3.5.3 Launch Strategy
+- **Timing**: Month 2 post-launch (after $WEALTH accumulation period)
+- **Public Allocation**: 240 Land NFTs (80%) at 400 $WEALTH each
+- **Team Reserve**: 30 Land NFTs (10%) for development incentives
+- **Community Rewards**: 30 Land NFTs (10%) for top performers
+
 ## 4. Token Velocity & Demand Drivers
 
 ### 4.1 Velocity Reduction Mechanisms

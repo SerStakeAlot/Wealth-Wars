@@ -63,21 +63,29 @@ To democratize financial education by creating an engaging, competitive gaming e
 
 ### 3.1 NFT Collection Details
 - **Total Supply**: 300 Land NFTs
-- **Tier Distribution**:
-  - **Legendary (10 NFTs)**: 5,000 $WEALTH/month yield
-  - **Epic (40 NFTs)**: 2,500 $WEALTH/month yield
-  - **Rare (100 NFTs)**: 1,000 $WEALTH/month yield
-  - **Common (150 NFTs)**: 500 $WEALTH/month yield
+- **Mint Price**: 400 $WEALTH per Land NFT
+- **Yield Distribution**: 5M $WEALTH monthly across all holders
+- **Individual Yield**: ~16,667 $WEALTH per month per Land NFT
+- **ROI Period**: 24 days payback on mint price
+- **Lifetime Value**: 1,000,000+ $WEALTH over 5 years
 
-### 3.2 Allocation Strategy
-- **50%** (150 NFTs) - Top performers during launch period
-- **30%** (90 NFTs) - Early supporters and community contributors
-- **20%** (60 NFTs) - Strategic partnerships and influencers
+### 3.2 Economic Positioning
+- **Premium Tier**: 2x most expensive business (Government Contract: 200 $WEALTH)
+- **Whale Economics**: Attracts serious $WEALTH investors
+- **Grinding Alternative**: 1,600 work sessions (133+ days) to earn mint price
+- **Investment Appeal**: Strong passive income for $WEALTH holders
 
-### 3.3 Yield Mechanics
+### 3.3 Allocation Strategy
+- **Public Mint**: 240 Land NFTs (80%) - Available at 400 $WEALTH each after Month 1
+- **Team Reserve**: 30 Land NFTs (10%) - Development team allocation  
+- **Community Rewards**: 30 Land NFTs (10%) - Top performers and contributors
+
+### 3.4 Yield Mechanics
 - **Monthly Distribution**: 300M $WEALTH ÷ 60 months = 5M $WEALTH/month
+- **Equal Distribution**: Each Land NFT receives ~16,667 $WEALTH monthly
 - **Sustainability**: Yield pool lasts 5 years, creating long-term value
 - **Claim Mechanism**: Monthly claiming with optional auto-compound
+- **Total ROI**: 1,000,000+ $WEALTH lifetime value per Land NFT
 
 ## 4. Era System & Season Pass Structure
 

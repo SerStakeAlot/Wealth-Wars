@@ -31,11 +31,12 @@ This roadmap outlines the technical implementation strategy for Wealth Wars, inc
 - [ ] Upgrade progression mechanics
 
 #### Land NFT Implementation
-- [ ] 300 NFT collection with tier-based yields
-- [ ] Monthly yield distribution mechanisms
+- [ ] 300 NFT collection with 400 $WEALTH mint price
+- [ ] Equal yield distribution: 16,667 $WEALTH monthly per NFT
+- [ ] Month 2 launch timing (post-$WEALTH accumulation period)
 - [ ] Claim and auto-compound functionality
 - [ ] Secondary marketplace integration
-- [ ] Rarity and metadata management
+- [ ] 80/10/10 allocation: Public/Team/Community
 
 #### Treasury & Fee Collection
 - [ ] Multi-signature treasury contract

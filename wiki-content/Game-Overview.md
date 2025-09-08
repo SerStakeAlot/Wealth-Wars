@@ -73,10 +73,11 @@ Players organically develop skills through gameplay:
 ## 💎 NFT Integration
 
 ### Land NFTs (300 Total)
-- **Yield Generation**: Monthly $WEALTH distributions
-- **Tier System**: Legendary, Epic, Rare, Common
-- **5-Year Yield Pool**: Sustainable long-term rewards
-- **Community Recognition**: Status and exclusive benefits
+- **Mint Price**: 400 $WEALTH per Land NFT
+- **Yield Generation**: 16,667 $WEALTH monthly per NFT
+- **Premium Investment**: 2x most expensive business cost
+- **5-Year Yield Pool**: Sustainable long-term rewards (1M+ $WEALTH lifetime)
+- **Community Recognition**: Ultimate status and exclusive benefits
 
 ## 🔮 Future Features
 
