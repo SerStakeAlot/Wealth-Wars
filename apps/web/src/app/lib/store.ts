@@ -69,6 +69,7 @@ interface GameState extends Player {
   closeShareModal: () => void;
   // Enhanced Business System
   buyEnhancedBusiness: (businessId: string) => boolean;
+  reorderEnhancedBusinesses: (newOrder: string[]) => void;
   activateBusinessAbility: (businessId: string) => boolean;
   getActiveEffects: () => Record<string, any>;
   getMaxActiveSlots: () => number;
@@ -851,6 +852,23 @@ export const useGame = create<GameState>((set, get) => ({
     get().updateSlotSystem();
     
     return true;
+  },
+
+  reorderEnhancedBusinesses: (newOrder: string[]) => {
+    set(state => {
+      // Validate that newOrder contains the same businesses as current
+      const currentBusinesses = [...state.enhancedBusinesses].sort();
+      const newOrderSorted = [...newOrder].sort();
+      
+      if (currentBusinesses.length !== newOrderSorted.length ||
+          !currentBusinesses.every(id => newOrderSorted.includes(id))) {
+        return state; // Invalid reorder, return unchanged state
+      }
+      
+      return {
+        enhancedBusinesses: newOrder
+      };
+    });
   },
 
   activateBusinessAbility: (businessId: string) => {

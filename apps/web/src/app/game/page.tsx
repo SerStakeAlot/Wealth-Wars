@@ -129,7 +129,7 @@ export default function GamePage() {
     creditBalance, streakDays, business, clickWork, buyBusiness, initPlayer,
     lastWorkTime, workCooldown, workFrequency, totalWorkActions, totalCreditsEarned, workSession,
     // Enhanced Business System
-    enhancedBusinesses, buyEnhancedBusiness,
+    enhancedBusinesses, buyEnhancedBusiness, reorderEnhancedBusinesses,
     // Business Maintenance System
     businessConditions, performBusinessMaintenance, maintenanceBudget,
     // Solana integration
@@ -148,8 +148,12 @@ export default function GamePage() {
     if (condition >= 80) return '#22c55e'; // Green
     if (condition >= 60) return '#f59e0b'; // Orange  
     if (condition >= 40) return '#ef4444'; // Red
-    return '#7c2d12'; // Dark red
+    return '#dc2626'; // Dark red
   };
+
+  // Slot management state
+  const [isSlotManagementMode, setIsSlotManagementMode] = useState(false);
+  const [selectedBusinessForSwap, setSelectedBusinessForSwap] = useState<string | null>(null);
 
   const getConditionLabel = (condition: number) => {
     if (condition >= 80) return 'Excellent';
@@ -166,6 +170,44 @@ export default function GamePage() {
     } else {
       toast.error(result.reason || 'Maintenance failed');
     }
+  };
+
+  // Slot management functions
+  const handleSlotSwap = (businessId: string, targetSlot: number) => {
+    if (!selectedBusinessForSwap) {
+      setSelectedBusinessForSwap(businessId);
+      return;
+    }
+
+    if (selectedBusinessForSwap === businessId) {
+      setSelectedBusinessForSwap(null);
+      return;
+    }
+
+    // Perform the swap
+    swapBusinessSlots(selectedBusinessForSwap, businessId);
+    setSelectedBusinessForSwap(null);
+    toast.success('Businesses swapped successfully!');
+  };
+
+  const swapBusinessSlots = (business1Id: string, business2Id: string) => {
+    // Create new array with swapped positions
+    const currentBusinesses = [...enhancedBusinesses];
+    const index1 = currentBusinesses.indexOf(business1Id);
+    const index2 = currentBusinesses.indexOf(business2Id);
+    
+    if (index1 !== -1 && index2 !== -1) {
+      // Swap the positions
+      [currentBusinesses[index1], currentBusinesses[index2]] = [currentBusinesses[index2], currentBusinesses[index1]];
+      
+      // Update the store with new order
+      reorderEnhancedBusinesses(currentBusinesses);
+    }
+  };
+
+  const exitSlotManagement = () => {
+    setIsSlotManagementMode(false);
+    setSelectedBusinessForSwap(null);
   };
 
   // Treasury state and calculations
@@ -604,6 +646,28 @@ export default function GamePage() {
             </button>
           </div>
 
+          {/* Enhanced Business Section Header */}
+          <div className="sectionHeader enhanced">
+            <h3 className="sectionTitle">Enhanced Businesses</h3>
+            {enhancedBusinesses.length > 1 && (
+              <button 
+                className={`manageBtn ${isSlotManagementMode ? 'active' : ''}`}
+                onClick={() => setIsSlotManagementMode(!isSlotManagementMode)}
+              >
+                {isSlotManagementMode ? '✓ Done' : '🔄 Manage Slots'}
+              </button>
+            )}
+          </div>
+
+          {isSlotManagementMode && (
+            <div className="slotManagementInfo">
+              <p>Click on businesses to swap their positions. Selected business will be highlighted.</p>
+              {selectedBusinessForSwap && (
+                <p>Selected: <strong>{ENHANCED_BUSINESSES.find(b => b.id === selectedBusinessForSwap)?.name}</strong> - Click another to swap</p>
+              )}
+            </div>
+          )}
+
           {/* Enhanced Businesses - 3 Slots */}
           {Array.from({ length: 3 }, (_, slotIndex) => {
             // Get owned businesses and map them to slots
@@ -654,7 +718,17 @@ export default function GamePage() {
             const conditionLabel = getConditionLabel(condition.condition);
             
             return (
-              <div key={businessInSlot.id} className="businessCard enhanced">
+              <div 
+                key={businessInSlot.id} 
+                className={`businessCard enhanced ${isSlotManagementMode ? 'manageable' : ''} ${selectedBusinessForSwap === businessInSlot.id ? 'selected' : ''}`}
+                onClick={isSlotManagementMode ? () => handleSlotSwap(businessInSlot.id, slotIndex) : undefined}
+                style={{ cursor: isSlotManagementMode ? 'pointer' : 'default' }}
+              >
+                {isSlotManagementMode && (
+                  <div className="slotManagementOverlay">
+                    <span className="swapIcon">🔄</span>
+                  </div>
+                )}
                 <div className="businessHeader">
                   <span className="businessIcon">{businessInSlot.emoji}</span>
                   <div className="businessTitleInfo">
@@ -697,33 +771,46 @@ export default function GamePage() {
                   <span className="businessDescription" style={{ fontSize: '12px' }}>{businessInSlot.description}</span>
                 </div>
                 
-                <div className="maintenanceActions">
-                  <button 
-                    className="maintenanceBtn routine"
-                    onClick={() => handleMaintenance(businessInSlot.id, 'routine')}
-                    disabled={condition.condition >= 90}
-                    title="Routine maintenance - Low cost, moderate repair"
-                  >
-                    🔧 Routine
-                  </button>
-                  <button 
-                    className="maintenanceBtn major"
-                    onClick={() => handleMaintenance(businessInSlot.id, 'major')}
-                    disabled={condition.condition >= 90}
-                    title="Major overhaul - Higher cost, significant repair"
-                  >
-                    ⚙️ Major
-                  </button>
-                  {condition.condition <= 20 && (
+                {!isSlotManagementMode && (
+                  <div className="maintenanceActions">
                     <button 
-                      className="maintenanceBtn emergency"
-                      onClick={() => handleMaintenance(businessInSlot.id, 'emergency')}
-                      title="Emergency repair - Expensive but instant"
+                      className="maintenanceBtn routine"
+                      onClick={() => handleMaintenance(businessInSlot.id, 'routine')}
+                      disabled={condition.condition >= 90}
+                      title="Routine maintenance - Low cost, moderate repair"
                     >
-                      🚨 Emergency
+                      🔧 Routine
                     </button>
-                  )}
-                </div>
+                    <button 
+                      className="maintenanceBtn major"
+                      onClick={() => handleMaintenance(businessInSlot.id, 'major')}
+                      disabled={condition.condition >= 90}
+                      title="Major overhaul - Higher cost, significant repair"
+                    >
+                      ⚙️ Major
+                    </button>
+                    {condition.condition <= 20 && (
+                      <button 
+                        className="maintenanceBtn emergency"
+                        onClick={() => handleMaintenance(businessInSlot.id, 'emergency')}
+                        title="Emergency repair - Expensive but instant"
+                      >
+                        🚨 Emergency
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {isSlotManagementMode && (
+                  <div className="slotManagementActions">
+                    <button 
+                      className={`slotSwapBtn ${selectedBusinessForSwap === businessInSlot.id ? 'selected' : ''}`}
+                      onClick={() => handleSlotSwap(businessInSlot.id, slotIndex)}
+                    >
+                      {selectedBusinessForSwap === businessInSlot.id ? '✓ Selected' : '🔄 Select to Swap'}
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -1273,6 +1360,121 @@ export default function GamePage() {
         .businessCard.enhanced.empty:hover {
           border-color: #64748b;
           box-shadow: 0 4px 16px rgba(100,116,139,0.2);
+        }
+
+        /* Slot Management Styles */
+        .sectionHeader {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 16px;
+          padding: 12px 0;
+        }
+
+        .sectionTitle {
+          color: #ffd700;
+          font-size: 20px;
+          font-weight: bold;
+          margin: 0;
+        }
+
+        .manageBtn {
+          background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+          color: white;
+          border: none;
+          padding: 8px 16px;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        .manageBtn:hover {
+          background: linear-gradient(135deg, #2563eb, #1e40af);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .manageBtn.active {
+          background: linear-gradient(135deg, #10b981, #059669);
+          box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        }
+
+        .slotManagementInfo {
+          background: rgba(59, 130, 246, 0.1);
+          border: 1px solid rgba(59, 130, 246, 0.3);
+          border-radius: 8px;
+          padding: 12px;
+          margin-bottom: 16px;
+          font-size: 14px;
+          color: #e2e8f0;
+        }
+
+        .businessCard.manageable {
+          border: 2px solid rgba(59, 130, 246, 0.5);
+          transition: all 0.3s ease;
+        }
+
+        .businessCard.manageable:hover {
+          border-color: #3b82f6;
+          box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+          transform: translateY(-2px);
+        }
+
+        .businessCard.selected {
+          border-color: #ffd700 !important;
+          box-shadow: 0 4px 20px rgba(255, 215, 0, 0.5) !important;
+          background: linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,215,0,0.05));
+        }
+
+        .slotManagementOverlay {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          background: rgba(59, 130, 246, 0.9);
+          border-radius: 50%;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 5;
+        }
+
+        .swapIcon {
+          font-size: 16px;
+          color: white;
+        }
+
+        .slotManagementActions {
+          display: flex;
+          justify-content: center;
+          margin-top: 12px;
+        }
+
+        .slotSwapBtn {
+          background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+          color: white;
+          border: none;
+          padding: 10px 16px;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          width: 100%;
+        }
+
+        .slotSwapBtn:hover {
+          background: linear-gradient(135deg, #2563eb, #1e40af);
+          transform: translateY(-1px);
+        }
+
+        .slotSwapBtn.selected {
+          background: linear-gradient(135deg, #ffd700, #f59e0b);
+          color: #1a1a1a;
         }
 
         .businessHeader {
