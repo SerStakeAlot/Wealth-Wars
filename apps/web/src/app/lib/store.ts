@@ -745,7 +745,7 @@ export const useGame = create<GameState>((set, get) => ({
     const business = ENHANCED_BUSINESSES.find(b => b.id === businessId);
     
     if (!business) return false;
-    if (state.creditBalance < business.cost) return false;
+    if (state.wealth < business.cost) return false;
     if (state.enhancedBusinesses.includes(businessId)) return false;
     
     // Check prerequisites
@@ -781,7 +781,7 @@ export const useGame = create<GameState>((set, get) => ({
       }
 
       return {
-        creditBalance: state.creditBalance - business.cost,
+        wealth: state.wealth - business.cost,
         enhancedBusinesses: [...state.enhancedBusinesses, businessId],
         businessConditions: {
           ...state.businessConditions,
@@ -811,7 +811,7 @@ export const useGame = create<GameState>((set, get) => ({
     if (business.ability.cooldown && now - lastUsed < business.ability.cooldown) return false;
     
     // Check cost
-    if (business.ability.cost && state.creditBalance < business.ability.cost) return false;
+    if (business.ability.cost && state.wealth < business.ability.cost) return false;
     
     set(state => {
       const updates: any = {
@@ -823,7 +823,7 @@ export const useGame = create<GameState>((set, get) => ({
       
       // Deduct cost if any
       if (business.ability.cost) {
-        updates.creditBalance = state.creditBalance - business.ability.cost;
+        updates.wealth = state.wealth - business.ability.cost;
       }
       
       // Apply temporary effects

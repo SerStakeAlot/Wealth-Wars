@@ -19,7 +19,7 @@ const CATEGORY_INFO = {
 };
 
 export function BusinessPopup({ isOpen, onClose }: BusinessPopupProps) {
-  const { enhancedBusinesses, creditBalance, buyEnhancedBusiness } = useGame();
+  const { enhancedBusinesses, wealth, buyEnhancedBusiness } = useGame();
   const [selectedCategory, setSelectedCategory] = useState<string>('efficiency');
   const [isSlotManagerOpen, setIsSlotManagerOpen] = useState(false);
 
@@ -35,7 +35,7 @@ export function BusinessPopup({ isOpen, onClose }: BusinessPopupProps) {
     const business = ENHANCED_BUSINESSES.find(b => b.id === businessId);
     if (!business) return;
 
-    if (creditBalance >= business.cost) {
+    if (wealth >= business.cost) {
       buyEnhancedBusiness(businessId);
     }
   };
@@ -136,7 +136,7 @@ export function BusinessPopup({ isOpen, onClose }: BusinessPopupProps) {
         }}>
           {categorizedBusinesses[selectedCategory]?.map((business) => {
             const owned = isOwned(business.id);
-            const canAfford = creditBalance >= business.cost;
+            const canAfford = wealth >= business.cost;
 
             return (
               <div
@@ -171,7 +171,7 @@ export function BusinessPopup({ isOpen, onClose }: BusinessPopupProps) {
                     <div>
                       <strong style={{ color: '#e2e8f0' }}>Ability:</strong> {business.ability.description}
                       <div style={{ marginTop: '4px', fontSize: '11px' }}>
-                        Activation Cost: {business.ability.cost} credits
+                        Activation Cost: {business.ability.cost} $WEALTH
                       </div>
                     </div>
                   )}
@@ -179,7 +179,7 @@ export function BusinessPopup({ isOpen, onClose }: BusinessPopupProps) {
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ color: '#ffd700', fontWeight: '600', fontSize: '14px' }}>
-                    💰 {business.cost.toLocaleString()} credits
+                    💰 {business.cost.toLocaleString()} $WEALTH
                   </div>
                   {!owned ? (
                     <button

@@ -30,14 +30,15 @@ Build your financial empire through engaging daily work mechanics that naturally
 - **Work Value Growth**: Work becomes more valuable with streak bonuses and business multipliers
 - **Frequency Unlocks**: Progress from 24h → 18h → 12h → 8h → 6h work cooldowns
 - **Business Multipliers**: Businesses multiply work effectiveness (not just passive income)
-- **Token Integration**: Strategic credit-to-$WEALTH conversion system
+- **Token Integration**: Strategic credit-to-$WEALTH conversion system with premium business purchases requiring $WEALTH
 
 ### **Business Empire Building**
-- **Lemonade Stand**: +5 credits per work action (entry-level entrepreneurship)
-- **Coffee Cafe**: +25 credits per work action (advanced business management)  
-- **Widget Factory**: +100 credits per work action (industrial-scale operations)
-- **Progressive Investment**: Each business purchase multiplies work value
-- **Strategic Timing**: Plan business purchases around work schedules
+- **Premium Businesses**: Purchase advanced businesses with $WEALTH tokens for enhanced work multipliers
+- **Automation Factory**: Advanced facility that reduces work cooldowns dramatically (500 $WEALTH)
+- **Investment Bank**: Financial institution providing compound interest on $WEALTH holdings (600 $WEALTH)
+- **Security Firm**: Protection services defending against hostile takeovers (250 $WEALTH)
+- **Progressive Investment**: Each business purchase multiplies work effectiveness
+- **Strategic Portfolio**: Manage business slots and synergy bonuses for maximum efficiency
 
 ### **Treasury & Token Swap System**
 - **Dual Mode Operation**: Demo mode for testing, Solana mode for real transactions
@@ -47,14 +48,14 @@ Build your financial empire through engaging daily work mechanics that naturally
 - **User-Friendly Interface**: Clean swap cards with input validation
 
 ### **Forbes List Leaderboard System**
-- **Global Rankings**: Track top players by credits, work actions, and business empire size
-- **Interactive Profiles**: Click any player to view detailed business strategies
-- **Top 3 Podium**: Special highlighting for the highest-performing players
-- **Comprehensive Stats**: Credits, work actions, streak days, work frequency tiers
-- **Business Analysis**: View other players' lemonade stands, cafes, and factories
-- **Real-time Activity**: Track when players were last active
-- **Prestige System**: Long-term progression and clan features
-- **Real-time Updates**: Live profit tracking and automated collection
+- **Global Rankings**: Track top players by $WEALTH, work actions, and business empire value
+- **Interactive Profiles**: Click any player to view detailed business strategies and $WEALTH portfolios
+- **Top 3 Podium**: Special highlighting for the highest-performing $WEALTH accumulator
+- **Comprehensive Stats**: $WEALTH balance, work actions, streak days, work frequency tiers
+- **Business Analysis**: View other players' premium business portfolios and strategies
+- **Real-time Activity**: Track when players were last active and their portfolio changes
+- **Prestige System**: Long-term progression based on $WEALTH accumulation and clan features
+- **Real-time Updates**: Live $WEALTH tracking and automated business collection
 
 ### **Technical Architecture**
 - **Frontend**: Next.js 15 with React 18, TypeScript, and styled-jsx
@@ -133,7 +134,7 @@ This current alpha provides everything you need to:
 - Global leaderboard tracking top players and their strategies
 - Interactive player profiles with business empire breakdowns
 - Top 3 podium display with special styling
-- Comprehensive stats: credits, work actions, streaks, clan affiliations
+- Comprehensive stats: credits earned, $WEALTH holdings, work actions, streaks, clan affiliations
 - Click-to-view detailed player analysis and business portfolios
 
 ## 🏗️ Project Structure

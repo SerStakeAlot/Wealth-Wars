@@ -26,11 +26,34 @@
 ## Phase 2: Advanced Features (Months 4-6)
 
 ### 2.1 Guild System Implementation
-- [ ] Guild creation and management
-- [ ] Wealth pooling mechanisms
-- [ ] Guild-based challenges and rewards
-- [ ] Territory control system
-- [ ] Guild treasury and governance
+
+#### Guild Formation & Management
+- [ ] Guild creation contracts with $WEALTH staking requirements
+- [ ] Member recruitment and invitation systems
+- [ ] Guild leadership roles and permissions
+- [ ] Member contribution tracking and rewards
+- [ ] Guild reputation and ranking systems
+
+#### Wealth Pooling & Treasury
+- [ ] Collective $WEALTH pooling mechanisms with 1-2 week lock periods
+- [ ] Automated revenue sharing algorithms based on contribution
+- [ ] Guild treasury management and governance voting
+- [ ] Emergency fund allocation for guild defense
+- [ ] Performance-based profit distribution systems
+
+#### Territory Control System
+- [ ] Virtual territory NFT system with strategic locations
+- [ ] Guild-based territory acquisition through $WEALTH staking
+- [ ] Territory yield generation and resource control
+- [ ] Attack and defense mechanics for territory control
+- [ ] Collaborative territory management tools
+
+#### Guild Collaboration Features
+- [ ] Internal communication systems (guild chat)
+- [ ] Knowledge sharing platforms and mentorship programs
+- [ ] Guild-wide challenges and objectives
+- [ ] Collective decision-making tools
+- [ ] Guild events and tournaments
 
 ### 2.2 PvP Systems
 - [ ] Wealth lottery smart contracts
@@ -55,7 +78,35 @@
 - [ ] App store optimization
 - [ ] Cross-platform synchronization
 
-### 3.2 Advanced DeFi Features
+### 2.4 Land NFT System
+
+#### Land NFT Collection (300 Total Pieces)
+- [ ] Tier-based NFT collection with varying yield potentials
+- [ ] Metaplex Token Standard implementation for land ownership
+- [ ] Rarity distribution: Common (150), Rare (90), Epic (45), Legendary (15)
+- [ ] Geographic and thematic categorization of land parcels
+- [ ] Secondary marketplace integration for land trading
+
+#### Monthly Yield Distribution
+- [ ] Automated $WEALTH yield distribution to land holders
+- [ ] Tier-based yield calculations (Common: 1%, Rare: 2%, Epic: 5%, Legendary: 10%)
+- [ ] Claim and auto-compound functionality for passive income
+- [ ] Yield optimization through land improvement mechanisms
+- [ ] Performance tracking and analytics for land holders
+
+#### Land Allocation Strategy
+- [ ] **50%** (150 NFTs) - Top performers during launch period based on $WEALTH accumulation
+- [ ] **30%** (90 NFTs) - Early supporters and community contributors  
+- [ ] **20%** (60 NFTs) - Strategic partnerships and influencer collaborations
+- [ ] Fair distribution mechanisms to prevent whale accumulation
+- [ ] Community voting on allocation criteria and beneficiaries
+
+#### Land Utility & Governance
+- [ ] Land holder voting rights on major protocol decisions
+- [ ] Exclusive access to premium features and early releases
+- [ ] Land-based guild formation and territory control mechanics
+- [ ] Special events and tournaments for land holders
+- [ ] Enhanced customer support and direct developer access
 - [ ] Yield farming integration
 - [ ] Liquidity provision rewards
 - [ ] Cross-chain bridge development

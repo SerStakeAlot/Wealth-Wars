@@ -1,36 +1,97 @@
 # Business Empire Guide
 
-Master the art of building and managing your business empire in Wealth Wars. This comprehensive guide covers strategies, optimization techniques, and advanced management principles for the daily work system.
+Master the art of building and managing your premium business empire in Wealth Wars. This comprehensive guide covers strategies for purchasing advanced businesses with $WEALTH tokens and optimizing your portfolio for maximum work efficiency.
 
-## 🏢 Business Types Overview
+## 🏢 Premium Business Portfolio Overview
 
-### Current Business Portfolio (Daily Work System)
+### Current Premium Business System ($WEALTH-Based)
 
-**Note**: The business types and mechanics are actively evolving. New business categories, upgraded options, and additional perks will be added as the game develops. Current businesses may receive balance updates, new features, or expanded upgrade paths based on player feedback and game progression.
+**Note**: The premium business system uses $WEALTH tokens for purchases, representing a more advanced tier than basic credit-based operations. These businesses provide significant work multipliers and special abilities that dramatically enhance your earning potential.
 
-### 🥤 Lemonade Stand (Entry Level)
-- **Cost**: 10 credits
-- **Work Multiplier**: +5 credits per work action
-- **ROI Period**: 2 work actions to break even
-- **Strategy**: Foundation building, low risk/reward
-- **Best For**: New players, steady growth, learning basics
-- **Educational Value**: Teaches basic entrepreneurial skills
+### ⚡ Efficiency Category Businesses
 
-### ☕ Coffee Cafe (Mid Tier)
-- **Cost**: 50 credits
-- **Work Multiplier**: +25 credits per work action
-- **ROI Period**: 2 work actions to break even
-- **Strategy**: Significant scaling, moderate risk/reward
-- **Best For**: Established players, portfolio expansion
-- **Educational Value**: Advanced business management concepts
-
-### 🏭 Widget Factory (Premium)
-- **Cost**: 200 credits
+#### 🏭 Automation Factory (Premium Tier)
+- **Cost**: 500 $WEALTH
 - **Work Multiplier**: +100 credits per work action
-- **ROI Period**: 2 work actions to break even
-- **Strategy**: Premium investment, high risk/reward
-- **Best For**: Advanced players, maximum efficiency
-- **Educational Value**: Industrial-scale operations and automation
+- **Special Ability**: Rapid Processing - Reduces all cooldowns by 50% for 24 hours
+- **Ability Cost**: 200 $WEALTH
+- **Strategy**: High-efficiency automation for advanced players
+- **Educational Value**: Industrial automation and process optimization
+
+#### 🍔 Fast Food Chain (Advanced Tier) 
+- **Cost**: 300 $WEALTH
+- **Work Multiplier**: +75 credits per work action
+- **Special Ability**: Quick Service - Next 3 work actions provide 20% bonus credits
+- **Ability Cost**: 150 $WEALTH
+- **Strategy**: Consistent efficiency boosts with moderate investment
+- **Educational Value**: Service industry management and customer satisfaction
+
+#### 🔬 Innovation Lab (Advanced Tier)
+- **Cost**: 400 $WEALTH
+- **Work Multiplier**: +60 credits per work action
+- **Special Ability**: Breakthrough - Permanent +15% work efficiency after activation
+- **Ability Cost**: 300 $WEALTH
+- **Strategy**: Long-term compound growth through research investment
+- **Educational Value**: R&D investment and innovation management
+
+### 🛡️ Defensive Category Businesses
+
+#### 🛡️ Security Firm (Advanced Tier)
+- **Cost**: 250 $WEALTH  
+- **Work Multiplier**: +50 credits per work action
+- **Special Ability**: Fortress Protection - Immunity to takeover attempts for 30 minutes
+- **Strategy**: Portfolio protection with steady returns
+- **Educational Value**: Risk management and business security
+
+#### 🏥 Insurance Company (Basic Tier)
+- **Cost**: 180 $WEALTH
+- **Work Multiplier**: +40 credits per work action  
+- **Special Ability**: Damage Insurance - Reduces takeover losses by 75%
+- **Strategy**: Loss mitigation and portfolio insurance
+- **Educational Value**: Insurance principles and risk transfer
+
+#### 🏛️ Government Contract (Legendary Tier)
+- **Cost**: 1,000 $WEALTH
+- **Work Multiplier**: +80 credits per work action
+- **Special Ability**: Diplomatic Immunity - Cannot be targeted for business takeovers
+- **Prerequisites**: Requires 7-day work streak
+- **Strategy**: Ultimate protection for elite players
+- **Educational Value**: Government relations and contract management
+
+### ⚔️ Offensive Category Businesses
+
+#### 💼 Consulting Firm (Advanced Tier)
+- **Cost**: 350 $WEALTH
+- **Work Multiplier**: +45 credits per work action
+- **Special Ability**: Corporate Espionage - Add 6 hours to target player's work cooldown
+- **Ability Cost**: 100 $WEALTH
+- **Strategy**: Competitive advantage through market intelligence
+- **Educational Value**: Business consulting and competitive analysis
+
+#### 💻 Cyber Security (Advanced Tier)
+- **Cost**: 400 $WEALTH
+- **Work Multiplier**: +30 credits per work action
+- **Special Ability**: System Disruption - Disable target's defensive businesses for 2 hours
+- **Ability Cost**: 250 $WEALTH
+- **Strategy**: Advanced offensive capabilities for PvP scenarios
+- **Educational Value**: Cybersecurity and digital warfare
+
+### 🎲 Utility Category Businesses
+
+#### 🏦 Investment Bank (Premium Tier)
+- **Cost**: 600 $WEALTH
+- **Work Multiplier**: +80 credits per work action
+- **Special Ability**: Compound Interest - Generate 5% interest on $WEALTH holdings daily for 7 days
+- **Ability Cost**: 300 $WEALTH
+- **Strategy**: Advanced wealth management and compound growth
+- **Educational Value**: Banking operations and compound interest principles
+
+#### 💱 Trading Exchange (Basic Tier)
+- **Cost**: 150 $WEALTH
+- **Work Multiplier**: +25 credits per work action
+- **Special Ability**: Arbitrage - 15% better conversion rates between credits and $WEALTH
+- **Strategy**: Foundational trading business for currency optimization
+- **Educational Value**: Foreign exchange and arbitrage principles
 
 ## 📊 Strategic Business Building
 

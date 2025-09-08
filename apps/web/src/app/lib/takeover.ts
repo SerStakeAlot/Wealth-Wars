@@ -241,13 +241,7 @@ export function executeTakeover(
   
   const result: TakeoverResult = {
     success,
-    attackerId: attacker.username,
-    defenderId: defender.username,
-    target: bid.target,
-    finalBid: bid.bidAmount,
-    currency: bid.bidCurrency,
-    defenseAttempted: !!defense,
-    timestamp: now
+    message: success ? 'Takeover successful' : 'Takeover failed'
   };
   
   if (success) {
@@ -256,7 +250,7 @@ export function executeTakeover(
       // Calculate compensation for defender
       const business = ENHANCED_BUSINESSES.find(b => b.id === bid.target.businessId);
       if (business) {
-        result.compensation = Math.floor(business.cost * 0.5); // 50% compensation
+        result.compensationPaid = Math.floor(business.cost * 0.5); // 50% compensation
       }
     }
   } else {
