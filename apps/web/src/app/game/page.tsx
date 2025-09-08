@@ -15,6 +15,7 @@ import { UsernameInput } from '../../components/UsernameInput';
 import { DefenseBanner } from '../../components/DefenseBanner';
 import { WARDisplay } from '../../components/WARDisplay';
 import { ShareModal } from '../../components/ShareModal';
+import { BattleCenter } from '../../components/BattleCenter';
 import { ENHANCED_BUSINESSES } from '../lib/businesses';
 import { MAINTENANCE_ACTIONS } from '../lib/maintenance';
 
@@ -260,6 +261,7 @@ export default function GamePage() {
   }, [pubkey]); // Removed setWalletAddress from deps since it's stable from Zustand
   const [profileOpen, setProfileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isBattleCenterOpen, setIsBattleCenterOpen] = useState(false);
 
   // AdCap timer for auto-collection
   useEffect(() => {
@@ -894,6 +896,7 @@ export default function GamePage() {
         <div className="navTabs">
           <button className="navBtn active" onClick={() => router.push('/game')}>Play Mode</button>
           <button className="navBtn" onClick={() => router.push('/forbes')}>Forbes List</button>
+          <button className="navBtn battle" onClick={() => setIsBattleCenterOpen(true)}>⚔️ Battle</button>
         </div>
 
         <div className="sep" />
@@ -930,6 +933,9 @@ export default function GamePage() {
 
       {/* SHARE MODAL */}
       <ShareModal />
+
+      {/* BATTLE CENTER */}
+      <BattleCenter isOpen={isBattleCenterOpen} onClose={() => setIsBattleCenterOpen(false)} />
 
       {/* BOTTOM BAR */}
       <BulkBar />
@@ -1844,8 +1850,10 @@ export default function GamePage() {
         .nftList { margin: 0; padding-left: 16px; color: #9aa7bd; }
 
         .navTabs { display: flex; gap: 8px; }
-        .navBtn { flex: 1; padding: 10px; border: 2px solid #ffd700; background: rgba(255,255,255,0.06); color: #e6edf5; border-radius: 8px; cursor: pointer; box-shadow: 0 2px 8px rgba(255,215,0,0.2); }
+        .navBtn { flex: 1; padding: 10px; border: 2px solid #ffd700; background: rgba(255,255,255,0.06); color: #e6edf5; border-radius: 8px; cursor: pointer; box-shadow: 0 2px 8px rgba(255,215,0,0.2); transition: all 0.2s; }
         .navBtn.active { background: linear-gradient(180deg, #1e2a4d, #172554); color: #fff; border-color: #ffd700; }
+        .navBtn.battle { border-color: #ef4444; box-shadow: 0 2px 8px rgba(239,68,68,0.3); }
+        .navBtn.battle:hover { background: linear-gradient(180deg, #dc2626, #b91c1c); border-color: #ef4444; }
 
         .drawerWallet {
           position: absolute; right: 14px; bottom: 14px;

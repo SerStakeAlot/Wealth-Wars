@@ -1,3 +1,5 @@
+import { BattleState } from './battle-system';
+
 export interface Asset {
   id: string;
   name: string;
@@ -90,6 +92,10 @@ export interface Player {
 
   // Business Slot Management System
   businessSlots: BusinessSlotSystem;
+  
+  // Battle System
+  battleState: BattleState;
+  landNfts: number; // Number of Land NFTs owned
 }
 
 export interface Derived {

@@ -31,6 +31,18 @@ import {
   getWARRecommendations,
   checkWARAchievements
 } from './war';
+import { 
+  BattleState, 
+  AttackResult, 
+  BATTLE_CONFIG, 
+  calculateAttackSuccess, 
+  calculateWealthTheft, 
+  checkRaidEligibility, 
+  calculateRaidYield, 
+  canAttackTarget,
+  isWithinAttackRange,
+  calculateBusinessModifiers
+} from './battle-system';
 import { WealthWarsProgram, PlayerState, TreasuryState } from './solana/wealthWarsProgram';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { AnchorWallet } from '@solana/wallet-adapter-react';
@@ -84,6 +96,14 @@ interface GameState extends Player {
   removeBusinessFromSlot: (slotId: number) => void;
   updateSlotSystem: () => void;
   getSlotCooldownTime: () => number;
+  // Battle System
+  attackPlayer: (targetId: string, targetData?: { wealth: number; enhancedBusinesses: string[]; battleState: BattleState; landNfts: number }) => Promise<AttackResult>;
+  activateLandShield: () => boolean;
+  payTribute: (targetId: string) => boolean;
+  defendAlly: (allyId: string, attackerId: string) => boolean;
+  canAttack: (targetWealth: number) => { canAttack: boolean; reason?: string };
+  getBattleStats: () => { successRate: number; attacksToday: number; shieldActive: boolean };
+  resetDailyBattleStats: () => void;
   // Solana integration functions
   initPlayerOnChain: () => Promise<void>;
   clickWorkOnChain: () => Promise<void>;
@@ -255,6 +275,20 @@ export const useGame = create<GameState>((set, get) => ({
 
   // Business Slot Management System
   businessSlots: SlotManagement.initializeSlotSystem('novice'),
+
+  // Battle System
+  battleState: {
+    lastAttackTime: 0,
+    lastDefenseTime: 0,
+    attacksToday: 0,
+    successfulAttacksToday: 0,
+    defenseRating: 0,
+    shieldExpiry: 0,
+    consecutiveAttacksFrom: {},
+    activeRaids: [],
+    tributePaid: []
+  },
+  landNfts: 0,
 
   // Solana state
   isOnChainMode: false,
@@ -1828,5 +1862,263 @@ export const useGame = create<GameState>((set, get) => ({
     const cooldownEnd = state.businessSlots.slotManagement.slotCooldownUntil;
     
     return Math.max(0, cooldownEnd - now);
+  },
+
+  // Battle System Functions
+  attackPlayer: async (targetId: string, targetData?: { wealth: number; enhancedBusinesses: string[]; battleState: BattleState; landNfts: number }): Promise<AttackResult> => {
+    const state = get();
+    
+    // Mock target data if not provided (for testing)
+    const target = targetData || {
+      wealth: 150 + Math.random() * 200,
+      enhancedBusinesses: [],
+      battleState: {
+        lastAttackTime: 0,
+        lastDefenseTime: 0,
+        attacksToday: 0,
+        successfulAttacksToday: 0,
+        defenseRating: 0,
+        shieldExpiry: 0,
+        consecutiveAttacksFrom: {},
+        activeRaids: [],
+        tributePaid: []
+      },
+      landNfts: Math.random() > 0.8 ? 1 : 0
+    };
+
+    // Check if attack is allowed
+    const attackCheck = canAttackTarget(
+      { 
+        wealth: state.wealth, 
+        battleState: state.battleState, 
+        creditBalance: state.creditBalance 
+      },
+      { 
+        wealth: target.wealth, 
+        battleState: target.battleState 
+      }
+    );
+
+    if (!attackCheck.canAttack) {
+      return {
+        success: false,
+        wealthStolen: 0,
+        wealthLost: 0,
+        counterAttack: false,
+        raidTriggered: false,
+        message: attackCheck.reason || 'Attack not allowed',
+        finalSuccessRate: 0
+      };
+    }
+
+    // Calculate attack success
+    const { successRate } = calculateAttackSuccess(
+      state.wealth,
+      target.wealth,
+      state.enhancedBusinesses,
+      target.enhancedBusinesses
+    );
+
+    const attackSuccess = Math.random() < successRate;
+    const { stolen, lost } = calculateWealthTheft(target.wealth, attackSuccess);
+
+    // Check for counter-attack
+    const counterAttack = !attackSuccess && Math.random() < BATTLE_CONFIG.COUNTER_ATTACK_CHANCE;
+    const finalLoss = counterAttack ? lost * 2 : lost;
+
+    // Update consecutive attacks for raid system
+    const consecutiveAttacks = { ...state.battleState.consecutiveAttacksFrom };
+    if (attackSuccess) {
+      if (!consecutiveAttacks[targetId]) {
+        consecutiveAttacks[targetId] = { count: 1, lastAttack: Date.now() };
+      } else {
+        const timeSinceLastAttack = Date.now() - consecutiveAttacks[targetId].lastAttack;
+        if (timeSinceLastAttack < BATTLE_CONFIG.RAID_TIME_WINDOW) {
+          consecutiveAttacks[targetId].count += 1;
+          consecutiveAttacks[targetId].lastAttack = Date.now();
+        } else {
+          consecutiveAttacks[targetId] = { count: 1, lastAttack: Date.now() };
+        }
+      }
+    } else {
+      // Reset consecutive attacks on failure
+      delete consecutiveAttacks[targetId];
+    }
+
+    // Check for Land raid eligibility
+    const raidTriggered = checkRaidEligibility(state.username || 'player', target.battleState, target.landNfts > 0) && 
+                         consecutiveAttacks[targetId]?.count >= BATTLE_CONFIG.RAID_ATTACKS_REQUIRED;
+
+    let raidYield = 0;
+    if (raidTriggered) {
+      raidYield = calculateRaidYield();
+      // Add raid to active raids (simplified)
+      toast.success(`🏴‍☠️ Land Raid Triggered! You'll receive ${Math.floor(raidYield / 7)} $WEALTH daily for 7 days!`);
+    }
+
+    // Update state
+    set(state => ({
+      creditBalance: state.creditBalance - BATTLE_CONFIG.ATTACK_COST,
+      wealth: attackSuccess ? state.wealth + stolen - lost : state.wealth - finalLoss,
+      battleState: {
+        ...state.battleState,
+        lastAttackTime: Date.now(),
+        attacksToday: state.battleState.attacksToday + 1,
+        successfulAttacksToday: attackSuccess ? state.battleState.successfulAttacksToday + 1 : state.battleState.successfulAttacksToday,
+        consecutiveAttacksFrom: consecutiveAttacks
+      }
+    }));
+
+    const result: AttackResult = {
+      success: attackSuccess,
+      wealthStolen: stolen,
+      wealthLost: finalLoss,
+      counterAttack,
+      raidTriggered,
+      finalSuccessRate: successRate,
+      message: attackSuccess 
+        ? `✅ Attack successful! Stolen ${stolen} $WEALTH${raidTriggered ? ' + Land Raid triggered!' : ''}` 
+        : counterAttack 
+          ? `❌ Attack failed and counter-attacked! Lost ${finalLoss} $WEALTH`
+          : `❌ Attack failed! Lost ${finalLoss} $WEALTH`
+    };
+
+    // Show toast notification
+    if (attackSuccess) {
+      toast.success(result.message);
+    } else {
+      toast.error(result.message);
+    }
+
+    return result;
+  },
+
+  activateLandShield: (): boolean => {
+    const state = get();
+    
+    if (state.wealth < BATTLE_CONFIG.LAND_SHIELD_COST) {
+      toast.error(`Need ${BATTLE_CONFIG.LAND_SHIELD_COST} $WEALTH to activate shield`);
+      return false;
+    }
+    
+    if (state.landNfts === 0) {
+      toast.error('Only Land NFT owners can activate shields');
+      return false;
+    }
+
+    if (state.battleState.shieldExpiry > Date.now()) {
+      toast.error('Shield is already active');
+      return false;
+    }
+
+    set(state => ({
+      wealth: state.wealth - BATTLE_CONFIG.LAND_SHIELD_COST,
+      battleState: {
+        ...state.battleState,
+        shieldExpiry: Date.now() + BATTLE_CONFIG.LAND_SHIELD_DURATION
+      }
+    }));
+
+    toast.success('🛡️ Land Shield activated for 72 hours!');
+    return true;
+  },
+
+  payTribute: (targetId: string): boolean => {
+    const state = get();
+    
+    if (state.wealth < BATTLE_CONFIG.TRIBUTE_COST) {
+      toast.error(`Need ${BATTLE_CONFIG.TRIBUTE_COST} $WEALTH to pay tribute`);
+      return false;
+    }
+
+    // Check if tribute already paid to this player
+    const existingTribute = state.battleState.tributePaid.find(t => t.playerId === targetId && t.expiry > Date.now());
+    if (existingTribute) {
+      toast.error('Tribute already paid to this player');
+      return false;
+    }
+
+    set(state => ({
+      wealth: state.wealth - BATTLE_CONFIG.TRIBUTE_COST,
+      battleState: {
+        ...state.battleState,
+        tributePaid: [
+          ...state.battleState.tributePaid.filter(t => t.expiry > Date.now()), // Remove expired tributes
+          { playerId: targetId, expiry: Date.now() + BATTLE_CONFIG.TRIBUTE_DURATION }
+        ]
+      }
+    }));
+
+    toast.success(`💰 Tribute paid to ${targetId}. Protected for 48 hours.`);
+    return true;
+  },
+
+  defendAlly: (allyId: string, attackerId: string): boolean => {
+    const state = get();
+    
+    if (state.wealth < BATTLE_CONFIG.ALLIANCE_DEFENSE_COST) {
+      toast.error(`Need ${BATTLE_CONFIG.ALLIANCE_DEFENSE_COST} $WEALTH to defend ally`);
+      return false;
+    }
+    
+    if (state.landNfts === 0) {
+      toast.error('Only Land NFT owners can provide alliance defense');
+      return false;
+    }
+
+    set(state => ({
+      wealth: state.wealth - BATTLE_CONFIG.ALLIANCE_DEFENSE_COST
+    }));
+
+    toast.success(`🤝 Defending ${allyId} against ${attackerId}!`);
+    return true;
+  },
+
+  canAttack: (targetWealth: number): { canAttack: boolean; reason?: string } => {
+    const state = get();
+    return canAttackTarget(
+      { 
+        wealth: state.wealth, 
+        battleState: state.battleState, 
+        creditBalance: state.creditBalance 
+      },
+      { 
+        wealth: targetWealth, 
+        battleState: { 
+          lastAttackTime: 0, 
+          lastDefenseTime: 0, 
+          attacksToday: 0, 
+          successfulAttacksToday: 0, 
+          defenseRating: 0, 
+          shieldExpiry: 0, 
+          consecutiveAttacksFrom: {}, 
+          activeRaids: [], 
+          tributePaid: [] 
+        } 
+      }
+    );
+  },
+
+  getBattleStats: () => {
+    const state = get();
+    const baseSuccessRate = BATTLE_CONFIG.BASE_SUCCESS_RATE;
+    const { attackBonus } = calculateBusinessModifiers(state.enhancedBusinesses);
+    const successRate = Math.min(0.95, baseSuccessRate + attackBonus);
+    
+    return {
+      successRate: Math.round(successRate * 100),
+      attacksToday: state.battleState.attacksToday,
+      shieldActive: state.battleState.shieldExpiry > Date.now()
+    };
+  },
+
+  resetDailyBattleStats: () => {
+    set(state => ({
+      battleState: {
+        ...state.battleState,
+        attacksToday: 0,
+        successfulAttacksToday: 0
+      }
+    }));
   },
 }));
