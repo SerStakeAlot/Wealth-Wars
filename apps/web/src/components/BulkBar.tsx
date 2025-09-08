@@ -2,18 +2,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BusinessPopup } from './BusinessPopup';
-import { AttackCenter } from './AttackCenter';
 
 export function BulkBar() {
   const router = useRouter();
   const [isBusinessOpen, setIsBusinessOpen] = useState(false);
-  const [isAttackOpen, setIsAttackOpen] = useState(false);
   
-  const handleEra = () => alert('Era page coming soon!');
   const handlePartnerships = () => alert('Partnerships system coming soon!');
   const handleEvents = () => alert('Events & Planets coming soon!');
   const handleBusiness = () => setIsBusinessOpen(true);
-  const handleAttack = () => setIsAttackOpen(true);
 
   return (
     <>
@@ -22,17 +18,11 @@ export function BulkBar() {
           <button className="actionBtn business" onClick={handleBusiness}>
             <span className="btnIcon">🏢</span><span className="btnText">Business</span>
           </button>
-          <button className="actionBtn era" onClick={handleEra}>
-            <span className="btnIcon">⬆️</span><span className="btnText">Era</span>
-          </button>
           <button className="actionBtn partnerships" onClick={handlePartnerships}>
             <span className="btnIcon">👑</span><span className="btnText">Partnerships</span>
           </button>
           <button className="actionBtn events" onClick={handleEvents}>
             <span className="btnIcon">🌍</span><span className="btnText">Events</span>
-          </button>
-          <button className="actionBtn attack" onClick={handleAttack}>
-            <span className="btnIcon">⚔️</span><span className="btnText">Attack</span>
           </button>
         </div>
 
@@ -72,7 +62,6 @@ export function BulkBar() {
       </div>
 
       <BusinessPopup isOpen={isBusinessOpen} onClose={() => setIsBusinessOpen(false)} />
-      <AttackCenter isOpen={isAttackOpen} onClose={() => setIsAttackOpen(false)} />
     </>
   );
 }

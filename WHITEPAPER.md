@@ -39,8 +39,8 @@ To democratize financial education by creating an engaging, competitive gaming e
 | Allocation | Amount | Percentage | Purpose |
 |------------|--------|------------|---------|
 | Land Yield Pool | 300,000,000 | 30% | NFT holder rewards over 5 years |
-| Treasury & Operations | 250,000,000 | 25% | Game development, marketing, operations |
-| Season Pass Rewards | 200,000,000 | 20% | Free and paid tier rewards |
+| Treasury & Operations | 350,000,000 | 35% | Game development, marketing, operations |
+| Community Rewards | 100,000,000 | 10% | Player achievements, competitions |
 | Team & Development | 150,000,000 | 15% | Team allocation (2-year vesting) |
 | Airdrop & Marketing | 75,000,000 | 7.5% | Community building, partnerships |
 | Liquidity Provision | 25,000,000 | 2.5% | DEX liquidity, market stability |
