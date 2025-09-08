@@ -604,96 +604,126 @@ export default function GamePage() {
             </button>
           </div>
 
-          {/* Enhanced Businesses */}
-          {ENHANCED_BUSINESSES.slice(0, 3).map((enhancedBiz) => {
-            const isOwned = enhancedBusinesses.includes(enhancedBiz.id);
-            const condition = getBusinessCondition(enhancedBiz.id);
+          {/* Enhanced Businesses - 3 Slots */}
+          {Array.from({ length: 3 }, (_, slotIndex) => {
+            // Get owned businesses and map them to slots
+            const ownedBusinesses = enhancedBusinesses
+              .map(id => ENHANCED_BUSINESSES.find(b => b.id === id))
+              .filter(Boolean);
+            
+            const businessInSlot = ownedBusinesses[slotIndex];
+            
+            if (!businessInSlot) {
+              // Empty slot
+              return (
+                <div key={`empty-slot-${slotIndex}`} className="businessCard enhanced empty">
+                  <div className="businessHeader">
+                    <span className="businessIcon">📭</span>
+                    <div className="businessTitleInfo">
+                      <span className="businessName">Empty Slot</span>
+                      <span className="businessCategory">Available</span>
+                    </div>
+                  </div>
+                  
+                  <div className="businessStats">
+                    <span className="businessDescription" style={{ 
+                      fontSize: '14px', 
+                      color: '#94a3b8',
+                      textAlign: 'center',
+                      display: 'block',
+                      marginTop: '20px'
+                    }}>
+                      Purchase enhanced businesses to fill this slot
+                    </span>
+                  </div>
+                  
+                  <button 
+                    className="buyBtn enhanced disabled"
+                    disabled={true}
+                    style={{ opacity: 0.5 }}
+                  >
+                    Slot {slotIndex + 1}/3
+                  </button>
+                </div>
+              );
+            }
+
+            // Business in slot
+            const condition = getBusinessCondition(businessInSlot.id);
             const conditionColor = getConditionColor(condition.condition);
             const conditionLabel = getConditionLabel(condition.condition);
             
             return (
-              <div key={enhancedBiz.id} className="businessCard enhanced">
+              <div key={businessInSlot.id} className="businessCard enhanced">
                 <div className="businessHeader">
-                  <span className="businessIcon">{enhancedBiz.emoji}</span>
+                  <span className="businessIcon">{businessInSlot.emoji}</span>
                   <div className="businessTitleInfo">
-                    <span className="businessName">{enhancedBiz.name}</span>
-                    <span className="businessCategory">{enhancedBiz.category}</span>
+                    <span className="businessName">{businessInSlot.name}</span>
+                    <span className="businessCategory">{businessInSlot.category}</span>
                   </div>
                   {condition.isOffline && (
                     <span className="offlineIndicator">🔧 OFFLINE</span>
                   )}
                 </div>
                 
-                {isOwned && (
-                  <div className="healthSection">
-                    <div className="healthHeader">
-                      <span className="healthLabel">Condition: {conditionLabel}</span>
-                      <span className="healthValue" style={{ color: conditionColor }}>
-                        {Math.floor(condition.condition)}%
-                      </span>
-                    </div>
-                    <div className="healthBar">
-                      <div 
-                        className="healthFill" 
-                        style={{ 
-                          width: `${condition.condition}%`, 
-                          backgroundColor: conditionColor 
-                        }}
-                      />
-                    </div>
+                <div className="healthSection">
+                  <div className="healthHeader">
+                    <span className="healthLabel">Condition: {conditionLabel}</span>
+                    <span className="healthValue" style={{ color: conditionColor }}>
+                      {Math.floor(condition.condition)}%
+                    </span>
                   </div>
-                )}
+                  <div className="healthBar">
+                    <div 
+                      className="healthFill" 
+                      style={{ 
+                        width: `${condition.condition}%`, 
+                        backgroundColor: conditionColor 
+                      }}
+                    />
+                  </div>
+                </div>
                 
                 <div className="businessStats">
                   <span className="businessOwned">
-                    {isOwned ? 'Owned ✓' : 'Not Owned'}
+                    Owned ✓ - Slot {slotIndex + 1}
                   </span>
-                  <span className="businessIncome">+{enhancedBiz.workMultiplier}% credits per work</span>
+                  <span className="businessIncome">+{businessInSlot.workMultiplier}% credits per work</span>
                   <span className="businessTier" style={{ fontSize: '12px', color: '#ffd700' }}>
-                    {enhancedBiz.cost <= 20 ? 'Entry Tier' : 
-                     enhancedBiz.cost <= 50 ? 'Mid Tier' : 
-                     enhancedBiz.cost <= 100 ? 'Premium Tier' : 'Elite Tier'} • {Math.round(enhancedBiz.cost / 3)} sessions
+                    {businessInSlot.cost <= 20 ? 'Entry Tier' : 
+                     businessInSlot.cost <= 50 ? 'Mid Tier' : 
+                     businessInSlot.cost <= 100 ? 'Premium Tier' : 'Elite Tier'} • {Math.round(businessInSlot.cost / 3)} sessions
                   </span>
-                  <span className="businessDescription" style={{ fontSize: '12px' }}>{enhancedBiz.description}</span>
+                  <span className="businessDescription" style={{ fontSize: '12px' }}>{businessInSlot.description}</span>
                 </div>
                 
-                {isOwned ? (
-                  <div className="maintenanceActions">
-                    <button 
-                      className="maintenanceBtn routine"
-                      onClick={() => handleMaintenance(enhancedBiz.id, 'routine')}
-                      disabled={condition.condition >= 90}
-                      title="Routine maintenance - Low cost, moderate repair"
-                    >
-                      🔧 Routine
-                    </button>
-                    <button 
-                      className="maintenanceBtn major"
-                      onClick={() => handleMaintenance(enhancedBiz.id, 'major')}
-                      disabled={condition.condition >= 90}
-                      title="Major overhaul - Higher cost, significant repair"
-                    >
-                      ⚙️ Major
-                    </button>
-                    {condition.condition <= 20 && (
-                      <button 
-                        className="maintenanceBtn emergency"
-                        onClick={() => handleMaintenance(enhancedBiz.id, 'emergency')}
-                        title="Emergency repair - Expensive but instant"
-                      >
-                        🚨 Emergency
-                      </button>
-                    )}
-                  </div>
-                ) : (
+                <div className="maintenanceActions">
                   <button 
-                    className="buyBtn enhanced"
-                    onClick={() => buyEnhancedBusiness(enhancedBiz.id)}
-                    disabled={wealth < enhancedBiz.cost}
+                    className="maintenanceBtn routine"
+                    onClick={() => handleMaintenance(businessInSlot.id, 'routine')}
+                    disabled={condition.condition >= 90}
+                    title="Routine maintenance - Low cost, moderate repair"
                   >
-                    Buy for {enhancedBiz.cost.toLocaleString()} $WEALTH
+                    🔧 Routine
                   </button>
-                )}
+                  <button 
+                    className="maintenanceBtn major"
+                    onClick={() => handleMaintenance(businessInSlot.id, 'major')}
+                    disabled={condition.condition >= 90}
+                    title="Major overhaul - Higher cost, significant repair"
+                  >
+                    ⚙️ Major
+                  </button>
+                  {condition.condition <= 20 && (
+                    <button 
+                      className="maintenanceBtn emergency"
+                      onClick={() => handleMaintenance(businessInSlot.id, 'emergency')}
+                      title="Emergency repair - Expensive but instant"
+                    >
+                      🚨 Emergency
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -1227,6 +1257,22 @@ export default function GamePage() {
         .businessCard.enhanced:hover {
           border-color: #22c55e;
           box-shadow: 0 4px 16px rgba(34,197,94,0.3);
+        }
+
+        .businessCard.enhanced.empty {
+          background: linear-gradient(135deg, rgba(100,116,139,0.08), rgba(71,85,105,0.08));
+          border: 2px dashed rgba(100,116,139,0.4);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .businessCard.enhanced.empty::before {
+          border-top: 20px solid rgba(100,116,139,0.3);
+        }
+
+        .businessCard.enhanced.empty:hover {
+          border-color: #64748b;
+          box-shadow: 0 4px 16px rgba(100,116,139,0.2);
         }
 
         .businessHeader {
