@@ -59,7 +59,7 @@ export function ShareModal() {
         
         <div className="promoNote">
           <span className="noteIcon">💡</span>
-          <span>Sharing helps promote Wealth Wars and earns you bonus credits!</span>
+          <span>Sharing helps promote @WealthWars and earns you bonus credits!</span>
         </div>
       </div>
 

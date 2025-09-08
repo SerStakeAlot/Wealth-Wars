@@ -698,7 +698,7 @@ export const useGame = create<GameState>((set, get) => ({
 
     const sharedReward = Math.floor(state.pendingWorkReward.baseReward * 1.5);
     const tweetText = encodeURIComponent(
-      `Just clocked in at Wealth Wars and earned ${sharedReward} credits! 💰 Building my business empire one work action at a time. #WealthWars #GameFi #Crypto`
+      `Just clocked in at @WealthWars and earned ${sharedReward} credits! 💰 Building my business empire one work action at a time. #WealthWars #GameFi #Crypto`
     );
     
     // Open Twitter share dialog

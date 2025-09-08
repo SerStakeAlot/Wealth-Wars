@@ -10,6 +10,29 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 export const metadata: Metadata = {
   title: "Wealth Wars",
   description: "Build, defend, and grow your empire on-chain",
+  openGraph: {
+    title: "Wealth Wars",
+    description: "Build, defend, and grow your empire on-chain",
+    type: "website",
+    url: "https://wealthwars.com",
+    siteName: "Wealth Wars",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Wealth Wars - Build your empire on-chain"
+      }
+    ]
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "@WealthWars",
+    creator: "@WealthWars",
+    title: "Wealth Wars",
+    description: "Build, defend, and grow your empire on-chain",
+    images: ["/og-image.png"]
+  }
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
