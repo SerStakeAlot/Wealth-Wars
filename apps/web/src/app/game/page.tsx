@@ -13,6 +13,7 @@ import { AvatarButton } from '../../components/AvatarButton';
 import { MenuSheet } from '../../components/MenuSheet';
 import { UsernameInput } from '../../components/UsernameInput';
 import { DefenseBanner } from '../../components/DefenseBanner';
+import { BattleNotificationCenter } from '../../components/BattleNotificationCenter';
 import { WARDisplay } from '../../components/WARDisplay';
 import { ShareModal } from '../../components/ShareModal';
 import { BattleCenter } from '../../components/BattleCenter';
@@ -372,8 +373,9 @@ export default function GamePage() {
 
   return (
     <div className={`${inter.className} page`}>
-      {/* Defense Banner - Shows when under attack */}
+      {/* Battle Notification System */}
       <DefenseBanner />
+      <BattleNotificationCenter />
       
       {/* TOP BAR - Player Status & Settings */}
       <header className="topBar">
@@ -484,7 +486,7 @@ export default function GamePage() {
                     {creditBalance >= 100 && (
                       <button 
                         className="convertBtn"
-                        onClick={() => convertCreditsToWealth()}
+                        onClick={async () => await convertCreditsToWealth()}
                         style={{
                           marginTop: '8px',
                           padding: '8px 16px',
@@ -535,7 +537,7 @@ export default function GamePage() {
                     {creditBalance >= 100 && (
                       <button 
                         className="convertBtn"
-                        onClick={() => convertCreditsToWealth()}
+                        onClick={async () => await convertCreditsToWealth()}
                         style={{
                           marginTop: '4px',
                           padding: '6px 12px',
@@ -570,7 +572,7 @@ export default function GamePage() {
                   {creditBalance >= 100 && (
                     <button 
                       className="convertBtn"
-                      onClick={() => convertCreditsToWealth()}
+                      onClick={async () => await convertCreditsToWealth()}
                       style={{
                         marginTop: '8px',
                         padding: '8px 16px',

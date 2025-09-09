@@ -118,7 +118,7 @@ interface GameState extends Player {
   initPlayerOnChain: () => Promise<void>;
   clickWorkOnChain: () => Promise<void>;
   buyBusinessOnChain: (bizKind: number) => Promise<void>;
-  convertCreditsToWealth: (creditAmount?: number) => void;
+  convertCreditsToWealth: (creditAmount?: number) => Promise<void>;
   swapCreditForWealth: (amount: string) => Promise<void>;
   swapWealthForCredit: (amount: string) => Promise<void>;
   refreshPlayerData: () => Promise<void>;
@@ -1197,23 +1197,33 @@ export const useGame = create<GameState>((set, get) => ({
     }
   },
 
-  // Strategic Credit to $WEALTH Conversion (100 credits = 1 $WEALTH)
-  convertCreditsToWealth: (creditAmount?: number) => {
-    set(state => {
-      const amountToConvert = creditAmount || 100; // Default to 100 credits
-      
-      if (state.creditBalance < amountToConvert) {
-        return state; // Not enough credits
-      }
-      
-      const wealthToAdd = Math.floor(amountToConvert / 100); // 100 credits = 1 $WEALTH
-      const creditsUsed = wealthToAdd * 100; // Exact amount used
-      
-      return {
-        creditBalance: state.creditBalance - creditsUsed,
-        wealth: state.wealth + wealthToAdd
-      };
-    });
+  // Strategic Credit to $WEALTH Conversion via Treasury
+  convertCreditsToWealth: async (creditAmount?: number) => {
+    const { swapCreditForWealth, isOnChainMode, creditBalance } = get();
+    const amountToConvert = creditAmount || 100; // Default to 100 credits
+    
+    if (creditBalance < amountToConvert) {
+      toast.error(`Need ${amountToConvert} credits to convert`);
+      return;
+    }
+    
+    if (!isOnChainMode) {
+      // Fallback to simple conversion in off-chain mode
+      set(state => {
+        const wealthToAdd = Math.floor(amountToConvert / 100); // 100 credits = 1 $WEALTH
+        const creditsUsed = wealthToAdd * 100; // Exact amount used
+        
+        return {
+          creditBalance: state.creditBalance - creditsUsed,
+          wealth: state.wealth + wealthToAdd
+        };
+      });
+      toast.success(`Converted ${amountToConvert} credits → ${Math.floor(amountToConvert / 100)} $WEALTH`);
+      return;
+    }
+    
+    // Use treasury swap in on-chain mode
+    await swapCreditForWealth(amountToConvert.toString());
   },
 
   swapCreditForWealth: async (amount: string) => {

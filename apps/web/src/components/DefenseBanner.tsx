@@ -2,35 +2,129 @@
 
 import { useState, useEffect } from 'react';
 import { useGame } from '../app/lib/store';
+import { ATTACK_TYPES, SHIELD_TYPES, AttackType } from '../app/lib/battle-system';
+
+interface ActiveAttack {
+  id: string;
+  attackerId: string;
+  attackerName: string;
+  attackType: AttackType;
+  timestamp: number;
+  wealthTargeted: number;
+  timeRemaining: number;
+}
 
 export function DefenseBanner() {
-  const { username, creditBalance } = useGame();
-  const [showAttack, setShowAttack] = useState(false);
+  const { username, creditBalance, wealth, battleState, activateShield } = useGame();
+  const [activeAttacks, setActiveAttacks] = useState<ActiveAttack[]>([]);
+  const [currentAttackIndex, setCurrentAttackIndex] = useState(0);
 
-  // Mock attack for demo purposes
+  // Check for real attacks (in a real implementation, this would come from your backend/blockchain)
   useEffect(() => {
-    // Randomly show attack demo every 30 seconds
-    const interval = setInterval(() => {
-      if (Math.random() > 0.8) { // 20% chance
-        setShowAttack(true);
-        setTimeout(() => setShowAttack(false), 10000); // Hide after 10 seconds
+    // Mock attack detection based on battle state changes for demo
+    const checkForAttacks = () => {
+      const now = Date.now();
+      const recentAttackWindow = 10 * 60 * 1000; // 10 minutes
+      
+      // Check if we've been attacked recently based on battle state
+      const wasRecentlyAttacked = battleState.lastAttackTime > 0 && 
+        (now - battleState.lastAttackTime) < recentAttackWindow;
+
+      if (wasRecentlyAttacked && activeAttacks.length === 0) {
+        // Generate mock attack notification for demo
+        const mockAttack: ActiveAttack = {
+          id: 'attack_' + Date.now(),
+          attackerId: 'demo_attacker',
+          attackerName: ['CryptoWhale', 'BusinessTycoon', 'WealthHunter'][Math.floor(Math.random() * 3)],
+          attackType: ['STANDARD', 'WEALTH_ASSAULT', 'LAND_SIEGE'][Math.floor(Math.random() * 3)] as AttackType,
+          timestamp: battleState.lastAttackTime,
+          wealthTargeted: wealth,
+          timeRemaining: recentAttackWindow - (now - battleState.lastAttackTime)
+        };
+        
+        setActiveAttacks([mockAttack]);
       }
-    }, 30000);
+    };
 
-    return () => clearInterval(interval);
-  }, []);
+    // For demo purposes, also create periodic mock attacks
+    const demoInterval = setInterval(() => {
+      if (Math.random() > 0.85 && activeAttacks.length === 0) { // 15% chance
+        const attackTypes: AttackType[] = ['STANDARD', 'WEALTH_ASSAULT', 'LAND_SIEGE'];
+        const attackers = ['SolanaShark', 'CryptoTycoon', 'DigitalRaider', 'BlockchainBaron'];
+        
+        const mockAttack: ActiveAttack = {
+          id: 'demo_attack_' + Date.now(),
+          attackerId: 'demo_' + Math.random().toString(36).substr(2, 9),
+          attackerName: attackers[Math.floor(Math.random() * attackers.length)],
+          attackType: attackTypes[Math.floor(Math.random() * attackTypes.length)],
+          timestamp: Date.now(),
+          wealthTargeted: wealth,
+          timeRemaining: 5 * 60 * 1000 // 5 minutes to respond
+        };
+        
+        setActiveAttacks([mockAttack]);
+      }
+    }, 45000); // Check every 45 seconds
 
-  const handleDefend = () => {
-    alert(`Defense activated! You spent ${500} credits to defend your business.`);
-    setShowAttack(false);
+    checkForAttacks();
+    const checkInterval = setInterval(checkForAttacks, 30000); // Check every 30 seconds
+
+    return () => {
+      clearInterval(checkInterval);
+      clearInterval(demoInterval);
+    };
+  }, [battleState.lastAttackTime, wealth, activeAttacks.length]);
+
+  // Cycle through multiple attacks if present
+  useEffect(() => {
+    if (activeAttacks.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentAttackIndex(prev => (prev + 1) % activeAttacks.length);
+      }, 5000); // Switch every 5 seconds
+      
+      return () => clearInterval(interval);
+    }
+  }, [activeAttacks.length]);
+
+  // Update time remaining
+  useEffect(() => {
+    if (activeAttacks.length > 0) {
+      const interval = setInterval(() => {
+        setActiveAttacks(prev => prev.map(attack => ({
+          ...attack,
+          timeRemaining: Math.max(0, attack.timeRemaining - 1000)
+        })).filter(attack => attack.timeRemaining > 0));
+      }, 1000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [activeAttacks.length]);
+
+  const handleActivateShield = async (shieldType: keyof typeof SHIELD_TYPES) => {
+    try {
+      await activateShield(shieldType);
+      // Clear attacks when shield is activated
+      setActiveAttacks([]);
+    } catch (error) {
+      console.error('Failed to activate shield:', error);
+    }
   };
 
-  const handleCounterBid = () => {
-    alert(`Counter-bid placed! You bid ${1200} credits to keep your business.`);
-    setShowAttack(false);
+  const handleDismissAttack = (attackId: string) => {
+    setActiveAttacks(prev => prev.filter(attack => attack.id !== attackId));
   };
 
-  if (!showAttack) return null;
+  // Don't show if shield is active or no attacks
+  const isShieldActive = battleState.shieldExpiry > Date.now();
+  if (activeAttacks.length === 0 || isShieldActive) return null;
+
+  const currentAttack = activeAttacks[currentAttackIndex];
+  const attackTypeInfo = ATTACK_TYPES[currentAttack.attackType];
+  const formatTime = (ms: number) => {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${minutes}m ${seconds}s`;
+  };
 
   return (
     <div className="defenseBanner">
@@ -40,26 +134,49 @@ export function DefenseBanner() {
         <div className="attackInfo">
           <div className="alertIcon">🚨</div>
           <div className="attackDetails">
-            <div className="attackTitle">UNDER ATTACK!</div>
-            <div className="attackDesc">
-              CryptoWhale is bidding 1000 credits for your Automation Factory
+            <div className="attackTitle">
+              {attackTypeInfo.bypassDefenses ? '🔥 CRITICAL ATTACK!' : 'UNDER ATTACK!'}
             </div>
+            <div className="attackDesc">
+              {currentAttack.attackerName} launched a {attackTypeInfo.name}!
+              {attackTypeInfo.bypassDefenses && <span className="bypass-warning"> ⚠️ Bypasses defenses!</span>}
+            </div>
+            {activeAttacks.length > 1 && (
+              <div className="multiAttack">
+                +{activeAttacks.length - 1} more attacks! ({currentAttackIndex + 1}/{activeAttacks.length})
+              </div>
+            )}
           </div>
         </div>
 
         {/* Time and Actions */}
         <div className="defenseActions">
           <div className="timeRemaining">
-            <div className="timeValue">⏰ 8h 23m</div>
-            <div className="timeLabel">remaining</div>
+            <div className="timeValue">⏰ {formatTime(currentAttack.timeRemaining)}</div>
+            <div className="timeLabel">to respond</div>
           </div>
           
-          <button onClick={handleDefend} className="defenseBtn defend">
-            🛡️ DEFEND
+          <button 
+            onClick={() => handleActivateShield('BASIC')}
+            disabled={wealth < SHIELD_TYPES.BASIC.cost}
+            className="defenseBtn defend"
+          >
+            🛡️ SHIELD ({SHIELD_TYPES.BASIC.cost} $WEALTH)
           </button>
           
-          <button onClick={handleCounterBid} className="defenseBtn counter">
-            💰 COUNTER-BID
+          <button 
+            onClick={() => handleActivateShield('ADVANCED')}
+            disabled={wealth < SHIELD_TYPES.ADVANCED.cost}
+            className="defenseBtn counter"
+          >
+            ⚡ ADVANCED SHIELD ({SHIELD_TYPES.ADVANCED.cost} $WEALTH)
+          </button>
+          
+          <button 
+            onClick={() => handleDismissAttack(currentAttack.id)}
+            className="defenseBtn dismiss"
+          >
+            ✕ DISMISS
           </button>
         </div>
         
@@ -100,11 +217,21 @@ export function DefenseBanner() {
         .attackDesc {
           font-size: 14px; opacity: 0.9; margin-top: 2px;
         }
+        .bypass-warning {
+          color: #fbbf24; font-weight: bold; animation: blink 1s infinite;
+        }
+        @keyframes blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+        .multiAttack {
+          font-size: 12px; color: #fbbf24; font-weight: bold; margin-top: 2px;
+        }
         .defenseActions {
-          display: flex; align-items: center; gap: 16px;
+          display: flex; align-items: center; gap: 12px;
         }
         .timeRemaining {
-          text-align: center; padding: 0 16px;
+          text-align: center; padding: 0 12px;
         }
         .timeValue {
           font-size: 16px; font-weight: bold;
@@ -113,18 +240,24 @@ export function DefenseBanner() {
           font-size: 10px; opacity: 0.8;
         }
         .defenseBtn {
-          padding: 8px 16px; border: 2px solid white; background: transparent;
+          padding: 6px 12px; border: 2px solid white; background: transparent;
           color: white; border-radius: 6px; font-weight: bold; cursor: pointer;
           transition: all 0.2s; font-size: 14px;
         }
-        .defenseBtn:hover {
+        .defenseBtn:disabled {
+          opacity: 0.5; cursor: not-allowed;
+        }
+        .defenseBtn:hover:not(:disabled) {
           background: white; color: #dc2626; transform: translateY(-1px);
         }
-        .defend:hover {
+        .defend:hover:not(:disabled) {
           background: #3b82f6; border-color: #3b82f6; color: white;
         }
-        .counter:hover {
+        .counter:hover:not(:disabled) {
           background: #f59e0b; border-color: #f59e0b; color: white;
+        }
+        .dismiss:hover:not(:disabled) {
+          background: #6b7280; border-color: #6b7280; color: white;
         }
         @media (max-width: 768px) {
           .bannerContent {
