@@ -786,7 +786,17 @@ export const useGame = create<GameState>((set, get) => ({
     // Coffee Cafe: +25 credits per work action  
     // Widget Factory: +100 credits per work action
     
-    if (bizKind < 0 || bizKind >= businessTypes.length) return;
+    console.log('Regular store buyBusiness called:', {
+      bizKind,
+      businessType: businessTypes[bizKind],
+      cost: costs[bizKind],
+      currentCredits: get().creditBalance
+    });
+    
+    if (bizKind < 0 || bizKind >= businessTypes.length) {
+      console.log('Invalid business kind:', bizKind);
+      return;
+    }
     
     const businessType = businessTypes[bizKind];
     const cost = costs[bizKind];
@@ -814,9 +824,27 @@ export const useGame = create<GameState>((set, get) => ({
     const state = get();
     const business = ENHANCED_BUSINESSES.find(b => b.id === businessId);
     
-    if (!business) return false;
-    if (state.wealth < business.cost) return false;
-    if (state.enhancedBusinesses.includes(businessId)) return false;
+    console.log('Store buyEnhancedBusiness called:', {
+      businessId,
+      business: business?.name,
+      currentWealth: state.wealth,
+      businessCost: business?.cost,
+      alreadyOwned: state.enhancedBusinesses.includes(businessId),
+      enhancedBusinesses: state.enhancedBusinesses
+    });
+    
+    if (!business) {
+      console.log('Business not found in ENHANCED_BUSINESSES');
+      return false;
+    }
+    if (state.wealth < business.cost) {
+      console.log('Insufficient wealth:', { required: business.cost, available: state.wealth });
+      return false;
+    }
+    if (state.enhancedBusinesses.includes(businessId)) {
+      console.log('Business already owned');
+      return false;
+    }
     
     // Check prerequisites
     if (business.prerequisites) {

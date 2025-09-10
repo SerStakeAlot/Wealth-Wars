@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Orbitron } from 'next/font/google';
 import { useEffect, useMemo, useState } from 'react';
+import { isDemoSite } from './lib/demo-site-config';
 
 const orbitron = Orbitron({ subsets: ['latin'], weight: ['600', '800'] });
 
@@ -199,6 +200,16 @@ export default function Home() {
   }
 
   const connected = !!pubkey;
+  
+  // Client-side demo site detection 
+  const [demoSiteMode, setDemoSiteMode] = useState(false);
+  
+  useEffect(() => {
+    // Only treat as demo site if env var is true AND not localhost
+    const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    const isDemo = process.env.NEXT_PUBLIC_DEMO_ONLY === 'true' && !isLocalhost && typeof window !== 'undefined' && window.location.hostname.includes('demo');
+    setDemoSiteMode(isDemo);
+  }, []);
 
   return (
     <div className="page">
@@ -206,16 +217,38 @@ export default function Home() {
       <BackgroundPattern />
       <DollarSprinkles />
 
-      {/* wallet avatar (top-right) */}
-      <WalletAvatar connected={connected} onClick={handleAvatarClick} pubkey={pubkey} />
+      {/* wallet avatar (top-right) - hidden on demo site */}
+      {!demoSiteMode && (
+        <WalletAvatar connected={connected} onClick={handleAvatarClick} pubkey={pubkey} />
+      )}
+      
+      {/* Demo site indicator */}
+      {demoSiteMode && (
+        <div className="demoSiteIndicator">
+          <span className="demoIcon">🎮</span>
+          <span className="demoText">DEMO SITE</span>
+        </div>
+      )}
 
       {/* centered content */}
       <main className="content">
         <h1 className={`${orbitron.className} logo`}>WEALTH WARS</h1>
 
-        <Link href="/game">
-          <button className="playBtn" aria-label="Play Now">▶ PLAY NOW</button>
-        </Link>
+        <div className="buttonGroup">
+          {!demoSiteMode && (
+            <Link href="/game">
+              <button className="playBtn" aria-label="Play Now">
+                ▶ PLAY NOW
+              </button>
+            </Link>
+          )}
+          
+          <Link href="/demo">
+            <button className={`${demoSiteMode ? 'playBtn' : 'demoBtn'}`} aria-label={demoSiteMode ? "Play Demo" : "Try Demo"}>
+              {demoSiteMode ? "🎮 PLAY DEMO" : "🎮 TRY DEMO"}
+            </button>
+          </Link>
+        </div>
 
         <p className="alpha">Alpha • v0.1</p>
       </main>
@@ -261,6 +294,56 @@ export default function Home() {
         }
         .playBtn:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(22,101,52,0.45), 0 0 0 2px rgba(0,0,0,0.06) inset; filter: brightness(1.03); }
         .playBtn:active { transform: translateY(2px); box-shadow: 0 6px 16px rgba(22,101,52,0.25), 0 0 0 2px rgba(0,0,0,0.04) inset; }
+
+        .buttonGroup {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          align-items: center;
+        }
+
+        .demoBtn {
+          border: none; padding: 12px 24px; font-size: 16px; font-weight: 600;
+          text-transform: uppercase; letter-spacing: 0.1em; border-radius: 8px; cursor: pointer;
+          background: linear-gradient(180deg, #3b82f6, #1e40af); color: #fff;
+          box-shadow: 0 6px 16px rgba(30,64,175,0.35), 0 0 0 1px rgba(59,130,246,0.3);
+          transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+          border: 1px solid rgba(59,130,246,0.4);
+        }
+        .demoBtn:hover { 
+          transform: translateY(-2px); 
+          box-shadow: 0 8px 20px rgba(30,64,175,0.45), 0 0 0 1px rgba(59,130,246,0.5); 
+          filter: brightness(1.05); 
+        }
+        .demoBtn:active { 
+          transform: translateY(1px); 
+          box-shadow: 0 4px 12px rgba(30,64,175,0.25), 0 0 0 1px rgba(59,130,246,0.3); 
+        }
+
+        .demoSiteIndicator {
+          position: absolute;
+          top: 20px;
+          right: 20px;
+          background: linear-gradient(90deg, #22c55e, #16a34a);
+          color: white;
+          padding: 8px 16px;
+          border-radius: 20px;
+          font-size: 14px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+          border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .demoIcon {
+          font-size: 16px;
+        }
+
+        .demoText {
+          letter-spacing: 0.05em;
+        }
         .alpha {
           margin-top: 16px; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b;
           animation: blink 1400ms steps(2, start) infinite;

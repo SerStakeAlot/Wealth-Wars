@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, Suspense } from 'react';
 import { Inter, Orbitron } from 'next/font/google';
 import { Connection, PublicKey, clusterApiUrl } from '@solana/web3.js';
 import toast from 'react-hot-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useGame } from '../lib/store';
+import { useDemoGame } from '../lib/demo-store';
 import { useWealthWarsProgram } from '../hooks/useWealthWarsProgram';
+import { isDemoSite } from '../lib/demo-site-config';
 import { BusinessRow } from '../../components/BusinessRow';
 import { BulkBar } from '../../components/BulkBar';
 import { AvatarButton } from '../../components/AvatarButton';
@@ -111,9 +113,37 @@ function WalletAvatar({
 
 
 
-export default function GamePage() {
+function GamePage() {
   const connection = useSolanaConnection();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isDemoMode = searchParams.get('demo') === 'true';
+
+  // Block access to /game on demo sites unless ?demo=true
+  const demoSiteMode = isDemoSite();
+  
+  useEffect(() => {
+    if (demoSiteMode && !isDemoMode) {
+      router.replace('/demo');
+    }
+  }, [demoSiteMode, isDemoMode, router]);
+
+  // Show loading while redirecting on demo sites (only when not in demo mode)
+  if (demoSiteMode && !isDemoMode) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        background: 'linear-gradient(180deg, #0a0b0f 0%, #1a1d29 50%, #2d3748 100%)',
+        color: '#e6edf5',
+        fontSize: '18px'
+      }}>
+        Redirecting to demo...
+      </div>
+    );
+  }
 
   /* ---------- Wallet state ---------- */
   const [provider, setProvider] = useState<SolanaProvider | null>(null);
@@ -124,26 +154,104 @@ export default function GamePage() {
   /* ---------- Solana integration ---------- */
   const { isConnected, publicKey } = useWealthWarsProgram();
 
-  /* ---------- Game state ---------- */
+  /* ---------- Game state (Demo or Regular) ---------- */
+  const demoGame = useDemoGame();
+  const regularGame = useGame();
+  
+  // Use demo game state if in demo mode, otherwise use regular game state
+  const gameState = isDemoMode ? {
+    // Demo game mappings
+    level: 1,
+    xp: 0,
+    wealth: demoGame.player?.wealth || 0,
+    liquidity: 0,
+    assets: [],
+    collect: () => {},
+    upgrade: () => {},
+    defend: () => {},
+    prestige: 0,
+    clanEligible: false,
+    derived: { 
+      netWorth: demoGame.calculateNetWorth(),
+      profitPerSecond: 0
+    },
+    tick: () => {},
+    setWalletAddress: () => {},
+    // Demo work system
+    creditBalance: demoGame.player?.creditBalance || 0,
+    streakDays: 0,
+    business: demoGame.player?.business || {
+      clickBonusPerDay: 0,
+      lemStand: 0,
+      cafe: 0,
+      factory: 0
+    },
+    clickWork: demoGame.work,
+    buyBusiness: demoGame.buyNormalBusiness,
+    initPlayer: () => {},
+    lastWorkTime: demoGame.player?.lastWorkTime || 0,
+    workCooldown: demoGame.workCooldownRemaining,
+    workFrequency: 300000, // 5 minutes
+    totalWorkActions: demoGame.player?.workSessions || 0,
+    totalCreditsEarned: demoGame.player?.totalEarned || 0,
+    workSession: {
+      clicksInSession: 0,
+      isInExtendedCooldown: false,
+      extendedCooldownStart: 0
+    },
+    // Demo enhanced businesses
+    enhancedBusinesses: demoGame.player?.enhancedBusinesses || [],
+    businessSlots: demoGame.player?.businessSlots || [],
+    buyEnhancedBusiness: demoGame.buyBusiness,
+    reorderEnhancedBusinesses: () => {},
+    // Demo maintenance (simplified)
+    businessConditions: {},
+    performBusinessMaintenance: () => ({ 
+      success: false,
+      cost: 0,
+      reason: 'Not available in demo mode'
+    }),
+    maintenanceBudget: 0,
+    // Demo mode settings
+    isOnChainMode: false,
+    setOnChainMode: () => {},
+    loading: false,
+    setLoading: () => {},
+    initPlayerOnChain: () => Promise.resolve(false),
+    clickWorkOnChain: () => Promise.resolve({ credits: 0, message: '' }),
+    buyBusinessOnChain: () => Promise.resolve(false),
+    convertCreditsToWealth: demoGame.convertCreditsToWealth,
+    swapCreditForWealth: () => Promise.resolve(),
+    swapWealthForCredit: () => Promise.resolve(),
+    refreshPlayerData: () => Promise.resolve(),
+    treasuryState: {
+      // Map demo treasury to expected format
+      quoteReserve: demoGame.treasury.credits,
+      baseReserve: demoGame.treasury.wealth,
+      ...demoGame.treasury
+    },
+    refreshTreasuryData: () => Promise.resolve()
+  } : regularGame;
+  
+  // Destructure the selected game state
   const { 
     level, xp, wealth, liquidity, assets, collect, upgrade, defend, prestige, clanEligible, derived, tick, setWalletAddress,
-    // Daily Work System state
     creditBalance, streakDays, business, clickWork, buyBusiness, initPlayer,
     lastWorkTime, workCooldown, workFrequency, totalWorkActions, totalCreditsEarned, workSession,
-    // Enhanced Business System
     enhancedBusinesses, buyEnhancedBusiness, reorderEnhancedBusinesses,
-    // Business Maintenance System
     businessConditions, performBusinessMaintenance, maintenanceBudget,
-    // Solana integration
     isOnChainMode, setOnChainMode, loading, setLoading,
     initPlayerOnChain, clickWorkOnChain, buyBusinessOnChain, 
     convertCreditsToWealth, swapCreditForWealth, swapWealthForCredit, refreshPlayerData,
     treasuryState, refreshTreasuryData
-  } = useGame();
+  } = gameState;
 
   // Helper functions for maintenance
   const getBusinessCondition = (businessId: string) => {
-    return businessConditions[businessId] || { condition: 100, isOffline: false };
+    if (isDemoMode) {
+      return { condition: 100, isOffline: false };
+    }
+    return (businessConditions as any)[businessId] || { condition: 100, isOffline: false };
   };
 
   const getConditionColor = (condition: number) => {
@@ -156,6 +264,17 @@ export default function GamePage() {
   // Slot management state
   const [isSlotManagementMode, setIsSlotManagementMode] = useState(false);
   const [selectedBusinessForSwap, setSelectedBusinessForSwap] = useState<string | null>(null);
+
+  // Demo mode initialization
+  useEffect(() => {
+    if (isDemoMode && !demoGame.isInitialized) {
+      const hasProgress = demoGame.loadProgress();
+      if (!hasProgress) {
+        // Redirect back to demo entry if no progress found
+        router.push('/demo');
+      }
+    }
+  }, [isDemoMode, demoGame, router]);
 
   const getConditionLabel = (condition: number) => {
     if (condition >= 80) return 'Excellent';
@@ -403,6 +522,36 @@ export default function GamePage() {
           </button>
         </div>
       </header>
+
+      {/* DEMO MODE BANNER */}
+      {isDemoMode && (
+        <div className="demoBanner">
+          <div className="demoContent">
+            <span className="demoIcon">🎮</span>
+            <div className="demoText">
+              <strong>DEMO MODE</strong> • Playing with {demoGame.player?.wealth.toLocaleString()} fake $WEALTH
+              {demoGame.player && (
+                <span className="demoRank"> • Rank #{demoGame.playerRank} of {demoGame.leaderboard.length}</span>
+              )}
+            </div>
+            <div className="demoActions">
+              <a href="/demo" className="demoBtnSecondary">← Back to Lobby</a>
+              {demoGame.canReset && (
+                <button 
+                  onClick={() => {
+                    if (confirm('Reset your demo progress?')) {
+                      demoGame.resetDemo();
+                    }
+                  }}
+                  className="demoBtnDanger"
+                >
+                  Reset Progress
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ALERT BANNER */}
       <section className="banner">
@@ -673,12 +822,20 @@ export default function GamePage() {
 
           {/* Enhanced Businesses - 3 Slots */}
           {Array.from({ length: 3 }, (_, slotIndex) => {
-            // Get owned businesses and map them to slots
-            const ownedBusinesses = enhancedBusinesses
-              .map(id => ENHANCED_BUSINESSES.find(b => b.id === id))
-              .filter(Boolean);
+            let businessInSlot = null;
             
-            const businessInSlot = ownedBusinesses[slotIndex];
+            if (isDemoMode) {
+              // Demo mode: use proper businessSlots array
+              const businessSlots = demoGame.player?.businessSlots || [];
+              const businessIdInSlot = businessSlots[slotIndex];
+              businessInSlot = businessIdInSlot ? ENHANCED_BUSINESSES.find(b => b.id === businessIdInSlot) : null;
+            } else {
+              // Regular mode: use original logic (first 3 owned businesses)
+              const ownedBusinesses = enhancedBusinesses
+                .map(id => ENHANCED_BUSINESSES.find(b => b.id === id))
+                .filter(Boolean);
+              businessInSlot = ownedBusinesses[slotIndex];
+            }
             
             if (!businessInSlot) {
               // Empty slot
@@ -1078,6 +1235,92 @@ export default function GamePage() {
           z-index: 10;
           position: relative;
           box-shadow: 0 2px 12px rgba(255,215,0,0.2);
+        }
+
+        .demoBanner {
+          background: linear-gradient(90deg, #1e40af, #3b82f6, #1e40af);
+          border-bottom: 1px solid #3b82f6;
+          padding: 12px 20px;
+          z-index: 9;
+          position: relative;
+          animation: demoPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes demoPulse {
+          0%, 100% { background: linear-gradient(90deg, #1e40af, #3b82f6, #1e40af); }
+          50% { background: linear-gradient(90deg, #1d4ed8, #60a5fa, #1d4ed8); }
+        }
+
+        .demoContent {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+
+        .demoIcon {
+          font-size: 18px;
+          animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+          0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+          40% { transform: translateY(-4px); }
+          60% { transform: translateY(-2px); }
+        }
+
+        .demoText {
+          color: #f1f5f9;
+          font-size: 14px;
+          font-weight: 600;
+          text-align: center;
+          flex: 1;
+        }
+
+        .demoRank {
+          color: #fbbf24;
+          font-weight: 700;
+        }
+
+        .demoActions {
+          display: flex;
+          gap: 8px;
+        }
+
+        .demoBtnSecondary {
+          padding: 6px 12px;
+          background: rgba(255,255,255,0.1);
+          color: #f1f5f9;
+          text-decoration: none;
+          border-radius: 6px;
+          font-size: 12px;
+          font-weight: 600;
+          border: 1px solid rgba(255,255,255,0.2);
+          transition: all 0.2s;
+        }
+
+        .demoBtnSecondary:hover {
+          background: rgba(255,255,255,0.2);
+          transform: translateY(-1px);
+        }
+
+        .demoBtnDanger {
+          padding: 6px 12px;
+          background: rgba(239,68,68,0.2);
+          color: #f87171;
+          border: 1px solid rgba(239,68,68,0.3);
+          border-radius: 6px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .demoBtnDanger:hover {
+          background: rgba(239,68,68,0.3);
+          transform: translateY(-1px);
         }
 
         .playerSection {
@@ -2343,5 +2586,26 @@ export default function GamePage() {
         }
       `}</style>
     </div>
+  );
+}
+
+// Wrapper component with Suspense boundary for useSearchParams
+export default function GamePageWrapper() {
+  return (
+    <Suspense fallback={
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        background: 'linear-gradient(180deg, #0a0b0f 0%, #1a1d29 50%, #2d3748 100%)',
+        color: '#e6edf5',
+        fontSize: '18px'
+      }}>
+        Loading Wealth Wars...
+      </div>
+    }>
+      <GamePage />
+    </Suspense>
   );
 }

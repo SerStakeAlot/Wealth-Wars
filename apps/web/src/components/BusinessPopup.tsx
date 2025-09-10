@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useGame } from '../app/lib/store';
+import { useDemoGame } from '../app/lib/demo-store';
 import { ENHANCED_BUSINESSES } from '../app/lib/businesses';
 import { EnhancedBusiness } from '../app/lib/types';
 
@@ -18,7 +20,24 @@ const CATEGORY_INFO = {
 };
 
 export function BusinessPopup({ isOpen, onClose }: BusinessPopupProps) {
-  const { enhancedBusinesses, wealth, buyEnhancedBusiness } = useGame();
+  const searchParams = useSearchParams();
+  const isDemoMode = searchParams.get('demo') === 'true';
+  
+  // Use appropriate store based on mode
+  const regularGame = useGame();
+  const demoGame = useDemoGame();
+  
+  const gameData = isDemoMode ? {
+    enhancedBusinesses: demoGame.player?.enhancedBusinesses || [],
+    wealth: demoGame.player?.wealth || 0,
+    buyEnhancedBusiness: demoGame.buyBusiness
+  } : {
+    enhancedBusinesses: regularGame.enhancedBusinesses,
+    wealth: regularGame.wealth,
+    buyEnhancedBusiness: regularGame.buyEnhancedBusiness
+  };
+  
+  const { enhancedBusinesses, wealth, buyEnhancedBusiness } = gameData;
   const [selectedCategory, setSelectedCategory] = useState<string>('efficiency');
 
   if (!isOpen) return null;
@@ -31,10 +50,26 @@ export function BusinessPopup({ isOpen, onClose }: BusinessPopupProps) {
 
   const handleBuyBusiness = (businessId: string) => {
     const business = ENHANCED_BUSINESSES.find(b => b.id === businessId);
-    if (!business) return;
+    if (!business) {
+      console.error('Business not found:', businessId);
+      return;
+    }
+
+    console.log('Attempting to buy business:', {
+      businessId,
+      businessName: business.name,
+      cost: business.cost,
+      currentWealth: wealth,
+      canAfford: wealth >= business.cost,
+      isDemoMode,
+      alreadyOwned: isOwned(businessId)
+    });
 
     if (wealth >= business.cost) {
-      buyEnhancedBusiness(businessId);
+      const result = buyEnhancedBusiness(businessId);
+      console.log('Purchase result:', result);
+    } else {
+      console.log('Cannot afford business:', { required: business.cost, available: wealth });
     }
   };
 
