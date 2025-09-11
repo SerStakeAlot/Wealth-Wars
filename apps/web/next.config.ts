@@ -10,9 +10,9 @@ const nextConfig: NextConfig = {
     // Disable TypeScript checks during builds for demo deployment
     ignoreBuildErrors: true,
   },
-  env: {
-    NEXT_PUBLIC_DEMO_ONLY: 'true',
-  },
+  // env: {
+  //   NEXT_PUBLIC_DEMO_ONLY: 'true', // Commented out - use .env files instead
+  // },
 };
 
 export default nextConfig;

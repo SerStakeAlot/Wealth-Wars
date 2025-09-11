@@ -7,8 +7,13 @@ import { toast } from 'react-hot-toast';
  * Hook to manage Solana wallet connection and on-chain program integration
  */
 export function useWealthWarsProgram() {
-  const { connection } = useConnection();
+  // Always call hooks at the top level - React rules
+  const connectionContext = useConnection();
   const wallet = useWallet();
+  
+  // Safely extract connection
+  const connection = connectionContext?.connection || null;
+  
   const { 
     setWalletConnection, 
     clearWalletConnection, 

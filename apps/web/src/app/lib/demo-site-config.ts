@@ -8,10 +8,9 @@
  * 4. Perfect for demo.wealthwars.io subdomain
  */
 
-const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 export const DEMO_SITE_CONFIG = {
-  // Enable demo-only mode for the entire site, but never on localhost
-  DEMO_ONLY_MODE: process.env.NEXT_PUBLIC_DEMO_ONLY === 'true' && !isLocalhost,
+  // Enable demo-only mode for the entire site (localhost check moved to isDemoSite function)
+  DEMO_ONLY_MODE: process.env.NEXT_PUBLIC_DEMO_ONLY === 'true',
   
   // Demo site branding
   SITE_TITLE: 'Wealth Wars Demo',
@@ -57,32 +56,19 @@ export const DEMO_SITE_CONFIG = {
 };
 
 // Environment detection
-export const isDemoSite = () => {
-  // Never treat localhost as demo site
-  if (typeof window !== 'undefined') {
-    const isLocalhost = window.location.hostname === 'localhost' || 
-                       window.location.hostname === '127.0.0.1';
-    if (isLocalhost) {
-      return false;
-    }
+export function isDemoSite(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
   }
+
+  const hostname = window.location.hostname;
+  const isLocalhost = ['localhost', '127.0.0.1'].includes(hostname);
+  const isDemoOnlyMode = process.env.NEXT_PUBLIC_DEMO_ONLY === 'true';
   
-  // Check environment variable first (for build-time and runtime)
-  const isDemoEnv = process.env.NEXT_PUBLIC_DEMO_ONLY === 'true';
-  
-  // Check config setting
-  const isDemoConfig = DEMO_SITE_CONFIG.DEMO_ONLY_MODE;
-  
-  // Check hostname (only on client side)
-  let isDemoHost = false;
-  if (typeof window !== 'undefined') {
-    isDemoHost = window.location.hostname.includes('demo.') || 
-                 window.location.hostname.includes('try.') ||
-                 window.location.hostname.includes('play.');
-  }
-  
-  return isDemoHost || isDemoEnv || isDemoConfig;
-};
+  // For localhost, never treat as demo site (development environment)
+  // For other environments, check the DEMO_ONLY_MODE flag
+  return !isLocalhost && isDemoOnlyMode;
+}
 
 // Demo site utilities
 export const getDemoSiteConfig = () => {
