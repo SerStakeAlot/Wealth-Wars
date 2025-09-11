@@ -30,9 +30,10 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
       name: 'Rapid Processing',
       description: 'Reduces work cooldown to 1 hour for the next 6 work actions',
       type: 'active',
-      cooldown: 7 * 24 * 60 * 60 * 1000, // 7 days
-      duration: 6 * 60 * 60 * 1000, // 6 hours (6 work actions)
-      cost: 15 // Allows completing a full session in 6 hours instead of 8
+  effectMode: 'sustained',
+  cooldown: 48 * 60 * 60 * 1000, // 48h
+  duration: 6 * 60 * 60 * 1000, // max window; ends earlier once 6 actions consumed
+  cost: 15
     }
   },
   
@@ -51,8 +52,10 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
       name: 'Quick Service',
       description: 'Next 4 work actions earn 40 credits instead of 25 (complete 1.6 $WEALTH)',
       type: 'active',
-      cooldown: 5 * 24 * 60 * 60 * 1000, // 5 days
-      cost: 8 // Pays for itself in the bonus credits gained
+  effectMode: 'instant',
+  cooldown: 24 * 60 * 60 * 1000, // 24h
+  uses: 4,
+  cost: 8
     }
   },
 
@@ -69,10 +72,10 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     ability: {
       id: 'breakthrough',
       name: 'Breakthrough',
-      description: 'Permanently increase work earnings from 25 to 30 credits per action',
-      type: 'triggered',
-      cooldown: 10 * 24 * 60 * 60 * 1000, // 10 days
-      cost: 20 // High cost for permanent 20% increase in earning rate
+  description: 'Permanent +5 credits per work (one-time upgrade)',
+  type: 'triggered',
+  effectMode: 'upgrade',
+  cost: 20
     }
   },
 
@@ -149,8 +152,9 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
       name: 'Corporate Espionage',
       description: 'Add 6 hours to target player\'s work cooldown',
       type: 'active',
-      cooldown: 3 * 24 * 60 * 60 * 1000, // 3 days
-      cost: 10 // Moderate cost for significant disruption
+  effectMode: 'instant',
+  cooldown: 36 * 60 * 60 * 1000, // 36h
+  cost: 10
     }
   },
 
@@ -169,8 +173,10 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
       name: 'System Disruption',
       description: 'Disable target\'s defensive businesses for 2 hours',
       type: 'active',
-      cooldown: 5 * 24 * 60 * 60 * 1000, // 5 days
-      cost: 15 // High cost for disabling defenses
+  effectMode: 'sustained',
+  duration: 2 * 60 * 60 * 1000,
+  cooldown: 36 * 60 * 60 * 1000, // 36h
+  cost: 15
     }
   },
 
@@ -189,8 +195,9 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
       name: 'Intelligence Gathering',
       description: 'Reveal target player\'s business portfolio and cooldowns',
       type: 'active',
-      cooldown: 2 * 24 * 60 * 60 * 1000, // 2 days
-      cost: 3 // Low cost for information gathering
+  effectMode: 'instant',
+  cooldown: 12 * 60 * 60 * 1000, // 12h
+  cost: 3
     }
   },
 
@@ -210,8 +217,10 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
       name: 'Market Boost',
       description: '25% better conversion rates for 12 hours',
       type: 'active',
-      cooldown: 4 * 24 * 60 * 60 * 1000, // 4 days
-      cost: 8 // Moderate cost for economic benefit
+  effectMode: 'sustained',
+  duration: 8 * 60 * 60 * 1000, // 8h
+  cooldown: 36 * 60 * 60 * 1000, // 36h
+  cost: 8
     }
   },
 
@@ -228,10 +237,12 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
     ability: {
       id: 'compound_interest',
       name: 'Compound Interest',
-      description: 'Generate 5% interest on $WEALTH holdings daily for 7 days',
-      type: 'active',
-      cooldown: 10 * 24 * 60 * 60 * 1000, // 10 days
-      cost: 25 // High cost for wealth generation
+  description: 'Earn 5% of current $WEALTH after 24h (snapshot at activation)',
+  type: 'active',
+  effectMode: 'sustained',
+  duration: 24 * 60 * 60 * 1000, // 24h window
+  cooldown: 72 * 60 * 60 * 1000, // 72h
+  cost: 25
     }
   },
 
@@ -250,8 +261,9 @@ export const ENHANCED_BUSINESSES: EnhancedBusiness[] = [
       name: 'Risky Investment',
       description: '60% chance to earn +50 bonus credits, 40% chance to lose 25 credits',
       type: 'active',
-      cooldown: 6 * 60 * 60 * 1000, // 6 hours
-      cost: 5 // Low cost for frequent gambling
+  effectMode: 'instant',
+  cooldown: 3 * 60 * 60 * 1000, // 3h
+  cost: 5
     }
   },
 

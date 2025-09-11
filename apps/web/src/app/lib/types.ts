@@ -161,6 +161,7 @@ export interface BusinessAbility {
   duration?: number; // milliseconds for temporary effects
   uses?: number; // limited uses per time period
   cost?: number; // activation cost in credits
+  effectMode?: 'sustained' | 'instant' | 'upgrade'; // gameplay execution semantics
 }
 
 export interface EnhancedBusiness {

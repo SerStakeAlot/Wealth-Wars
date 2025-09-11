@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { BattleNotificationCenter } from '../../components/BattleNotificationCenter';
 import { DefenseBanner } from '../../components/DefenseBanner';
 import { useGame } from '../lib/store';
@@ -13,6 +13,8 @@ export default function BattleDemoPage() {
     attackPlayer, 
     activateShield 
   } = useGame();
+
+  const [demoMessage, setDemoMessage] = useState<string | null>(null);
 
   const triggerMockAttack = async () => {
     // Simulate an attack to trigger notifications
@@ -33,13 +35,15 @@ export default function BattleDemoPage() {
           STANDARD: 0,
           WEALTH_ASSAULT: 0,
           LAND_SIEGE: 0
-        }
+        },
+        businessMultiplierDamage: 0
       },
       landNfts: 1
     };
-
-    await attackPlayer('demo_target', 'WEALTH_ASSAULT', mockTarget);
+    const res = await attackPlayer('demo_target', 'WEALTH_ASSAULT', mockTarget);
+    setDemoMessage(res.message);
   };
+
 
   const formatShieldTime = () => {
     if (battleState.shieldExpiry <= Date.now()) return 'No shield active';
@@ -108,8 +112,13 @@ export default function BattleDemoPage() {
                     🗡️ Simulate Incoming Attack
                   </button>
                   <p className="text-sm text-gray-400">
-                    This will trigger a mock attack and activate the defense banner and notification system.
+                    Use this to test a wealth assault flow and notification handling.
                   </p>
+                  {demoMessage && (
+                    <div className="text-xs bg-gray-700 text-gray-200 p-2 rounded border border-gray-600">
+                      Result: {demoMessage}
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -36,7 +36,7 @@ export function DefenseBanner() {
           id: 'attack_' + Date.now(),
           attackerId: 'demo_attacker',
           attackerName: ['CryptoWhale', 'BusinessTycoon', 'WealthHunter'][Math.floor(Math.random() * 3)],
-          attackType: ['STANDARD', 'WEALTH_ASSAULT', 'LAND_SIEGE'][Math.floor(Math.random() * 3)] as AttackType,
+          attackType: ['STANDARD', 'WEALTH_ASSAULT', 'LAND_SIEGE', 'BUSINESS_SABOTAGE'][Math.floor(Math.random() * 4)] as AttackType,
           timestamp: battleState.lastAttackTime,
           wealthTargeted: wealth,
           timeRemaining: recentAttackWindow - (now - battleState.lastAttackTime)
@@ -49,7 +49,7 @@ export function DefenseBanner() {
     // For demo purposes, also create periodic mock attacks
     const demoInterval = setInterval(() => {
       if (Math.random() > 0.85 && activeAttacks.length === 0) { // 15% chance
-        const attackTypes: AttackType[] = ['STANDARD', 'WEALTH_ASSAULT', 'LAND_SIEGE'];
+        const attackTypes: AttackType[] = ['STANDARD', 'WEALTH_ASSAULT', 'LAND_SIEGE', 'BUSINESS_SABOTAGE'];
         const attackers = ['SolanaShark', 'CryptoTycoon', 'DigitalRaider', 'BlockchainBaron'];
         
         const mockAttack: ActiveAttack = {

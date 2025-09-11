@@ -18,6 +18,8 @@ export interface BattleState {
   }>;
   // Track cooldowns per attack type
   lastAttackByType: Record<string, number>;
+  // Business multiplier damage tracking
+  businessMultiplierDamage: number; // Percentage damage to work multipliers (0-100)
 }
 
 export interface AttackResult {
@@ -29,6 +31,7 @@ export interface AttackResult {
   message: string;
   finalSuccessRate: number;
   attackType: string;
+  businessDamageDealt?: number; // Percentage damage dealt to business multipliers
 }
 
 // Tiered attack system
@@ -36,9 +39,9 @@ export const ATTACK_TYPES = {
   STANDARD: {
     id: 'standard',
     name: 'Standard Attack',
-    cost: 15,
-    currency: 'credits' as const,
-    cooldown: 4 * 60 * 60 * 1000, // 4 hours
+  cost: 5,
+  currency: 'wealth' as const,
+  cooldown: 0,
     maxWealthTheft: 0.10, // 10%
     bypassDefenses: false,
     canTriggerLandRaid: false,
@@ -48,9 +51,9 @@ export const ATTACK_TYPES = {
   WEALTH_ASSAULT: {
     id: 'wealth_assault',
     name: 'Wealth Assault',
-    cost: 10, // 10 $WEALTH
-    currency: 'wealth' as const,
-    cooldown: 12 * 60 * 60 * 1000, // 12 hours
+  cost: 25,
+  currency: 'wealth' as const,
+  cooldown: 0,
     maxWealthTheft: 0.25, // 25%
     bypassDefenses: true, // Ignores defensive businesses
     canTriggerLandRaid: false,
@@ -60,13 +63,27 @@ export const ATTACK_TYPES = {
   LAND_SIEGE: {
     id: 'land_siege',
     name: 'Land Siege',
-    cost: 25, // Elite tier cost
-    currency: 'wealth' as const,
-    cooldown: 24 * 60 * 60 * 1000, // 24 hours
+  cost: 50, // Elite tier cost
+  currency: 'wealth' as const,
+  cooldown: 0,
     maxWealthTheft: 0.35, // 35%
     bypassDefenses: true,
     canTriggerLandRaid: true, // Can trigger Land NFT yield theft
     description: 'Ultimate attack that bypasses defenses and can trigger Land NFT raids.'
+  },
+  
+  BUSINESS_SABOTAGE: {
+    id: 'business_sabotage',
+    name: 'Business Sabotage',
+  cost: 25,
+  currency: 'credits' as const,
+  cooldown: 0,
+    maxWealthTheft: 0, // NO wealth theft for credit-based attacks
+    bypassDefenses: false,
+    canTriggerLandRaid: false,
+    damagesBusinessMultipliers: true,
+    multiplierDamagePercent: 30, // Reduces ALL work multipliers by 30%
+    description: 'Sabotage target\'s business operations, reducing all work multipliers by 30% until repaired.'
   }
 } as const;
 

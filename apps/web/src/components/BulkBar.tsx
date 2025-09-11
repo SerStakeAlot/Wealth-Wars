@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BusinessPopup } from './BusinessPopup';
 
-export function BulkBar() {
+export function BulkBar({ onOpenBattle }: { onOpenBattle?: () => void }) {
   const router = useRouter();
   const [isBusinessOpen, setIsBusinessOpen] = useState(false);
   
@@ -24,6 +24,11 @@ export function BulkBar() {
           <button className="actionBtn events" onClick={handleEvents}>
             <span className="btnIcon">🌍</span><span className="btnText">Events</span>
           </button>
+          {onOpenBattle && (
+            <button className="actionBtn attack" onClick={onOpenBattle}>
+              <span className="btnIcon">⚔️</span><span className="btnText">Battle</span>
+            </button>
+          )}
         </div>
 
         <style jsx>{`

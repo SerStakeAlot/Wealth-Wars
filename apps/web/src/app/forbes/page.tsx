@@ -341,10 +341,22 @@ export default function ForbesListPage() {
         </div>
       </aside>
 
-      {(profileOpen || selectedPlayerModalOpen) && <div className="mask" onClick={() => {
-        setProfileOpen(false);
-        setSelectedPlayerModalOpen(false);
-      }} />}
+      {(profileOpen || selectedPlayerModalOpen) && (
+        <div
+          className="mask"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15,23,42,0.8)',
+            zIndex: 45,
+            cursor: 'pointer',
+          }}
+          onClick={() => {
+            setProfileOpen(false);
+            setSelectedPlayerModalOpen(false);
+          }}
+        />
+      )}
 
       {/* STYLES */}
       <style jsx>{`
@@ -781,15 +793,12 @@ export default function ForbesListPage() {
         }
 
         /* Player Profile Modal */
-        .modalOverlay {
+        .mask {
           position: fixed;
           inset: 0;
           background: rgba(15,23,42,0.8);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 100;
-          backdrop-filter: blur(4px);
+          z-index: 45;
+          cursor: pointer;
         }
 
         .playerModal {

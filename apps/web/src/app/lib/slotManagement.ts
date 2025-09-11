@@ -153,21 +153,29 @@ export function assignBusinessToSlot(
     };
   }
 
-  // Check if business is already in another slot
+  // If business already active in another slot, swap them (replace target slot's business into old slot or just move existing?)
   const existingSlot = activeSlots.find(slot => slot.businessId === businessId);
-  if (existingSlot && existingSlot.slotId !== slotId) {
-    return {
-      success: false,
-      message: "Business is already active in another slot."
-    };
-  }
+  let updatedSlots: ActiveSlot[] = [...activeSlots];
 
-  // Update the slot
-  const updatedSlots = activeSlots.map(slot => 
-    slot.slotId === slotId 
-      ? { ...slot, businessId, activatedAt: Date.now() }
-      : slot
-  );
+  if (existingSlot && existingSlot.slotId !== slotId) {
+    // Move business to requested slot, clear old slot
+    updatedSlots = updatedSlots.map(slot => {
+      if (slot.slotId === slotId) {
+        return { ...slot, businessId, activatedAt: Date.now() };
+      }
+      if (slot.slotId === existingSlot.slotId) {
+        return { ...slot, businessId: null, activatedAt: 0 };
+      }
+      return slot;
+    });
+  } else {
+    // Replace whatever is in the destination slot
+    updatedSlots = updatedSlots.map(slot => 
+      slot.slotId === slotId 
+        ? { ...slot, businessId, activatedAt: Date.now() }
+        : slot
+    );
+  }
 
   return {
     success: true,

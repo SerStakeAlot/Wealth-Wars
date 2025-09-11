@@ -18,7 +18,7 @@ export interface BattleNotification {
   resolved: boolean;
 }
 
-export function BattleNotificationCenter() {
+export function BattleNotificationCenter({ mode = 'floating' }: { mode?: 'floating' | 'embedded' }) {
   const { battleState, wealth, activateShield, getBattleStats } = useGame();
   const [notifications, setNotifications] = useState<BattleNotification[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -121,10 +121,10 @@ export function BattleNotificationCenter() {
   const hasUnresolvedNotifications = getUnresolvedCount() > 0;
   const criticalNotifications = notifications.filter(n => !n.resolved && n.severity === 'critical');
 
-  return (
+  const content = (
     <>
-      {/* Critical Alert Banner - Always visible when critical attacks present */}
-      {criticalNotifications.length > 0 && (
+      {/* Critical Alert Banner (only in floating mode) */}
+      {mode === 'floating' && criticalNotifications.length > 0 && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-red-600 via-red-700 to-red-600 text-white shadow-lg animate-pulse">
           <div className="max-w-7xl mx-auto px-4 py-3">
             <div className="flex items-center justify-between">
@@ -156,32 +156,33 @@ export function BattleNotificationCenter() {
         </div>
       )}
 
-      {/* Battle Notification Center Toggle */}
-      <div className="fixed top-4 right-4 z-40">
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className={`relative p-3 rounded-full shadow-lg transition-all transform hover:scale-105 ${
-            hasUnresolvedNotifications 
-              ? 'bg-red-600 hover:bg-red-700 text-white animate-pulse' 
-              : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
-          }`}
-        >
-          <div className="text-xl">⚔️</div>
-          {hasUnresolvedNotifications && (
-            <div className="absolute -top-2 -right-2 bg-yellow-400 text-black text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center animate-bounce">
-              {getUnresolvedCount()}
-            </div>
-          )}
-        </button>
-      </div>
+      {mode === 'floating' && (
+        <div className="fixed top-4 right-4 z-40">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className={`relative p-3 rounded-full shadow-lg transition-all transform hover:scale-105 ${
+              hasUnresolvedNotifications 
+                ? 'bg-red-600 hover:bg-red-700 text-white animate-pulse' 
+                : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
+            }`}
+          >
+            <div className="text-xl">⚔️</div>
+            {hasUnresolvedNotifications && (
+              <div className="absolute -top-2 -right-2 bg-yellow-400 text-black text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center animate-bounce">
+                {getUnresolvedCount()}
+              </div>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Notification Panel */}
       {isExpanded && (
-        <div className="fixed top-0 right-0 h-full w-96 bg-gray-900 border-l border-gray-700 shadow-2xl z-50 overflow-y-auto">
+        <div className={`${mode === 'floating' ? 'fixed top-0 right-0 h-full w-96 z-50 border-l shadow-2xl' : 'relative w-full'} bg-gray-900 border-gray-700 overflow-y-auto`}>  
           <div className="p-4 border-b border-gray-700 bg-gray-800">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-white flex items-center">
-                ⚔️ Battle Center
+                ⚔️ Notifications
                 {hasUnresolvedNotifications && (
                   <span className="ml-2 bg-red-600 text-white text-xs px-2 py-1 rounded-full">
                     {getUnresolvedCount()} active
@@ -297,12 +298,36 @@ export function BattleNotificationCenter() {
       )}
 
       {/* Mobile Overlay */}
-      {isExpanded && (
-        <div 
+      {mode === 'floating' && isExpanded && (
+        <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={() => setIsExpanded(false)}
         />
       )}
     </>
   );
+  if (mode === 'embedded') {
+    return (
+      <div className="w-full">
+        {/* Embedded toggle button */}
+        <div className="flex items-center justify-between mb-3">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className={`px-4 py-2 rounded font-semibold text-sm transition-colors ${
+              hasUnresolvedNotifications
+                ? 'bg-red-600 hover:bg-red-700 text-white'
+                : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
+            }`}
+          >
+            {hasUnresolvedNotifications ? `⚔️ Alerts (${getUnresolvedCount()})` : '⚔️ Battle Alerts'}
+          </button>
+          {hasUnresolvedNotifications && (
+            <span className="text-xs text-red-400">{getUnresolvedCount()} pending</span>
+          )}
+        </div>
+        {content}
+      </div>
+    );
+  }
+  return content;
 }

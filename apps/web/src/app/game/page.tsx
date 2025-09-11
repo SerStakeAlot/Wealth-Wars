@@ -21,17 +21,18 @@ import { ShareModal } from '../../components/ShareModal';
 import { BattleCenter } from '../../components/BattleCenter';
 import { SynergyDisplay } from '../../components/SynergyDisplay';
 import { ENHANCED_BUSINESSES } from '../lib/businesses';
+import { OwnedEnhancedBusinesses } from '../../components/OwnedEnhancedBusinesses';
 import { MAINTENANCE_ACTIONS } from '../lib/maintenance';
+// Removed BusinessSlotManager (slot UI deprecated)
 
+// Fonts
 const inter = Inter({ subsets: ['latin'] });
 const orbitron = Orbitron({ subsets: ['latin'], weight: ['600', '800'] });
 
-/* ---------- Build a connection locally (no external helper) ---------- */
-const RPC_URL =
-  process.env.NEXT_PUBLIC_SOLANA_RPC_URL ||
-  clusterApiUrl(
-    (process.env.NEXT_PUBLIC_SOLANA_CLUSTER as 'devnet' | 'testnet' | 'mainnet-beta') || 'devnet'
-  );
+// RPC setup
+const RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || clusterApiUrl(
+  (process.env.NEXT_PUBLIC_SOLANA_CLUSTER as 'devnet' | 'testnet' | 'mainnet-beta') || 'devnet'
+);
 
 function useSolanaConnection() {
   const ref = useRef<Connection | null>(null);
@@ -41,7 +42,7 @@ function useSolanaConnection() {
   return ref.current;
 }
 
-/* ---------- Phantom wallet types ---------- */
+// Phantom provider type
 type SolanaProvider = {
   isPhantom?: boolean;
   publicKey?: { toString: () => string };
@@ -50,36 +51,14 @@ type SolanaProvider = {
   on?: (event: string, handler: (...args: any[]) => void) => void;
 };
 
-declare global {
-  interface Window {
-    solana?: any;
-  }
-}
+declare global { interface Window { solana?: any; } }
 
-const shorten = (pk = '') => (pk ? `${pk.slice(0, 4)}…${pk.slice(-4)}` : '');
+const shorten = (pk = '') => (pk ? `${pk.slice(0,4)}…${pk.slice(-4)}` : '');
 
-
-
-/* ---------- Reusable Wallet Avatar ---------- */
-function WalletAvatar({
-  connected,
-  pubkey,
-  onClick,
-  size = 40,
-}: {
-  connected: boolean;
-  pubkey: string;
-  onClick: () => void;
-  size?: number;
-}) {
+function WalletAvatar({ connected, pubkey, onClick, size = 40 }: { connected: boolean; pubkey: string; onClick: () => void; size?: number; }) {
   return (
     <div className="walletWrap">
-      <button
-        className="avatar"
-        onClick={onClick}
-        aria-label={connected ? 'Disconnect Wallet' : 'Connect Wallet'}
-        style={{ width: size, height: size }}
-      >
+      <button className="avatar" onClick={onClick} aria-label={connected ? 'Disconnect Wallet' : 'Connect Wallet'} style={{ width: size, height: size }}>
         <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 24 24" aria-hidden="true">
           <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H18a1 1 0 1 1 0 2H5.5A.5.5 0 0 0 5 7.5V17a.5.5 0 0 0 .5.5H19a2 2 0 0 0 2-2V11a1 1 0 1 0-2 0v3.5a.5.5 0 0 1-.5.5H6a2 2 0 0 1-2-2V7.5Z" fill="currentColor"/>
           <circle cx="18" cy="12" r="1.3" fill="currentColor"/>
@@ -87,33 +66,31 @@ function WalletAvatar({
         {connected && <span className="dot" />}
       </button>
       <div className="badge">{connected ? shorten(pubkey) : 'Connect'}</div>
-
       <style jsx>{`
         .walletWrap { display: inline-flex; align-items: center; gap: 8px; }
-        .avatar {
-          border-radius: 999px; display: grid; place-items: center; color: #0b1220;
-          background: linear-gradient(180deg, #fde68a, #fbbf24);
-          border: 2px solid #ffd700; box-shadow: 0 6px 16px rgba(255, 215, 0, 0.3);
-          cursor: pointer; transition: transform 120ms, filter 120ms;
-        }
-        .avatar:hover { transform: translateY(-1px); filter: brightness(1.03); }
-        .dot {
-          position: absolute; transform: translate(12px, -12px);
-          width: 9px; height: 9px; border-radius: 999px; background: #22c55e; box-shadow: 0 0 0 2px #fff inset;
-        }
-        .badge {
-          font-size: 12px; letter-spacing: 0.06em; padding: 6px 10px; border-radius: 10px;
-          border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: #e6edf5; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
-          user-select: none;
-        }
+        .avatar { border-radius: 999px; display: grid; place-items: center; color:#0b1220; background:linear-gradient(180deg,#fde68a,#fbbf24); border:2px solid #ffd700; box-shadow:0 6px 16px rgba(255,215,0,0.3); cursor:pointer; transition:transform 120ms, filter 120ms; }
+        .avatar:hover { transform: translateY(-1px); filter:brightness(1.03); }
+        .dot { position:absolute; transform: translate(12px,-12px); width:9px; height:9px; border-radius:999px; background:#22c55e; box-shadow:0 0 0 2px #fff inset; }
+        .badge { font-size:12px; letter-spacing:.06em; padding:6px 10px; border-radius:10px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.06); color:#e6edf5; box-shadow:0 4px 14px rgba(0,0,0,0.3); user-select:none; }
       `}</style>
     </div>
   );
 }
 
-
-
 function GamePage() {
+  // ALL useState calls must be at the very top - Rules of Hooks
+  const [provider, setProvider] = useState<SolanaProvider | null>(null);
+  const [pubkey, setPubkey] = useState('');
+  const [sol, setSol] = useState(0);
+  // Slot management removed; simplified active selection
+  const [swapDirection, setSwapDirection] = useState<'credit-to-wealth' | 'wealth-to-credit'>('credit-to-wealth');
+  const [swapAmount, setSwapAmount] = useState('');
+  const [maxSlippage, setMaxSlippage] = useState(0.5);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isBattleCenterOpen, setIsBattleCenterOpen] = useState(false);
+
+  // Other hooks after useState
   const connection = useSolanaConnection();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -146,9 +123,6 @@ function GamePage() {
   }
 
   /* ---------- Wallet state ---------- */
-  const [provider, setProvider] = useState<SolanaProvider | null>(null);
-  const [pubkey, setPubkey] = useState('');
-  const [sol, setSol] = useState(0);
   const connected = !!pubkey;
 
   /* ---------- Solana integration ---------- */
@@ -212,6 +186,21 @@ function GamePage() {
       reason: 'Not available in demo mode'
     }),
     maintenanceBudget: 0,
+    // Demo battle system (simplified)
+    battleState: {
+      lastAttackTime: 0,
+      lastDefenseTime: 0,
+      attacksToday: 0,
+      successfulAttacksToday: 0,
+      defenseRating: 0,
+      shieldExpiry: 0,
+      consecutiveAttacksFrom: {},
+      activeRaids: [],
+      tributePaid: [],
+      lastAttackByType: {},
+      businessMultiplierDamage: 0
+    },
+    repairBusinessMultipliers: () => ({ success: false, cost: 0, damageRepaired: 0 }),
     // Demo mode settings
     isOnChainMode: false,
     setOnChainMode: () => {},
@@ -238,8 +227,9 @@ function GamePage() {
     level, xp, wealth, liquidity, assets, collect, upgrade, defend, prestige, clanEligible, derived, tick, setWalletAddress,
     creditBalance, streakDays, business, clickWork, buyBusiness, initPlayer,
     lastWorkTime, workCooldown, workFrequency, totalWorkActions, totalCreditsEarned, workSession,
-    enhancedBusinesses, buyEnhancedBusiness, reorderEnhancedBusinesses,
+  enhancedBusinesses, buyEnhancedBusiness, reorderEnhancedBusinesses, businessSlots,
     businessConditions, performBusinessMaintenance, maintenanceBudget,
+    battleState, repairBusinessMultipliers,
     isOnChainMode, setOnChainMode, loading, setLoading,
     initPlayerOnChain, clickWorkOnChain, buyBusinessOnChain, 
     convertCreditsToWealth, swapCreditForWealth, swapWealthForCredit, refreshPlayerData,
@@ -260,10 +250,6 @@ function GamePage() {
     if (condition >= 40) return '#ef4444'; // Red
     return '#dc2626'; // Dark red
   };
-
-  // Slot management state
-  const [isSlotManagementMode, setIsSlotManagementMode] = useState(false);
-  const [selectedBusinessForSwap, setSelectedBusinessForSwap] = useState<string | null>(null);
 
   // Demo mode initialization
   useEffect(() => {
@@ -332,10 +318,6 @@ function GamePage() {
   };
 
   // Treasury state and calculations
-  const [swapDirection, setSwapDirection] = useState<'credit-to-wealth' | 'wealth-to-credit'>('credit-to-wealth');
-  const [swapAmount, setSwapAmount] = useState('');
-  const [maxSlippage, setMaxSlippage] = useState(0.5);
-
   const treasuryCalculations = useMemo(() => {
     if (!treasuryState) {
       return {
@@ -422,9 +404,6 @@ function GamePage() {
   useEffect(() => {
     setWalletAddress(pubkey);
   }, [pubkey]); // Removed setWalletAddress from deps since it's stable from Zustand
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [isBattleCenterOpen, setIsBattleCenterOpen] = useState(false);
 
   // AdCap timer for auto-collection
   useEffect(() => {
@@ -492,9 +471,8 @@ function GamePage() {
 
   return (
     <div className={`${inter.className} page`}>
-      {/* Battle Notification System */}
-      <DefenseBanner />
-      <BattleNotificationCenter />
+  {/* Defense banner (notifications now embedded inside Battle Center) */}
+  <DefenseBanner />
       
       {/* TOP BAR - Player Status & Settings */}
       <header className="topBar">
@@ -801,179 +779,36 @@ function GamePage() {
           {/* Enhanced Business Section Header */}
           <div className="sectionHeader enhanced">
             <h3 className="sectionTitle">Enhanced Businesses</h3>
-            {enhancedBusinesses.length > 1 && (
-              <button 
-                className={`manageBtn ${isSlotManagementMode ? 'active' : ''}`}
-                onClick={() => setIsSlotManagementMode(!isSlotManagementMode)}
-              >
-                {isSlotManagementMode ? '✓ Done' : '🔄 Manage Slots'}
-              </button>
-            )}
           </div>
 
-          {isSlotManagementMode && (
-            <div className="slotManagementInfo">
-              <p>Click on businesses to swap their positions. Selected business will be highlighted.</p>
-              {selectedBusinessForSwap && (
-                <p>Selected: <strong>{ENHANCED_BUSINESSES.find(b => b.id === selectedBusinessForSwap)?.name}</strong> - Click another to swap</p>
-              )}
+          {/* Business Multiplier Damage Status */}
+          {battleState.businessMultiplierDamage > 0 && (
+            <div className="businessDamageAlert">
+              <div className="damageInfo">
+                <span className="damageIcon">⚠️</span>
+                <span className="damageText">
+                  Business operations compromised! Work multipliers reduced by {battleState.businessMultiplierDamage}%
+                </span>
+              </div>
+              <button 
+                className="repairBtn"
+                onClick={() => {
+                  const result = repairBusinessMultipliers();
+                  if (!result.success && result.cost > 0) {
+                    alert(`Need ${result.cost} credits to repair damage`);
+                  }
+                }}
+                disabled={creditBalance < (battleState.businessMultiplierDamage * 2)}
+              >
+                🔧 Repair ({Math.ceil(battleState.businessMultiplierDamage * 2)} credits)
+              </button>
             </div>
           )}
 
-          {/* Enhanced Businesses - 3 Slots */}
-          {Array.from({ length: 3 }, (_, slotIndex) => {
-            let businessInSlot = null;
-            
-            if (isDemoMode) {
-              // Demo mode: use proper businessSlots array
-              const businessSlots = demoGame.player?.businessSlots || [];
-              const businessIdInSlot = businessSlots[slotIndex];
-              businessInSlot = businessIdInSlot ? ENHANCED_BUSINESSES.find(b => b.id === businessIdInSlot) : null;
-            } else {
-              // Regular mode: use original logic (first 3 owned businesses)
-              const ownedBusinesses = enhancedBusinesses
-                .map(id => ENHANCED_BUSINESSES.find(b => b.id === id))
-                .filter(Boolean);
-              businessInSlot = ownedBusinesses[slotIndex];
-            }
-            
-            if (!businessInSlot) {
-              // Empty slot
-              return (
-                <div key={`empty-slot-${slotIndex}`} className="businessCard enhanced empty">
-                  <div className="businessHeader">
-                    <span className="businessIcon">📭</span>
-                    <div className="businessTitleInfo">
-                      <span className="businessName">Empty Slot</span>
-                      <span className="businessCategory">Available</span>
-                    </div>
-                  </div>
-                  
-                  <div className="businessStats">
-                    <span className="businessDescription" style={{ 
-                      fontSize: '14px', 
-                      color: '#94a3b8',
-                      textAlign: 'center',
-                      display: 'block',
-                      marginTop: '20px'
-                    }}>
-                      Purchase enhanced businesses to fill this slot
-                    </span>
-                  </div>
-                  
-                  <button 
-                    className="buyBtn enhanced disabled"
-                    disabled={true}
-                    style={{ opacity: 0.5 }}
-                  >
-                    Slot {slotIndex + 1}/3
-                  </button>
-                </div>
-              );
-            }
+          {/* Removed debug Test Business Sabotage button */}
 
-            // Business in slot
-            const condition = getBusinessCondition(businessInSlot.id);
-            const conditionColor = getConditionColor(condition.condition);
-            const conditionLabel = getConditionLabel(condition.condition);
-            
-            return (
-              <div 
-                key={businessInSlot.id} 
-                className={`businessCard enhanced ${isSlotManagementMode ? 'manageable' : ''} ${selectedBusinessForSwap === businessInSlot.id ? 'selected' : ''}`}
-                onClick={isSlotManagementMode ? () => handleSlotSwap(businessInSlot.id, slotIndex) : undefined}
-                style={{ cursor: isSlotManagementMode ? 'pointer' : 'default' }}
-              >
-                {isSlotManagementMode && (
-                  <div className="slotManagementOverlay">
-                    <span className="swapIcon">🔄</span>
-                  </div>
-                )}
-                <div className="businessHeader">
-                  <span className="businessIcon">{businessInSlot.emoji}</span>
-                  <div className="businessTitleInfo">
-                    <span className="businessName">{businessInSlot.name}</span>
-                    <span className="businessCategory">{businessInSlot.category}</span>
-                  </div>
-                  {condition.isOffline && (
-                    <span className="offlineIndicator">🔧 OFFLINE</span>
-                  )}
-                </div>
-                
-                <div className="healthSection">
-                  <div className="healthHeader">
-                    <span className="healthLabel">Condition: {conditionLabel}</span>
-                    <span className="healthValue" style={{ color: conditionColor }}>
-                      {Math.floor(condition.condition)}%
-                    </span>
-                  </div>
-                  <div className="healthBar">
-                    <div 
-                      className="healthFill" 
-                      style={{ 
-                        width: `${condition.condition}%`, 
-                        backgroundColor: conditionColor 
-                      }}
-                    />
-                  </div>
-                </div>
-                
-                <div className="businessStats">
-                  <span className="businessOwned">
-                    Owned ✓ - Slot {slotIndex + 1}
-                  </span>
-                  <span className="businessIncome">+{businessInSlot.workMultiplier}% credits per work</span>
-                  <span className="businessTier" style={{ fontSize: '12px', color: '#ffd700' }}>
-                    {businessInSlot.cost <= 20 ? 'Entry Tier' : 
-                     businessInSlot.cost <= 50 ? 'Mid Tier' : 
-                     businessInSlot.cost <= 100 ? 'Premium Tier' : 'Elite Tier'} • {Math.round(businessInSlot.cost / 3)} sessions
-                  </span>
-                  <span className="businessDescription" style={{ fontSize: '12px' }}>{businessInSlot.description}</span>
-                </div>
-                
-                {!isSlotManagementMode && (
-                  <div className="maintenanceActions">
-                    <button 
-                      className="maintenanceBtn routine"
-                      onClick={() => handleMaintenance(businessInSlot.id, 'routine')}
-                      disabled={condition.condition >= 90}
-                      title="Routine maintenance - Low cost, moderate repair"
-                    >
-                      🔧 Routine
-                    </button>
-                    <button 
-                      className="maintenanceBtn major"
-                      onClick={() => handleMaintenance(businessInSlot.id, 'major')}
-                      disabled={condition.condition >= 90}
-                      title="Major overhaul - Higher cost, significant repair"
-                    >
-                      ⚙️ Major
-                    </button>
-                    {condition.condition <= 20 && (
-                      <button 
-                        className="maintenanceBtn emergency"
-                        onClick={() => handleMaintenance(businessInSlot.id, 'emergency')}
-                        title="Emergency repair - Expensive but instant"
-                      >
-                        🚨 Emergency
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {isSlotManagementMode && (
-                  <div className="slotManagementActions">
-                    <button 
-                      className={`slotSwapBtn ${selectedBusinessForSwap === businessInSlot.id ? 'selected' : ''}`}
-                      onClick={() => handleSlotSwap(businessInSlot.id, slotIndex)}
-                    >
-                      {selectedBusinessForSwap === businessInSlot.id ? '✓ Selected' : '🔄 Select to Swap'}
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {/* Owned Enhanced Businesses List (Activate / Toggle Active for Synergy) */}
+          <OwnedEnhancedBusinesses />
         </div>
 
         {/* Business Alliance Synergies */}
@@ -1152,6 +987,8 @@ function GamePage() {
         </div>
       </main>
 
+  {/* Slot manager removed */}
+
       {/* PROFILE SLIDE-OUT */}
       <aside className={`drawer ${profileOpen ? 'open' : ''}`}>
         <div className="drawerHead">
@@ -1176,7 +1013,8 @@ function GamePage() {
         <div className="navTabs">
           <button className="navBtn active" onClick={() => router.push('/game')}>Play Mode</button>
           <button className="navBtn" onClick={() => router.push('/forbes')}>Forbes List</button>
-          <button className="navBtn battle" onClick={() => setIsBattleCenterOpen(true)}>⚔️ Battle</button>
+          {/* Battle trigger moved to bottom BulkBar; keeping optional here commented out */}
+          {/* <button className="navBtn battle" onClick={() => setIsBattleCenterOpen(true)}>⚔️ Battle</button> */}
         </div>
 
         <div className="sep" />
@@ -1208,6 +1046,15 @@ function GamePage() {
         </div>
       </aside>
 
+      {/* MASK: click outside to close profile/drawers */}
+      {profileOpen && (
+        <div
+          className="mask"
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', zIndex: 19, cursor: 'pointer' }}
+          onClick={() => setProfileOpen(false)}
+        />
+      )}
+
       {/* MENU SHEET */}
       <MenuSheet isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
 
@@ -1218,7 +1065,7 @@ function GamePage() {
       <BattleCenter isOpen={isBattleCenterOpen} onClose={() => setIsBattleCenterOpen(false)} />
 
       {/* BOTTOM BAR */}
-      <BulkBar />
+  <BulkBar onOpenBattle={() => setIsBattleCenterOpen(true)} />
 
       {/* STYLES */}
       <style jsx>{`
@@ -1708,6 +1555,62 @@ function GamePage() {
           color: white;
           border: none;
           padding: 10px 16px;
+          border-radius: 6px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .businessDamageAlert {
+          background: linear-gradient(135deg, #ef4444, #dc2626);
+          border: 1px solid #f87171;
+          border-radius: 8px;
+          padding: 12px 16px;
+          margin: 12px 0;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+        }
+
+        .damageInfo {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: white;
+          font-weight: 500;
+        }
+
+        .damageIcon {
+          font-size: 18px;
+        }
+
+        .damageText {
+          font-size: 14px;
+        }
+
+        .repairBtn {
+          background: #22c55e;
+          color: white;
+          border: none;
+          padding: 8px 12px;
+          border-radius: 6px;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .repairBtn:hover:not(:disabled) {
+          background: #16a34a;
+          transform: translateY(-1px);
+        }
+
+        .repairBtn:disabled {
+          background: #6b7280;
+          cursor: not-allowed;
+          opacity: 0.6;
+        }
           border-radius: 8px;
           font-size: 14px;
           font-weight: 600;
@@ -2360,6 +2263,7 @@ function GamePage() {
           box-shadow: var(--shadow);
           backdrop-filter: blur(8px) saturate(1.2);
         }
+  .mask { position: fixed; inset: 0; background: rgba(15,23,42,0.6); z-index: 19; cursor: pointer; }
         .airBtn {
           border: 1px solid var(--line); background: rgba(255,255,255,0.06); color: var(--text);
           padding: 8px 10px; border-radius: 8px; cursor: pointer;

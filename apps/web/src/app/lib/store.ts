@@ -78,6 +78,17 @@ interface GameState extends Player {
   activateBusinessAbility: (businessId: string) => boolean;
   getActiveEffects: () => Record<string, any>;
   getMaxActiveSlots: () => number;
+  // New simplified active selection (replaces slot UI) - up to 3 active for synergy
+  activeEnhancedBusinesses: string[];
+  toggleActiveEnhancedBusiness: (businessId: string) => void;
+  // Ability System (new)
+  activeSustainedAbilityId: string | null; // which business is providing a sustained effect
+  sustainedAbilityEnd: number; // timestamp ms when sustained ends
+  abilityCharges: Record<string, number>; // per-business temporary charges (e.g. quick_service)
+  consumedUpgrades: Record<string, boolean>; // one-time upgrades applied
+  gambleFailStreak: number; // pity counter for risky investment
+  rapidProcessingRemaining?: number; // remaining work actions at reduced cooldown
+  compoundInterestSnapshot?: number; // snapshot of wealth for investment bank
   // Business Synergy System
   getActiveSynergies: () => import('./synergies').BusinessSynergy[];
   getSynergyEffects: () => Record<string, number>;
@@ -106,8 +117,12 @@ interface GameState extends Player {
   removeBusinessFromSlot: (slotId: number) => void;
   updateSlotSystem: () => void;
   getSlotCooldownTime: () => number;
+  // Active ability selection
+  selectedAbilityBusinessId: string | null;
+  setActiveAbility: (businessId: string | null) => void;
   // Battle System
   attackPlayer: (targetId: string, attackType?: AttackType, targetData?: { wealth: number; enhancedBusinesses: string[]; battleState: BattleState; landNfts: number }) => Promise<AttackResult>;
+  repairBusinessMultipliers: () => { success: boolean; cost: number; damageRepaired: number };
   activateShield: (shieldType: ShieldType) => boolean;
   payTribute: (targetId: string) => boolean;
   defendAlly: (allyId: string, attackerId: string) => boolean;
@@ -285,6 +300,15 @@ export const useGame = create<GameState>((set, get) => ({
 
   // Business Slot Management System
   businessSlots: SlotManagement.initializeSlotSystem('novice'),
+  selectedAbilityBusinessId: null,
+  activeEnhancedBusinesses: [],
+  activeSustainedAbilityId: null as string | null,
+  sustainedAbilityEnd: 0,
+  abilityCharges: {},
+  consumedUpgrades: {},
+  gambleFailStreak: 0,
+  rapidProcessingRemaining: 0,
+  compoundInterestSnapshot: 0,
 
   // Battle System
   battleState: {
@@ -297,7 +321,8 @@ export const useGame = create<GameState>((set, get) => ({
     consecutiveAttacksFrom: {},
     activeRaids: [],
     tributePaid: [],
-    lastAttackByType: {}
+    lastAttackByType: {},
+    businessMultiplierDamage: 0
   },
   landNfts: 0,
 
@@ -633,21 +658,41 @@ export const useGame = create<GameState>((set, get) => ({
       
       // Check regular work cooldown (2 hours between clicks)
       const timeSinceLastWork = now - (state.lastWorkTime || 0);
-      const regularCooldown = 2 * 60 * 60 * 1000; // 2 hours
+      // Base cooldown 2h, reduced to 1h if rapid processing active
+      let baseCooldown = 2 * 60 * 60 * 1000; // 2 hours
+      if (state.activeSustainedAbilityId) {
+        const sustainedBiz = ENHANCED_BUSINESSES.find(b => b.id === state.activeSustainedAbilityId);
+        if (sustainedBiz?.ability.id === 'rapid_processing' && state.rapidProcessingRemaining && state.rapidProcessingRemaining > 0) {
+          baseCooldown = 60 * 60 * 1000; // 1 hour
+        }
+      }
+      const regularCooldown = baseCooldown;
       
       if (timeSinceLastWork < regularCooldown) {
         // Return current state - work not ready
         return state;
       }
       
-      // Calculate work value: Fixed 25 credits per click
-      const baseWorkValue = 25;
+      // Calculate work value: Fixed 25 credits base (modified by quick_service charges if present)
+      let baseWorkValue = 25;
+      // Quick Service charges provide flat 40 credits per work action instead of 25
+      const quickServiceCharges = Object.entries(state.abilityCharges).find(([bizId, charges]) => {
+        const biz = ENHANCED_BUSINESSES.find(b => b.id === bizId);
+        return biz?.ability.id === 'quick_service' && charges > 0;
+      });
+      if (quickServiceCharges) {
+        baseWorkValue = 40;
+      }
       
       // Apply business multipliers (these affect credits earned)
-      const businessMultiplier = 1 + 
+      let businessMultiplier = 1 + 
         (state.business.lemStand * 0.2) +     // +20% per lemonade stand
         (state.business.cafe * 0.5) +         // +50% per coffee cafe  
         (state.business.factory * 1.0);       // +100% per widget factory
+      
+      // Apply business multiplier damage from successful Business Sabotage attacks
+      const damageMultiplier = 1 - (state.battleState.businessMultiplierDamage / 100);
+      businessMultiplier *= damageMultiplier;
       
       // Enhanced business bonuses from active slots
       let enhancedBusinessMultiplier = 1;
@@ -678,10 +723,9 @@ export const useGame = create<GameState>((set, get) => ({
       Object.values(activeEffects).forEach(effect => {
         const ability = effect.effect;
         if (ability.id === 'breakthrough') {
-          effectMultiplier *= 3; // 3x credits for this work action
-        } else if (ability.id === 'quick_service') {
-          effectMultiplier *= 1.2; // 20% bonus
+          effectMultiplier *= 3; // 3x credits for this work action (legacy if treated as timed)
         }
+        // quick_service now handled via charges base value modification
       });
       
       // Calculate final work value
@@ -723,6 +767,15 @@ export const useGame = create<GameState>((set, get) => ({
         lastWorkTime: now,
         workSession: updatedWorkSession,
         totalWorkActions: (state.totalWorkActions || 0) + 1,
+        // Consume rapid processing remaining actions
+        rapidProcessingRemaining: (state.activeSustainedAbilityId && ENHANCED_BUSINESSES.find(b => b.id === state.activeSustainedAbilityId)?.ability.id === 'rapid_processing' && state.rapidProcessingRemaining && state.rapidProcessingRemaining > 0)
+          ? state.rapidProcessingRemaining - 1
+          : state.rapidProcessingRemaining,
+        // Consume one quick service charge if present
+        abilityCharges: quickServiceCharges ? {
+          ...state.abilityCharges,
+          [quickServiceCharges[0]]: Math.max(0, (quickServiceCharges[1] as number) - 1)
+        } : state.abilityCharges,
         xp: newXp >= 100 ? 0 : newXp,
         level: newLevel,
         clanEligible: newLevel >= CLAN_MIN_LEVEL,
@@ -857,18 +910,18 @@ export const useGame = create<GameState>((set, get) => ({
     }
     
     set(state => {
-      // Auto-assign to first empty slot
+      const isFirstEnhanced = state.enhancedBusinesses.length === 0;
       const slots = state.businessSlots.slotManagement.activeSlots;
       const emptySlotIndex = slots.findIndex(slot => slot.businessId === null);
-      
+      const canAutoAssign = isFirstEnhanced && emptySlotIndex !== -1 && emptySlotIndex < state.businessSlots.slotManagement.maxSlots;
+
       let updatedBusinessSlots = state.businessSlots;
-      if (emptySlotIndex !== -1 && emptySlotIndex < state.businessSlots.slotManagement.maxSlots) {
+      if (canAutoAssign) {
         const updatedSlots = slots.map((slot, index) => 
           index === emptySlotIndex 
             ? { ...slot, businessId, activatedAt: Date.now() }
             : slot
         );
-        
         updatedBusinessSlots = {
           ...state.businessSlots,
           slotManagement: {
@@ -920,48 +973,123 @@ export const useGame = create<GameState>((set, get) => ({
     if (!business || !state.enhancedBusinesses.includes(businessId)) return false;
     if (business.ability.type === 'passive') return false; // Passive abilities don't need activation
     
-    // Check cooldown
-    const lastUsed = state.businessCooldowns[businessId] || 0;
     const now = Date.now();
-    if (business.ability.cooldown && now - lastUsed < business.ability.cooldown) return false;
-    
-    // Check cost
-    if (business.ability.cost && state.wealth < business.ability.cost) return false;
-    
-    set(state => {
-      const updates: any = {
-        businessCooldowns: {
-          ...state.businessCooldowns,
-          [businessId]: now
-        }
-      };
-      
-      // Deduct cost if any
-      if (business.ability.cost) {
-        updates.wealth = state.wealth - business.ability.cost;
+    const ability = business.ability;
+    const lastUsed = state.businessCooldowns[businessId] || 0;
+
+    // Upgrade one-time
+    if (ability.effectMode === 'upgrade') {
+      if (state.consumedUpgrades[businessId]) return false;
+      // Apply upgrade (+5 credits per work) -> we model as an active effect modifier
+      set({
+        consumedUpgrades: { ...state.consumedUpgrades, [businessId]: true }
+      });
+      return true;
+    }
+
+    // Cooldown check (if defined)
+    if (ability.cooldown && now - lastUsed < ability.cooldown) return false;
+
+    // Sustained exclusivity
+    if (ability.effectMode === 'sustained') {
+      if (state.activeSustainedAbilityId && state.activeSustainedAbilityId !== businessId) {
+        // Cannot stack another sustained
+        return false;
       }
-      
-      // Apply temporary effects
-      if (business.ability.duration) {
-        updates.activeEffects = {
-          ...state.activeEffects,
-          [business.ability.id]: {
-            endTime: now + business.ability.duration,
-            effect: business.ability
-          }
+    }
+
+    // Cost check
+    if (ability.cost && state.wealth < ability.cost) return false;
+
+    // Instant logic (e.g., gamble, intel, quick service charges)
+    if (ability.effectMode === 'instant') {
+      if (ability.id === 'risky_investment') {
+        // Venture gamble with pity mechanics
+        const win = Math.random() < 0.6 || state.gambleFailStreak >= 3;
+        set(s => ({
+          creditBalance: win ? s.creditBalance + 50 : s.creditBalance - 25,
+          gambleFailStreak: win ? 0 : s.gambleFailStreak + 1,
+          businessCooldowns: { ...s.businessCooldowns, [businessId]: now },
+          wealth: ability.cost ? s.wealth - ability.cost : s.wealth
+        }));
+        return true;
+      }
+      if (ability.id === 'quick_service') {
+        // Grant charges tracked in abilityCharges
+        const existing = state.abilityCharges[businessId] || 0;
+        const grant = ability.uses || 4;
+        set(s => ({
+          abilityCharges: { ...s.abilityCharges, [businessId]: existing + grant },
+          businessCooldowns: { ...s.businessCooldowns, [businessId]: now },
+          wealth: ability.cost ? s.wealth - ability.cost : s.wealth
+        }));
+        return true;
+      }
+      // Generic instant (espionage, intel)
+      set(s => ({
+        businessCooldowns: { ...s.businessCooldowns, [businessId]: now },
+        wealth: ability.cost ? s.wealth - ability.cost : s.wealth
+      }));
+      return true;
+    }
+
+    // Sustained activation
+    if (ability.effectMode === 'sustained') {
+      const end = ability.duration ? now + ability.duration : now + 60 * 60 * 1000; // fallback 1h
+      set(s => {
+        const updates: any = {
+          activeSustainedAbilityId: businessId,
+          sustainedAbilityEnd: end,
+          businessCooldowns: { ...s.businessCooldowns, [businessId]: now },
+          wealth: ability.cost ? s.wealth - ability.cost : s.wealth
         };
-      }
-      
-      return updates;
-    });
-    
-    return true;
+        if (ability.id === 'rapid_processing') {
+          // 6 reduced-cooldown work actions
+            updates.rapidProcessingRemaining = 6;
+        }
+        if (ability.id === 'compound_interest') {
+          updates.compoundInterestSnapshot = s.wealth; // snapshot current wealth
+        }
+        return updates;
+      });
+      return true;
+    }
+
+    return false;
   },
 
   getActiveEffects: () => {
     const state = get();
     const now = Date.now();
     const activeEffects: Record<string, any> = {};
+
+    // Add sustained ability pseudo-effect if active
+    if (state.activeSustainedAbilityId && now < state.sustainedAbilityEnd) {
+      const biz = ENHANCED_BUSINESSES.find(b => b.id === state.activeSustainedAbilityId);
+      if (biz) {
+        activeEffects[biz.ability.id] = {
+          endTime: state.sustainedAbilityEnd,
+          effect: biz.ability
+        };
+      } else {
+        // Clean if business missing
+        set({ activeSustainedAbilityId: null, sustainedAbilityEnd: 0 });
+      }
+    } else if (state.activeSustainedAbilityId && now >= state.sustainedAbilityEnd) {
+      // Sustained expired: handle end-of-effect resolutions
+      const expiredBiz = ENHANCED_BUSINESSES.find(b => b.id === state.activeSustainedAbilityId);
+      if (expiredBiz) {
+        if (expiredBiz.ability.id === 'compound_interest') {
+          // Pay out 5% of snapshot wealth captured at activation
+          const snapshot = state.compoundInterestSnapshot || 0;
+          const payout = Math.floor(snapshot * 0.05);
+          if (payout > 0) {
+            set(s => ({ wealth: s.wealth + payout }));
+          }
+        }
+      }
+      set({ activeSustainedAbilityId: null, sustainedAbilityEnd: 0, compoundInterestSnapshot: 0 });
+    }
     
     // Clean up expired effects and return active ones
     Object.entries(state.activeEffects).forEach(([effectId, effect]) => {
@@ -994,18 +1122,18 @@ export const useGame = create<GameState>((set, get) => ({
   // Business Synergy System
   getActiveSynergies: () => {
     const state = get();
-    return calculateActiveSynergies(state.enhancedBusinesses);
+  return calculateActiveSynergies(state.activeEnhancedBusinesses);
   },
 
   getSynergyEffects: () => {
     const state = get();
-    const activeSynergies = calculateActiveSynergies(state.enhancedBusinesses);
+  const activeSynergies = calculateActiveSynergies(state.activeEnhancedBusinesses);
     return calculateSynergyEffects(activeSynergies);
   },
 
   getSynergyProgress: () => {
     const state = get();
-    return getSynergyProgressTowardsNext(state.enhancedBusinesses);
+  return getSynergyProgressTowardsNext(state.activeEnhancedBusinesses);
   },
 
   initPlayer: () => {
@@ -1922,6 +2050,12 @@ export const useGame = create<GameState>((set, get) => ({
 
       // Update synergy bonuses
       get().updateSlotSystem();
+
+      // Clear active ability if its business was removed
+      const removedBiz = state.businessSlots.slotManagement.activeSlots.find(s => s.slotId === slotId)?.businessId;
+      if (removedBiz && get().selectedAbilityBusinessId === removedBiz) {
+        set({ selectedAbilityBusinessId: null });
+      }
     }
     
     console.log(result.message);
@@ -1943,6 +2077,36 @@ export const useGame = create<GameState>((set, get) => ({
     }));
   },
 
+  setActiveAbility: (businessId: string | null) => {
+    const state = get();
+    if (businessId === null) {
+      set({ selectedAbilityBusinessId: null });
+      return;
+    }
+    // Must be currently slotted
+    const slotted = state.businessSlots.slotManagement.activeSlots.some(s => s.businessId === businessId);
+    if (!slotted) return; // ignore invalid
+    set({ selectedAbilityBusinessId: businessId });
+  },
+
+  // Toggle active enhanced businesses (max 3) for synergy purposes
+  toggleActiveEnhancedBusiness: (businessId: string) => {
+    const state = get();
+    if (!state.enhancedBusinesses.includes(businessId)) return; // must own
+    const currentlyActive = state.activeEnhancedBusinesses;
+    const isActive = currentlyActive.includes(businessId);
+    if (isActive) {
+      set({ activeEnhancedBusinesses: currentlyActive.filter(id => id !== businessId) });
+    } else {
+      if (currentlyActive.length >= 3) {
+        // Optional: toast feedback if available
+        try { toast.error('Maximum of 3 active businesses for synergy'); } catch {}
+        return;
+      }
+      set({ activeEnhancedBusinesses: [...currentlyActive, businessId] });
+    }
+  },
+
   getSlotCooldownTime: () => {
     const state = get();
     const now = Date.now();
@@ -1954,6 +2118,7 @@ export const useGame = create<GameState>((set, get) => ({
   // Battle System Functions
   attackPlayer: async (targetId: string, attackType: AttackType = 'STANDARD', targetData?: { wealth: number; enhancedBusinesses: string[]; battleState: BattleState; landNfts: number }): Promise<AttackResult> => {
     const state = get();
+  const TARGET_MIN_WEALTH = 50; // minimum wealth to be a valid target (prevents griefing of new players)
     
     // Mock target data if not provided (for testing)
     const target = targetData || {
@@ -1972,13 +2137,49 @@ export const useGame = create<GameState>((set, get) => ({
         lastAttackByType: {
           STANDARD: 0,
           WEALTH_ASSAULT: 0,
-          LAND_SIEGE: 0
-        }
+          LAND_SIEGE: 0,
+          BUSINESS_SABOTAGE: 0
+        },
+        businessMultiplierDamage: 0
       },
       landNfts: Math.random() > 0.8 ? 1 : 0
     };
 
-    // Check if attack is allowed
+    // Quick target eligibility checks (minimum wealth to be targetable)
+    if (target.wealth < TARGET_MIN_WEALTH) {
+      return {
+        success: false,
+        wealthStolen: 0,
+        wealthLost: 0,
+        counterAttack: false,
+        raidTriggered: false,
+        message: `Target must have at least ${TARGET_MIN_WEALTH} $WEALTH to be attackable.`,
+        finalSuccessRate: 0,
+        attackType
+      };
+    }
+
+    // Check attacker eligibility and resources
+    const attackConfig = ATTACK_TYPES[attackType];
+
+    // For high-tier wealth attacks require attacker to hold a fraction of target wealth
+    if ((attackType === 'WEALTH_ASSAULT' || attackType === 'LAND_SIEGE')) {
+      const requiredShare = 0.25; // attacker must have >= 25% of target wealth
+      if (state.wealth < target.wealth * requiredShare) {
+        return {
+          success: false,
+          wealthStolen: 0,
+          wealthLost: 0,
+          counterAttack: false,
+          raidTriggered: false,
+          message: `Need at least ${Math.ceil(requiredShare * 100)}% of target's wealth to perform ${attackConfig.name}`,
+          finalSuccessRate: 0,
+          attackType
+        };
+      }
+    }
+
+    // Check if attack is allowed by generic checks
     const attackCheck = canAttackTarget(
       { 
         wealth: state.wealth, 
@@ -2010,6 +2211,28 @@ export const useGame = create<GameState>((set, get) => ({
       calculateSynergyEffects(calculateActiveSynergies(targetData.enhancedBusinesses)) : 
       { attackSuccessBonus: 0, defenseBonus: 0, wealthTheftBonus: 0 };
 
+    // Calculate diminishing returns / slippage based on consecutive successful attacks
+    const consecutiveCount = state.battleState.consecutiveAttacksFrom[targetId]?.count || 0;
+    const slippageMultiplier = Math.max(0.5, 1 - 0.1 * consecutiveCount); // reduce loot by 10% per consecutive success, min 50%
+
+    // Calculate attack cost with retry fee (10% per consecutive success)
+    const retryFeeMultiplier = 1 + 0.10 * consecutiveCount;
+    const costToDeduct = Math.ceil((attackConfig.cost || 0) * retryFeeMultiplier);
+
+    // Ensure attacker has resources for the cost
+    if (attackConfig.currency === 'wealth' && state.wealth < costToDeduct) {
+      return { success: false, wealthStolen: 0, wealthLost: 0, counterAttack: false, raidTriggered: false, message: `Need ${costToDeduct} $WEALTH for ${attackConfig.name}`, finalSuccessRate: 0, attackType };
+    }
+    if (attackConfig.currency === 'credits' && state.creditBalance < costToDeduct) {
+      return { success: false, wealthStolen: 0, wealthLost: 0, counterAttack: false, raidTriggered: false, message: `Need ${costToDeduct} credits for ${attackConfig.name}`, finalSuccessRate: 0, attackType };
+    }
+
+    // Deduct cost immediately (attacker pays to initiate)
+    let newWealth = state.wealth;
+    let newCreditBalance = state.creditBalance;
+    if (attackConfig.currency === 'wealth') newWealth -= costToDeduct;
+    else newCreditBalance -= costToDeduct;
+
     // Calculate attack success
     const { successRate } = calculateAttackSuccess(
       state.wealth,
@@ -2022,13 +2245,37 @@ export const useGame = create<GameState>((set, get) => ({
     );
 
     const attackSuccess = Math.random() < successRate;
-    const { stolen, lost } = calculateWealthTheft(target.wealth, attackSuccess, attackType);
+    
+    // Handle Business Sabotage attack type
+    let businessDamageDealt = 0;
+    if (attackType === 'BUSINESS_SABOTAGE' && attackSuccess) {
+      const attackConfig = ATTACK_TYPES[attackType];
+      let damageAmount: number = attackConfig.multiplierDamagePercent || 30;
+      
+      // Check for defensive business protection
+      if (target.enhancedBusinesses.includes('security_firm')) {
+        // Security Firm provides complete immunity
+        damageAmount = 0;
+      } else if (target.enhancedBusinesses.includes('insurance_company')) {
+        // Insurance Company reduces damage by 50%
+        damageAmount = Math.floor(damageAmount * 0.5);
+      }
+      
+      businessDamageDealt = damageAmount;
+      
+      // Note: We'll apply this damage to the target's business multipliers
+      // For now, we track it in the result message
+    }
+    
+  let { stolen, lost } = calculateWealthTheft(target.wealth, attackSuccess, attackType, attackerSynergyEffects);
+  // Apply slippage to stolen amount
+  if (stolen > 0) stolen = Math.floor(stolen * slippageMultiplier);
 
     // Check for counter-attack
     const counterAttack = !attackSuccess && Math.random() < BATTLE_CONFIG.COUNTER_ATTACK_CHANCE;
-    const finalLoss = counterAttack ? lost * 2 : lost;
+  const finalLoss = counterAttack ? lost * 2 : lost;
 
-    // Update consecutive attacks for raid system
+  // Update consecutive attacks for raid system
     const consecutiveAttacks = { ...state.battleState.consecutiveAttacksFrom };
     if (attackSuccess) {
       if (!consecutiveAttacks[targetId]) {
@@ -2058,16 +2305,17 @@ export const useGame = create<GameState>((set, get) => ({
       toast.success(`🏴‍☠️ Land Raid Triggered! You'll receive ${Math.floor(raidYield / 7)} $WEALTH daily for 7 days!`);
     }
 
-    // Calculate attack cost
-    const attackConfig = ATTACK_TYPES[attackType];
-    const costUpdate = attackConfig.currency === 'credits' 
-      ? { creditBalance: state.creditBalance - attackConfig.cost }
-      : { wealth: state.wealth - attackConfig.cost };
+    // Apply results to new balances (we already deducted initiation cost)
+    if (attackSuccess) {
+      newWealth += stolen;
+    } else {
+      // On failure, apply additional loss to wealth if applicable
+      newWealth -= finalLoss;
+    }
 
-    // Update state
     set(state => ({
-      ...costUpdate,
-      wealth: attackSuccess ? state.wealth + stolen - lost : state.wealth - finalLoss,
+      wealth: newWealth,
+      creditBalance: newCreditBalance,
       battleState: {
         ...state.battleState,
         lastAttackTime: Date.now(),
@@ -2085,11 +2333,16 @@ export const useGame = create<GameState>((set, get) => ({
       raidTriggered,
       finalSuccessRate: successRate,
       attackType,
+      businessDamageDealt,
       message: attackSuccess 
-        ? `✅ Attack successful! Stolen ${stolen} $WEALTH${raidTriggered ? ' + Land Raid triggered!' : ''}` 
+        ? attackType === 'BUSINESS_SABOTAGE' && businessDamageDealt > 0
+          ? `✅ Business Sabotage successful! Reduced target's work multipliers by ${businessDamageDealt}%`
+          : attackType === 'BUSINESS_SABOTAGE' && businessDamageDealt === 0
+          ? `✅ Business Sabotage blocked by Security Firm!`
+          : `✅ Attack successful! Stolen ${stolen} $WEALTH${raidTriggered ? ' + Land Raid triggered!' : ''}`
         : counterAttack 
-          ? `❌ Attack failed and counter-attacked! Lost ${finalLoss} $WEALTH`
-          : `❌ Attack failed! Lost ${finalLoss} $WEALTH`
+          ? `❌ Attack failed and counter-attacked! Lost ${finalLoss} ${attackType === 'BUSINESS_SABOTAGE' ? 'credits' : '$WEALTH'}`
+          : `❌ Attack failed! Lost ${finalLoss} ${attackType === 'BUSINESS_SABOTAGE' ? 'credits' : '$WEALTH'}`
     };
 
     // Show toast notification
@@ -2203,8 +2456,10 @@ export const useGame = create<GameState>((set, get) => ({
           lastAttackByType: {
             STANDARD: 0,
             WEALTH_ASSAULT: 0,
-            LAND_SIEGE: 0
-          }
+            LAND_SIEGE: 0,
+            BUSINESS_SABOTAGE: 0
+          },
+          businessMultiplierDamage: 0
         } 
       }
     );
@@ -2231,5 +2486,38 @@ export const useGame = create<GameState>((set, get) => ({
         successfulAttacksToday: 0
       }
     }));
+  },
+
+  repairBusinessMultipliers: () => {
+    const state = get();
+    const currentDamage = state.battleState.businessMultiplierDamage;
+    
+    if (currentDamage === 0) {
+      return { success: false, cost: 0, damageRepaired: 0 };
+    }
+    
+    // Calculate repair cost: 2 credits per 1% damage
+    const repairCost = Math.ceil(currentDamage * 2);
+    
+    if (state.creditBalance < repairCost) {
+      return { success: false, cost: repairCost, damageRepaired: 0 };
+    }
+    
+    // Perform repair
+    set(state => ({
+      creditBalance: state.creditBalance - repairCost,
+      battleState: {
+        ...state.battleState,
+        businessMultiplierDamage: 0
+      }
+    }));
+    
+    toast.success(`🔧 Business multipliers fully repaired for ${repairCost} credits!`);
+    
+    return { 
+      success: true, 
+      cost: repairCost, 
+      damageRepaired: currentDamage 
+    };
   },
 }));
