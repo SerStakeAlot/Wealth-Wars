@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SolanaProviders from "./providers/SolanaProviders";
 import { Toaster } from "react-hot-toast";
+import { Toaster as SonnerToaster } from "sonner";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SolanaProviders>
           {children}
           <Toaster position="top-right" />
+          <SonnerToaster />
         </SolanaProviders>
       </body>
     </html>
