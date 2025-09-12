@@ -13,7 +13,7 @@ export const DEMO_CONFIG = {
   DEMO_TREASURY: {
     initialWealth: 50_000,      // 50k fake $WEALTH in treasury
     initialCredits: 100_000,    // 100k credits in treasury
-    conversionRate: 100,        // 100 credits = 1 $WEALTH
+  conversionRate: 100,        // 100 credits = 1 $WEALTH
     maxDailyConversions: 1_000, // Prevent treasury drain
     refillAmount: 10_000,       // Auto-refill when low
     minReserve: 5_000,          // Minimum treasury reserve

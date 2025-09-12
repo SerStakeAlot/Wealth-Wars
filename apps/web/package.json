@@ -4,10 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+  "realtime-server": "node scripts/realtime-server.js",
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:activate": "tsx scripts/test-activate.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
@@ -21,6 +23,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.543.0",
+  "ws": "^8.13.0",
     "next": "15.5.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",

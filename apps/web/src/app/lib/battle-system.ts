@@ -149,7 +149,7 @@ export const BATTLE_CONFIG = {
     'market_research': { attackBonus: 0.05, defenseBonus: 0 },
     
     // Defensive bonuses
-    'private_security': { attackBonus: 0, defenseBonus: 0.20 },
+    'security_firm': { attackBonus: 0, defenseBonus: 0.20 },
     'insurance_company': { attackBonus: 0, defenseBonus: 0.10 },
     'government_contract': { attackBonus: 0, defenseBonus: 0.15 }
   }

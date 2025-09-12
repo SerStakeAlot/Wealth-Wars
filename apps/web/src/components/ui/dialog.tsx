@@ -33,16 +33,16 @@ const DialogContent = React.forwardRef<
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/50" 
+      <div
+        className="fixed inset-0 bg-black backdrop-blur-0"
         onClick={() => context.onOpenChange?.(false)}
       />
-      
-      {/* Dialog */}
+
+      {/* Dialog - use opaque card background and border by default to avoid transparency */}
       <div
         ref={ref}
         className={cn(
-          'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg',
+          'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 bg-card border border-border p-6 shadow-lg duration-200 sm:rounded-lg',
           className
         )}
         {...props}

@@ -39,6 +39,14 @@ import { MaintenanceSystem } from '@/components/MaintenanceSystem'
 import { EnhancedGameStats } from '@/components/EnhancedGameStats'
 import { NotificationCenter } from '@/components/NotificationCenter'
 import { AchievementSystem } from '@/components/AchievementSystem'
+import MultiplayerPanel from '@/components/MultiplayerPanel'
+import { ClanSystem } from '@/components/ClanSystem'
+import { EnhancedLeaderboards } from '@/components/EnhancedLeaderboards'
+import { UnifiedBattleSystem } from '@/components/UnifiedBattleSystem'
+import BoostBar from '@/components/BoostBar'
+import WealthWarsLogo from '@/components/WealthWarsLogo'
+import { AvatarButton } from '@/components/AvatarButton'
+import { useMultiplayerStore } from '@/lib/multiplayerStore'
 
 interface SparkGameUIProps {
   onReturnHome?: () => void
@@ -49,6 +57,8 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
   const [isConnected, setIsConnected] = useState(true) // Assume connected since we're in game
   const [currentTime, setCurrentTime] = useState(Date.now())
   const [activeTab, setActiveTab] = useState('overview')
+  const [showConverterModal, setShowConverterModal] = useState(false)
+  const [convertAmount, setConvertAmount] = useState<number>(100)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   
   // Update current time every second for cooldown calculations
@@ -65,16 +75,37 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
       gameStore.initializePlayer()
     }
   }, [])
+
+  // Show toast when a boost event occurs (consumed ability)
+  const lastBoostEvent = useGameStore(state => state.lastBoostEvent)
+  useEffect(() => {
+    if (!lastBoostEvent) return
+    toast(lastBoostEvent.message)
+    gameStore.clearLastBoostEvent()
+  }, [lastBoostEvent])
+
+  // Start realtime client once on mount
+  useEffect(() => {
+    try {
+      const start = useMultiplayerStore.getState().startRealtime
+      start()
+    } catch (e) {
+      console.info('failed to start realtime', e)
+    }
+  }, [])
   
   // Calculate work cooldown
   const workCooldownRemaining = () => {
-    const baseCooldown = 7200000 // 2 hours
-    const cooldownReduction = gameStore.rapidProcessingRemaining > 0 ? 0.5 : 0
-    const actualCooldown = baseCooldown * (1 - cooldownReduction)
-    const timeRemaining = actualCooldown - (currentTime - gameStore.lastWorkTime)
+    const last = gameStore.player.lastWorkTimestamp || 0
+    const consecutive = gameStore.player.consecutiveWorkClicks || 0
+    if (last === 0) return 0
+    const sixHours = 6 * 60 * 60 * 1000
+    const twoHours = 2 * 60 * 60 * 1000
+    const required = consecutive >= 3 ? sixHours : twoHours
+    const timeRemaining = required - (currentTime - last)
     return Math.max(0, timeRemaining)
   }
-  
+
   const isWorkOnCooldown = () => workCooldownRemaining() > 0
   
   const formatTime = (ms: number) => {
@@ -87,10 +118,25 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
     }
     return `${minutes}m ${seconds}s`
   }
+
+  const nextCooldownLabel = () => {
+    const consecutive = gameStore.player.consecutiveWorkClicks || 0
+    return consecutive >= 3 ? '6h' : '2h'
+  }
+
+  const canConvertCredits = (amount: number) => {
+    return gameStore.player.credits >= amount && amount > 0
+  }
+
+  const canConvertWealth = (amount: number) => {
+    return gameStore.player.wealth >= amount && amount > 0
+  }
   
   const calculateBusinessProfit = (business: any) => {
     if (business.outlets === 0) return 0
-    return business.baseProfit * business.outlets * (business.condition / 100)
+    // Enhanced businesses don't generate passive profit, only work bonuses
+    if (business.category) return 0
+    return business.baseCost * business.outlets * (business.condition / 100) * 0.1 // 10% of base cost per outlet
   }
   
   const calculateBusinessNextCost = (business: any) => {
@@ -101,7 +147,7 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
   
   const ShareModal = () => (
     <Dialog open={gameStore.showShareModal} onOpenChange={gameStore.setShowShareModal}>
-      <DialogContent className="sm:max-w-md">
+  <DialogContent className="sm:max-w-md bg-card border border-border shadow-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
@@ -114,18 +160,22 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
         <div className="flex flex-col gap-4">
           <Button 
             onClick={() => {
-              // Mock share action
-              const bonus = Math.floor(20 * 0.5) // 50% bonus
-              gameStore.player.credits += bonus
-              toast('Shared! Earned bonus credits!', {
-                description: `You earned ${bonus} bonus credits for sharing!`
+              // Activate a one-time 1.5x boost for next work action, then open Twitter intent
+              gameStore.setShareBoostActive(true)
+
+              const text = encodeURIComponent("I'm playing @wealthwars — building my empire in Wealth Wars! Join me and earn rewards. #WealthWars")
+              const url = `https://twitter.com/intent/tweet?text=${text}`
+              window.open(url, '_blank', 'noopener')
+
+              toast('Shared! 1.5x boost active for your next work action', {
+                description: `Your next Work will earn 1.5x credits.`
               })
               gameStore.setShowShareModal(false)
             }}
             className="bg-green-600 hover:bg-green-700"
           >
             <Share2 className="h-4 w-4 mr-2" />
-            Share for Bonus
+            Share for 1.5x
           </Button>
           <Button 
             variant="outline" 
@@ -137,18 +187,75 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
       </DialogContent>
     </Dialog>
   )
+
+  const TreasuryModal = () => (
+    <Dialog open={showConverterModal} onOpenChange={setShowConverterModal}>
+  <DialogContent className="sm:max-w-md bg-card border border-border shadow-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ArrowUpRight className="h-5 w-5 text-primary" />
+            Treasury Converter
+          </DialogTitle>
+          <DialogDescription>
+            Convert between Credits and $WEALTH. Enter an amount then choose conversion direction.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-4">
+          <input
+            type="number"
+            min={1}
+            value={convertAmount}
+            onChange={(e) => setConvertAmount(Number(e.target.value))}
+            className="w-full border rounded p-2"
+          />
+
+          <div className="flex gap-2">
+            <Button
+              onClick={() => {
+                if (!canConvertCredits(convertAmount)) {
+                  toast.error(`Need ${convertAmount} credits to convert`)
+                  return
+                }
+                gameStore.convertCreditsToWealth(convertAmount)
+                toast.success(`Converted ${convertAmount} credits to $WEALTH`)
+                setShowConverterModal(false)
+              }}
+              className="flex-1 bg-green-600 hover:bg-green-700"
+            >
+              Credits → $WEALTH
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (!canConvertWealth(convertAmount)) {
+                  toast.error(`Need ${convertAmount} $WEALTH to convert`)
+                  return
+                }
+                gameStore.convertWealthToCredits(convertAmount)
+                toast.success(`Converted ${convertAmount} $WEALTH to credits`)
+                setShowConverterModal(false)
+              }}
+              className="flex-1"
+            >
+              $WEALTH → Credits
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
   
   // Mobile Navigation
   const MobileNav = () => (
     <div className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
-      <div className="grid grid-cols-6 gap-1 p-2">
+      <div className="grid grid-cols-4 gap-1 p-2">
         {[
           { id: 'overview', icon: Home, label: 'Home' },
-          { id: 'businesses', icon: Building2, label: 'Business' },
-          { id: 'battle', icon: Swords, label: 'Battle' },
-          { id: 'maintenance', icon: Wrench, label: 'Maintain' },
-          { id: 'achievements', icon: Star, label: 'Achieve' },
-          { id: 'leaderboard', icon: Trophy, label: 'Rankings' }
+          { id: 'combat', icon: Zap, label: 'Combat' },
+          { id: 'clans', icon: Shield, label: 'Clans' },
+          { id: 'leaderboard', icon: Trophy, label: 'Top' }
         ].map(tab => (
           <Button
             key={tab.id}
@@ -168,26 +275,26 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+  <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent">
-              Wealth Wars
-            </h1>
-            <Badge variant="secondary" className="hidden sm:inline-flex">
-              Level {gameStore.player.level}
-            </Badge>
+            <WealthWarsLogo className="text-2xl" />
+            {/* Replaced Level badge with Avatar/Wallet display so we can repurpose this space */}
+            <div className="hidden sm:block">
+              {/* AvatarButton shows username or 'Player' and toggles a small menu */}
+              <AvatarButton />
+            </div>
           </div>
           
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex items-center gap-4 text-sm">
               <div className="flex items-center gap-1">
-                <Coins className="h-4 w-4 text-primary" />
-                <span className="font-semibold">{gameStore.player.credits.toLocaleString()}</span>
+                <Coins className="h-4 w-4 text-muted-foreground" />
+                <span className="font-semibold gold-gradient">{gameStore.player.credits.toLocaleString()}</span>
               </div>
               <div className="flex items-center gap-1">
-                <TrendingUp className="h-4 w-4 text-green-500" />
-                <span className="font-semibold">{gameStore.player.wealth.toLocaleString()}</span>
+                <span className="text-muted-foreground font-semibold">$</span>
+                <span className="font-semibold gold-gradient">{gameStore.player.wealth.toLocaleString()}</span>
               </div>
             </div>
             
@@ -215,38 +322,20 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 space-y-6">
         
-        {/* Mobile Stats Bar */}
-        <div className="grid grid-cols-2 gap-4 md:hidden">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="flex items-center justify-center gap-2">
-                <Coins className="h-4 w-4 text-primary" />
-                <span className="font-semibold">{gameStore.player.credits.toLocaleString()}</span>
-              </div>
-              <p className="text-xs text-muted-foreground">Credits</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="flex items-center justify-center gap-2">
-                <TrendingUp className="h-4 w-4 text-success" />
-                <span className="font-semibold">{gameStore.player.wealth.toLocaleString()}</span>
-              </div>
-              <p className="text-xs text-muted-foreground">Wealth</p>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Mobile Stats Bar removed — stats are shown in the HUD and EnhancedGameStats */}
         
         {/* Desktop Navigation */}
         <div className="hidden md:block">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-8">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="businesses">Businesses</TabsTrigger>
-              <TabsTrigger value="battle">Battle</TabsTrigger>
+              <TabsTrigger value="combat">Combat</TabsTrigger>
+              <TabsTrigger value="clans">Clans</TabsTrigger>
               <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
               <TabsTrigger value="achievements">Achievements</TabsTrigger>
               <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
             
             {/* Overview Tab */}
@@ -306,7 +395,7 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-muted-foreground">Work Streak</p>
-                        <p className="text-2xl font-bold">{gameStore.workStreak}</p>
+                        <p className="text-2xl font-bold">{gameStore.player.workStreak}</p>
                       </div>
                       <Zap className="h-8 w-8 text-yellow-500" />
                     </div>
@@ -317,13 +406,13 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
               {/* Work System */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Zap className="h-5 w-5" />
-                    Work System
-                  </CardTitle>
-                  <CardDescription>
-                    Click to work and earn credits. Complete work sessions to build your empire.
-                  </CardDescription>
+                    <CardTitle className="flex items-center gap-2">
+                      <Timer className="h-5 w-5" />
+                      Clock In
+                    </CardTitle>
+                    <CardDescription>
+                      Clock in to earn credits. Complete clock-in sessions to build your empire.
+                    </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex flex-col sm:flex-row gap-4 items-center">
@@ -341,36 +430,67 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                       ) : (
                         <>
                           <Zap className="h-5 w-5 mr-2" />
-                          Work (+20 Credits)
+                          Work (+25 Credits)
                         </>
                       )}
                     </Button>
                     
-                    {gameStore.rapidProcessingRemaining > 0 && (
-                      <Badge variant="secondary" className="animate-pulse">
-                        <Sparkles className="h-3 w-3 mr-1" />
-                        Rapid Processing: {gameStore.rapidProcessingRemaining} uses left
-                      </Badge>
-                    )}
+                    <Badge variant="secondary">
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      Sessions: {gameStore.player.workSessionCount}
+                    </Badge>
                   </div>
                 </CardContent>
               </Card>
+
+              {/* HUD indicators (Boost handled in BoostBar) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Consecutive Clock-Ins</p>
+                        <p className="text-lg font-bold">{gameStore.player.consecutiveWorkClicks || 0}</p>
+                      </div>
+                      <Zap className="h-6 w-6 text-yellow-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Next Cooldown</p>
+                        <p className="text-lg font-bold">
+                          {isWorkOnCooldown() ? formatTime(workCooldownRemaining()) : `Ready (${nextCooldownLabel()})`}
+                        </p>
+                      </div>
+                      <Timer className="h-6 w-6" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              {/* Boost bar showing active enhanced-business abilities */}
+              <div className="mt-4">
+                <BoostBar />
+              </div>
               
               {/* Economy System */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <ArrowUpRight className="h-5 w-5" />
-                    Token Economy
-                  </CardTitle>
-                  <CardDescription>
-                    Convert between credits and $WEALTH tokens
-                  </CardDescription>
+                      <ArrowUpRight className="h-5 w-5" />
+                      Treasury
+                    </CardTitle>
+                    <CardDescription>
+                      Convert between credits and $WEALTH in the Treasury
+                    </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Button
-                      onClick={() => gameStore.convertCreditsToWealth()}
+                      onClick={() => gameStore.convertCreditsToWealth(100)}
                       disabled={!canAfford(100)}
                       className="h-24 flex flex-col gap-2"
                     >
@@ -384,7 +504,7 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                       className="h-24 flex flex-col gap-2"
                     >
                       <span>Convert $WEALTH → Credits</span>
-                      <span className="text-sm opacity-75">1 $WEALTH = 100 Credits</span>
+                      <span className="text-sm opacity-75">1 $WEALTH = 50 Credits</span>
                     </Button>
                   </div>
                 </CardContent>
@@ -434,12 +554,12 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                             </Button>
                           )}
                           
-                          {business.outlets > 0 && (
+                          {business.condition < 100 && (
                             <Button
                               variant="secondary"
-                              onClick={() => gameStore.collectBusiness(business.id)}
+                              onClick={() => gameStore.repairBusiness(business.id, 100 - business.condition)}
                             >
-                              Collect Profits
+                              Repair Business
                             </Button>
                           )}
                         </div>
@@ -454,9 +574,9 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
               <h3 className="text-lg font-semibold">Enhanced Businesses</h3>
               <div className="grid gap-4">
                 {gameStore.enhancedBusinesses.map((business) => {
-                  const isOnCooldown = currentTime - business.lastActivated < business.cooldown * 1000
-                  const cooldownRemaining = business.cooldown * 1000 - (currentTime - business.lastActivated)
-                  const isSynergyActive = gameStore.activeEnhancedBusinesses.includes(business.id)
+                  const isOnCooldown = currentTime - business.lastActivated < business.cooldown
+                  const cooldownRemaining = business.cooldown - (currentTime - business.lastActivated)
+                  const isSlotActive = gameStore.activeSlots.includes(business.id)
                   
                   return (
                     <Card key={business.id} className="hover:shadow-lg transition-shadow border-green-200">
@@ -470,9 +590,9 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                                 <Badge variant={business.abilityType === 'passive' ? 'default' : 'secondary'}>
                                   {business.abilityType}
                                 </Badge>
-                                {isSynergyActive && (
+                                {isSlotActive && (
                                   <Badge className="bg-green-600 text-white">
-                                    Synergy Active
+                                    Active Slot
                                   </Badge>
                                 )}
                               </div>
@@ -482,28 +602,26 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                                 <p className="text-xs text-muted-foreground">{business.abilityDescription}</p>
                               </div>
                               <div className="flex items-center gap-4 mt-2 text-sm">
-                                <span>Outlets: {business.outlets}</span>
-                                {business.outlets > 0 && (
-                                  <span>Profit/cycle: {calculateBusinessProfit(business)}</span>
-                                )}
+                                <span>Cost: {business.cost} $WEALTH</span>
+                                <span>Work Multiplier: +{business.workMultiplier}%</span>
                               </div>
                             </div>
                           </div>
                           
                           <div className="flex flex-col gap-2">
-                            {business.outlets === 0 ? (
+                            {!business.owned ? (
                               <Button
                                 onClick={() => gameStore.buyEnhancedBusiness(business.id)}
-                                disabled={!canAfford(calculateBusinessNextCost(business))}
+                                disabled={gameStore.player.wealth < business.cost}
                                 className="bg-green-600 hover:bg-green-700"
                               >
-                                Buy ({calculateBusinessNextCost(business)} credits)
+                                Buy ({business.cost} $WEALTH)
                               </Button>
                             ) : (
                               <>
                                 {business.abilityType !== 'passive' && (
                                   <Button
-                                    onClick={() => gameStore.activateAbility(business.id)}
+                                    onClick={() => gameStore.activateEnhancedBusiness(business.id)}
                                     disabled={isOnCooldown}
                                     variant="outline"
                                   >
@@ -512,11 +630,11 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                                 )}
                                 
                                 <Button
-                                  onClick={() => gameStore.toggleSynergy(business.id)}
-                                  variant={isSynergyActive ? 'default' : 'outline'}
+                                  onClick={() => gameStore.toggleBusinessSlot(business.id)}
+                                  variant={isSlotActive ? 'default' : 'outline'}
                                   size="sm"
                                 >
-                                  {isSynergyActive ? 'Remove Synergy' : 'Add Synergy'}
+                                  {isSlotActive ? 'Remove from Slot' : 'Add to Slot'}
                                 </Button>
                                 
                                 <Button
@@ -537,19 +655,19 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                 })}
               </div>
               
-              {gameStore.activeEnhancedBusinesses.length > 0 && (
+              {gameStore.activeSlots.length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Sparkles className="h-5 w-5" />
-                      Active Synergies
+                      Active Business Slots
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm">Work Bonus:</span>
+                      <span className="text-sm">Work Multiplier:</span>
                       <Badge className="bg-green-600 text-white">
-                        +{gameStore.activeEnhancedBusinesses.length * 10}%
+                        +{gameStore.getWorkMultiplier()}%
                       </Badge>
                     </div>
                   </CardContent>
@@ -557,8 +675,19 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
               )}
             </TabsContent>
             
-            <TabsContent value="battle">
-              <BattleSystem />
+            <TabsContent value="combat">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <UnifiedBattleSystem />
+                </div>
+                <div>
+                  <MultiplayerPanel />
+                </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="clans">
+              <ClanSystem />
             </TabsContent>
             
             <TabsContent value="maintenance">
@@ -570,7 +699,7 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
             </TabsContent>
             
             <TabsContent value="leaderboard">
-              <Leaderboard />
+              <EnhancedLeaderboards />
             </TabsContent>
           </Tabs>
         </div>
@@ -604,7 +733,7 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                     ) : (
                       <>
                         <Zap className="h-5 w-5 mr-2" />
-                        Work (+20 Credits)
+                        Work (+25 Credits)
                       </>
                     )}
                   </Button>
@@ -645,10 +774,18 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
             </div>
           )}
           
-          {activeTab === 'battle' && <BattleSystem />}
+          {activeTab === 'combat' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4">
+                <UnifiedBattleSystem />
+                <MultiplayerPanel />
+              </div>
+            </div>
+          )}
+          {activeTab === 'clans' && <ClanSystem />}
           {activeTab === 'maintenance' && <MaintenanceSystem />}
           {activeTab === 'achievements' && <AchievementSystem />}
-          {activeTab === 'leaderboard' && <Leaderboard />}
+          {activeTab === 'leaderboard' && <EnhancedLeaderboards />}
         </div>
         
       </main>

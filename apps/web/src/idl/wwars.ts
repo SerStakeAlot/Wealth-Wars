@@ -1524,3 +1524,9 @@ export type Wwars = {
     }
   ]
 };
+
+// Runtime-friendly IDL export used by tests or runtime code that import { IDL }
+// The JSON file `wwars.json` is generated during build/deploy and sits alongside this file.
+// Use require to avoid esModuleInterop issues in some test runners.
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+export const IDL = require('./wwars.json') as any;

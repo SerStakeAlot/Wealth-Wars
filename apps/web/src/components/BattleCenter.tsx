@@ -48,7 +48,7 @@ export function BattleCenter({ isOpen, onClose }: BattleCenterProps) {
     // Use selected target data if available, otherwise mock
     const mockTargetData = selectedTargetData || {
       wealth: parseInt(targetWealth) || 150,
-      enhancedBusinesses: Math.random() > 0.5 ? ['private_security'] : [],
+      enhancedBusinesses: Math.random() > 0.5 ? ['security_firm'] : [],
       battleState: {
         lastAttackTime: 0,
         lastDefenseTime: 0,
@@ -110,8 +110,8 @@ export function BattleCenter({ isOpen, onClose }: BattleCenterProps) {
   const battleStats = getBattleStats();
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
+      <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto shadow-xl">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-3xl font-bold text-red-400">⚔️ Battle Center</h2>
           <button
@@ -223,7 +223,7 @@ export function BattleCenter({ isOpen, onClose }: BattleCenterProps) {
                     {displayName}
                   </button>
                   {/* Tooltip */}
-                  <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute z-50 left-1/2 -translate-x-1/2 mt-2 w-56 p-3 rounded-lg bg-black/90 border border-gray-600 shadow-lg backdrop-blur-sm">
+                  <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute z-50 left-1/2 -translate-x-1/2 mt-2 w-56 p-3 rounded-lg bg-card border border-border shadow-lg">
                     <p className="text-xs font-semibold text-indigo-300 mb-1">{displayName}</p>
                     <p className="text-[11px] text-gray-200 leading-snug mb-1">{summary}</p>
                     <p className="text-[11px] text-gray-400">Cost: <span className="text-gray-200">{cfg.cost} {currencyLabel}</span></p>

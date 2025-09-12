@@ -185,7 +185,8 @@ export const useDemoGame = create<DemoGameStore>((set, get) => ({
   battleCooldowns: {
     STANDARD: 0,
     WEALTH_ASSAULT: 0,
-    LAND_SIEGE: 0
+    LAND_SIEGE: 0,
+    BUSINESS_SABOTAGE: 0
   },
 
   // Initialize demo
@@ -230,7 +231,8 @@ export const useDemoGame = create<DemoGameStore>((set, get) => ({
       battleCooldowns: {
         STANDARD: 0,
         WEALTH_ASSAULT: 0,
-        LAND_SIEGE: 0
+        LAND_SIEGE: 0,
+        BUSINESS_SABOTAGE: 0
       }
     });
     

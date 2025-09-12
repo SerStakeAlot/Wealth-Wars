@@ -100,10 +100,10 @@ export function BattleNotificationCenter({ mode = 'floating' }: { mode?: 'floati
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'critical': return 'bg-red-600 border-red-500 text-red-100';
-      case 'high': return 'bg-orange-600 border-orange-500 text-orange-100';
-      case 'medium': return 'bg-yellow-600 border-yellow-500 text-yellow-100';
-      case 'low': return 'bg-blue-600 border-blue-500 text-blue-100';
+      case 'critical': return 'bg-yellow-800 border-yellow-700 text-yellow-50';
+      case 'high': return 'bg-yellow-700 border-yellow-600 text-yellow-50';
+      case 'medium': return 'bg-yellow-600 border-yellow-500 text-black';
+      case 'low': return 'bg-gray-800 border-gray-700 text-gray-100';
       default: return 'bg-gray-600 border-gray-500 text-gray-100';
     }
   };
@@ -125,14 +125,14 @@ export function BattleNotificationCenter({ mode = 'floating' }: { mode?: 'floati
     <>
       {/* Critical Alert Banner (only in floating mode) */}
       {mode === 'floating' && criticalNotifications.length > 0 && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-red-600 via-red-700 to-red-600 text-white shadow-lg animate-pulse">
+        <div className="fixed top-0 left-0 right-0 z-50 bg-card border border-border shadow-lg animate-pulse">
           <div className="max-w-7xl mx-auto px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="text-2xl animate-bounce">🚨</div>
                 <div>
-                  <div className="font-bold text-lg">CRITICAL THREAT DETECTED!</div>
-                  <div className="text-sm opacity-90">
+                  <div className="font-bold text-lg gold-gradient">CRITICAL THREAT DETECTED!</div>
+                  <div className="text-sm opacity-90 gold-gradient">
                     {criticalNotifications[0].message}
                   </div>
                 </div>
@@ -140,13 +140,13 @@ export function BattleNotificationCenter({ mode = 'floating' }: { mode?: 'floati
               <div className="flex items-center space-x-3">
                 <button
                   onClick={() => setIsExpanded(true)}
-                  className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg font-semibold transition-colors"
+                  className="bg-yellow-400/10 hover:bg-yellow-400/20 px-4 py-2 rounded-lg font-semibold transition-colors gold-gradient"
                 >
                   📊 View Details
                 </button>
                 <button
                   onClick={() => markAsResolved(criticalNotifications[0].id)}
-                  className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg font-semibold transition-colors"
+                  className="bg-yellow-400/10 hover:bg-yellow-400/20 px-4 py-2 rounded-lg font-semibold transition-colors gold-gradient"
                 >
                   ✓ Acknowledge
                 </button>
@@ -157,12 +157,12 @@ export function BattleNotificationCenter({ mode = 'floating' }: { mode?: 'floati
       )}
 
       {mode === 'floating' && (
-        <div className="fixed top-4 right-4 z-40">
+    <div className="fixed top-4 right-4 z-40">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className={`relative p-3 rounded-full shadow-lg transition-all transform hover:scale-105 ${
               hasUnresolvedNotifications 
-                ? 'bg-red-600 hover:bg-red-700 text-white animate-pulse' 
+                ? 'bg-yellow-500 hover:bg-yellow-600 text-black animate-pulse' 
                 : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
             }`}
           >
@@ -178,13 +178,13 @@ export function BattleNotificationCenter({ mode = 'floating' }: { mode?: 'floati
 
       {/* Notification Panel */}
       {isExpanded && (
-        <div className={`${mode === 'floating' ? 'fixed top-0 right-0 h-full w-96 z-50 border-l shadow-2xl' : 'relative w-full'} bg-gray-900 border-gray-700 overflow-y-auto`}>  
-          <div className="p-4 border-b border-gray-700 bg-gray-800">
+        <div className={`${mode === 'floating' ? 'fixed top-0 right-0 h-full w-96 z-50 border-l shadow-2xl' : 'relative w-full'} bg-card border-border overflow-y-auto`}>  
+          <div className="p-4 border-b border-border bg-card goldenize">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white flex items-center">
+              <h3 className="text-lg font-bold gold-gradient flex items-center">
                 ⚔️ Notifications
                 {hasUnresolvedNotifications && (
-                  <span className="ml-2 bg-red-600 text-white text-xs px-2 py-1 rounded-full">
+                  <span className="ml-2 bg-yellow-600 text-black text-xs px-2 py-1 rounded-full gold-gradient">
                     {getUnresolvedCount()} active
                   </span>
                 )}
@@ -237,14 +237,14 @@ export function BattleNotificationCenter({ mode = 'floating' }: { mode?: 'floati
                            notification.type === 'shield_expired' ? '🛡️' :
                            notification.type === 'raid_active' ? '🏴‍☠️' : '⚔️'}
                         </span>
-                        <span className="font-semibold">
+                        <span className="font-semibold gold-gradient">
                           {notification.attackerName || 'Battle Alert'}
                         </span>
-                        <span className="text-xs opacity-75">
+                        <span className="text-xs opacity-75 gold-gradient">
                           {Math.floor((Date.now() - notification.timestamp) / 60000)}m ago
                         </span>
                       </div>
-                      <p className="text-sm mb-2">{notification.message}</p>
+                      <p className="text-sm mb-2 gold-gradient">{notification.message}</p>
                       
                       {notification.attackType && (
                         <div className="text-xs opacity-75">
@@ -258,10 +258,10 @@ export function BattleNotificationCenter({ mode = 'floating' }: { mode?: 'floati
                       )}
                     </div>
                     
-                    {notification.actionRequired && !notification.resolved && (
+                      {notification.actionRequired && !notification.resolved && (
                       <button
                         onClick={() => markAsResolved(notification.id)}
-                        className="ml-2 px-3 py-1 bg-white/20 hover:bg-white/30 rounded text-xs font-medium transition-colors"
+                        className="ml-2 px-3 py-1 bg-yellow-400/10 hover:bg-yellow-400/20 rounded text-xs font-medium transition-colors gold-gradient"
                       >
                         ✓ Handle
                       </button>

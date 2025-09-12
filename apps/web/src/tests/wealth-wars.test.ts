@@ -19,8 +19,10 @@ async function testWealthWars() {
       commitment: 'confirmed',
     });
 
-    // Create program instance
-    const program = new Program(IDL as any, PROGRAM_ID, provider);
+  // Create program instance (cast to any to avoid strict type mismatches in tests)
+  // The test runs in JS runtime; for type-checking we loosen types here.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const program = new (Program as any)(IDL as any, PROGRAM_ID as any, provider as any) as any;
 
     // Create test accounts
     const admin = Keypair.generate();
@@ -100,7 +102,7 @@ async function testWealthWars() {
 
       console.log('✅ Game initialized successfully');
     } catch (error) {
-      console.log('❌ Game initialization failed:', error.message);
+      console.log('❌ Game initialization failed:', (error as any).message);
     }
 
     // Test 2: Join Game
@@ -124,7 +126,7 @@ async function testWealthWars() {
 
       console.log('✅ Player1 joined successfully');
     } catch (error) {
-      console.log('❌ Player1 join failed:', error.message);
+      console.log('❌ Player1 join failed:', (error as any).message);
     }
 
     // Test 3: Add Asset Class
@@ -156,7 +158,7 @@ async function testWealthWars() {
 
       console.log('✅ Asset class added successfully');
     } catch (error) {
-      console.log('❌ Asset class addition failed:', error.message);
+      console.log('❌ Asset class addition failed:', (error as any).message);
     }
 
     console.log('\n🎉 All tests completed!');

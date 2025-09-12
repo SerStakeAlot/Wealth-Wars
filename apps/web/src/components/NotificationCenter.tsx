@@ -24,17 +24,15 @@ export function NotificationCenter() {
       >
         <Bell className="h-4 w-4" />
         {notifications.length > 0 && (
-          <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
-            {notifications.length}
-          </Badge>
+          <div className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-yellow-400 text-black font-bold shadow">{notifications.length}</div>
         )}
       </Button>
       
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-background border rounded-lg shadow-lg z-50">
-          <div className="p-4 border-b">
+        <div className="absolute right-0 top-full mt-2 w-80 z-50 rounded-xl border border-slate-700 shadow-2xl bg-gradient-to-b from-slate-900 to-slate-800 text-white">
+          <div className="p-4 border-b border-slate-700 bg-slate-800 rounded-t-xl">
             <div className="flex items-center justify-between">
-              <h3 className="font-medium">Notifications</h3>
+              <h3 className="font-bold gold-gradient">Notifications</h3>
               <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
                 <X className="h-4 w-4" />
               </Button>
@@ -45,10 +43,10 @@ export function NotificationCenter() {
             {notifications.length > 0 ? (
               <div className="p-2 space-y-2">
                 {notifications.map((notification) => (
-                  <div key={notification.id} className="p-3 rounded border hover:bg-muted/50">
+                  <div key={notification.id} className="p-3 rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors">
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
-                        <p className="font-medium text-sm">{notification.title}</p>
+                        <p className="font-semibold text-sm gold-gradient">{notification.title}</p>
                         <p className="text-sm text-muted-foreground">{notification.message}</p>
                         <p className="text-xs text-muted-foreground">{notification.time}</p>
                       </div>
@@ -67,7 +65,7 @@ export function NotificationCenter() {
           </div>
           
           {notifications.length > 0 && (
-            <div className="p-3 border-t">
+            <div className="p-3 border-t border-slate-700 bg-slate-800 rounded-b-xl">
               <Button variant="ghost" size="sm" className="w-full">
                 Mark all as read
               </Button>

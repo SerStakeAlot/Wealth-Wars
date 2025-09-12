@@ -29,7 +29,7 @@ export function MenuSheet({ isOpen, onClose }: MenuSheetProps) {
 
   return (
     <>
-      <div className="menuOverlay" onClick={onClose} />
+  <div className="menuOverlay" onClick={onClose} />
       <div className="menuSheet">
         <div className="menuHeader">
           <h3 className={`${orbitron.className} menuTitle`}>MENU</h3>
@@ -95,7 +95,7 @@ export function MenuSheet({ isOpen, onClose }: MenuSheetProps) {
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(15,23,42,0.5);
+          background: rgba(0,0,0,0.5);
           z-index: 100;
         }
 
@@ -105,10 +105,9 @@ export function MenuSheet({ isOpen, onClose }: MenuSheetProps) {
           right: 0;
           width: 320px;
           height: 100vh;
-          background: linear-gradient(180deg, rgba(16,22,40,0.86), rgba(10,15,31,0.86));
-          border-left: 1px solid rgba(255,255,255,0.12);
+          background: var(--card);
+          border-left: 1px solid var(--border);
           box-shadow: -8px 0 25px rgba(0,0,0,0.35);
-          backdrop-filter: blur(8px) saturate(1.2);
           z-index: 101;
           display: flex;
           flex-direction: column;
@@ -120,7 +119,7 @@ export function MenuSheet({ isOpen, onClose }: MenuSheetProps) {
           justify-content: space-between;
           align-items: center;
           padding: 20px;
-          border-bottom: 1px solid rgba(255,255,255,0.12);
+          border-bottom: 1px solid var(--border);
         }
 
         .menuTitle {
@@ -169,8 +168,8 @@ export function MenuSheet({ isOpen, onClose }: MenuSheetProps) {
           gap: 12px;
           width: 100%;
           padding: 12px 16px;
-          border: 1px solid rgba(255,255,255,0.12);
-          background: rgba(255,255,255,0.06);
+          border: 1px solid var(--border);
+          background: var(--secondary);
           color: #e6edf5;
           border-radius: 8px;
           cursor: pointer;
@@ -179,14 +178,14 @@ export function MenuSheet({ isOpen, onClose }: MenuSheetProps) {
         }
 
         .menuItem:hover {
-          background: rgba(255,255,255,0.12);
-          border-color: rgba(255,255,255,0.16);
+          background: var(--muted);
+          border-color: var(--border);
         }
 
         .menuItem.active {
           background: linear-gradient(180deg, #1e2a4d, #172554);
           color: #fff;
-          border-color: rgba(255,255,255,0.16);
+          border-color: var(--border);
         }
 
         .itemIcon {
