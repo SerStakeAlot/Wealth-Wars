@@ -435,7 +435,7 @@ export function RealTimeBattleSystem() {
               est = Math.max(0.1, Math.min(0.9, est))
               
               return (
-                <div key={`invite-${battle.id || idx}`} className="border rounded-lg p-4 space-y-3">
+                <div key={battle.id || `invite-${idx}`} className="border rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       {battleInfo.icon ?? <Swords className="h-4 w-4" />}

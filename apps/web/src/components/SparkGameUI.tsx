@@ -57,6 +57,7 @@ interface SparkGameUIProps {
 export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
   const gameStore = useGameStore()
   const isSSR = typeof window === 'undefined';
+  const [mounted, setMounted] = useState(false)
   const [isConnected, setIsConnected] = useState(true) // Assume connected since we're in game
   const [currentTime, setCurrentTime] = useState(isSSR ? 0 : Date.now())
   const [activeTab, setActiveTab] = useState('overview')
@@ -74,6 +75,11 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
       return () => clearInterval(interval);
     }
   }, []);
+  
+  // Ensure client-only UI bits render after mount to avoid SSR hydration mismatches
+  useEffect(() => {
+    setMounted(true)
+  }, [])
   
   // Initialize player on first load
   useEffect(() => {
@@ -138,6 +144,25 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
       return `${hours}h ${remainingMinutes}m`
     }
     return `${minutes}m ${seconds}s`
+  }
+
+  // Mounted-aware cooldown renderer to prevent SSR hydration mismatches
+  const renderCooldown = (lastTimestamp: number | undefined, durationMs: number) => {
+    if (!mounted) return '…'
+    const last = lastTimestamp || 0
+    const remaining = Math.max(0, durationMs - (currentTime - last))
+    return remaining > 0 ? formatTime(remaining) : 'Ready'
+  }
+
+  // Mounted-aware shield status to avoid using Date.now() directly in render
+  const renderShieldStatus = () => {
+    if (!mounted) return '…'
+    const shield = gameStore.battleState.activeShield
+    if (shield && shield.expires > currentTime) {
+      const remaining = Math.max(0, shield.expires - currentTime)
+      return `Active: ${shield.type} shield (${formatTime(remaining)} left)`
+    }
+    return 'No active shield'
   }
 
   const nextCooldownLabel = () => {
@@ -357,7 +382,6 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
               <TabsTrigger value="clans">Clans</TabsTrigger>
               <TabsTrigger value="achievements">Achievements</TabsTrigger>
               <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
-              <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
             
             {/* Overview Tab */}
@@ -417,10 +441,10 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                     <Button
                       size="lg"
                       onClick={() => gameStore.doWork()}
-                      disabled={isWorkOnCooldown()}
+                      disabled={mounted ? isWorkOnCooldown() : false}
                       className="bg-green-600 hover:bg-green-700 font-semibold text-lg px-8"
                     >
-                      {isWorkOnCooldown() ? (
+                      {mounted && isWorkOnCooldown() ? (
                         <>
                           <TimerIcon className="h-5 w-5 mr-2" />
                           Cooldown: {formatTime(workCooldownRemaining())}
@@ -428,7 +452,7 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                       ) : (
                         <>
                           <Zap className="h-5 w-5 mr-2" />
-                          Work (+{gameStore.getExpectedWorkPayout()} Credits)
+                          Work (+{mounted ? gameStore.getExpectedWorkPayout() : '…'} Credits)
                         </>
                       )}
                     </Button>
@@ -461,7 +485,7 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                       <div>
                         <p className="text-sm text-muted-foreground">Next Cooldown</p>
                         <p className="text-lg font-bold">
-                          {isWorkOnCooldown() ? formatTime(workCooldownRemaining()) : `Ready (${nextCooldownLabel()})`}
+                          {mounted ? (isWorkOnCooldown() ? formatTime(workCooldownRemaining()) : `Ready (${nextCooldownLabel()})`) : '…'}
                         </p>
                       </div>
                       <TimerIcon className="h-6 w-6" />
@@ -644,7 +668,7 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                                       disabled={!canActivate}
                                       size="sm"
                                     >
-                                      {canActivate ? 'Activate Ability' : `CD: ${formatTime(remaining)}`}
+                                      {canActivate ? 'Activate Ability' : (mounted ? `CD: ${formatTime(remaining)}` : 'CD: …')}
                                     </Button>
                                   </>
                                 )}
@@ -736,9 +760,7 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                           </Button>
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {gameStore.battleState.activeShield && gameStore.battleState.activeShield.expires > Date.now()
-                            ? `Active: ${gameStore.battleState.activeShield.type} shield`
-                            : 'No active shield'}
+                          {renderShieldStatus()}
                         </div>
                       </div>
                     </CardContent>
@@ -753,10 +775,10 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>Standard: <span className="font-medium">{Math.max(0, (4*60*60*1000) - (Date.now() - (gameStore.battleState.lastStandardAttack || 0))) > 0 ? formatTime(Math.max(0, (4*60*60*1000) - (Date.now() - (gameStore.battleState.lastStandardAttack || 0)))) : 'Ready'}</span></div>
-                        <div>Wealth Assault: <span className="font-medium">{Math.max(0, (12*60*60*1000) - (Date.now() - (gameStore.battleState.lastWealthAssault || 0))) > 0 ? formatTime(Math.max(0, (12*60*60*1000) - (Date.now() - (gameStore.battleState.lastWealthAssault || 0)))) : 'Ready'}</span></div>
-                        <div>Land Siege: <span className="font-medium">{Math.max(0, (24*60*60*1000) - (Date.now() - (gameStore.battleState.lastLandSiege || 0))) > 0 ? formatTime(Math.max(0, (24*60*60*1000) - (Date.now() - (gameStore.battleState.lastLandSiege || 0)))) : 'Ready'}</span></div>
-                        <div>Sabotage: <span className="font-medium">{Math.max(0, (8*60*60*1000) - (Date.now() - (gameStore.battleState.lastBusinessSabotage || 0))) > 0 ? formatTime(Math.max(0, (8*60*60*1000) - (Date.now() - (gameStore.battleState.lastBusinessSabotage || 0)))) : 'Ready'}</span></div>
+                        <div>Standard: <span className="font-medium">{renderCooldown(gameStore.battleState.lastStandardAttack, 4*60*60*1000)}</span></div>
+                        <div>Wealth Assault: <span className="font-medium">{renderCooldown(gameStore.battleState.lastWealthAssault, 12*60*60*1000)}</span></div>
+                        <div>Land Siege: <span className="font-medium">{renderCooldown(gameStore.battleState.lastLandSiege, 24*60*60*1000)}</span></div>
+                        <div>Sabotage: <span className="font-medium">{renderCooldown(gameStore.battleState.lastBusinessSabotage, 8*60*60*1000)}</span></div>
                       </div>
                     </CardContent>
                   </Card>
@@ -798,10 +820,10 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                   <Button
                     size="lg"
                     onClick={() => gameStore.doWork()}
-                    disabled={isWorkOnCooldown()}
+                    disabled={mounted ? isWorkOnCooldown() : false}
                     className="w-full bg-green-600 hover:bg-green-700 font-semibold text-lg"
                   >
-                    {isWorkOnCooldown() ? (
+                    {mounted && isWorkOnCooldown() ? (
                       <>
                         <TimerIcon className="h-5 w-5 mr-2" />
                         Cooldown: {formatTime(workCooldownRemaining())}
@@ -809,7 +831,7 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                     ) : (
                       <>
                         <Zap className="h-5 w-5 mr-2" />
-                        Work (+{gameStore.getExpectedWorkPayout()} Credits)
+                        Work (+{mounted ? gameStore.getExpectedWorkPayout() : '…'} Credits)
                       </>
                     )}
                   </Button>
@@ -911,7 +933,7 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                                   disabled={!canActivate}
                                   size="sm"
                                 >
-                                  {canActivate ? 'Activate' : `CD: ${formatTime(remaining)}`}
+                                  {canActivate ? 'Activate' : (mounted ? `CD: ${formatTime(remaining)}` : 'CD: …')}
                                 </Button>
                               </>
                             )}
