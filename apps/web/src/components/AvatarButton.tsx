@@ -14,7 +14,7 @@ interface AvatarButtonProps {
 
 export function AvatarButton({ onClick }: AvatarButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const { username, walletAddress } = useGame();
+  const { username, walletAddress, setWalletAddress } = useGame();
 
   const handleClick = () => {
     setIsOpen(!isOpen);
@@ -22,6 +22,41 @@ export function AvatarButton({ onClick }: AvatarButtonProps) {
   };
 
   const displayName = walletAddress && username ? username : 'Player';
+
+  // Minimal Phantom provider helpers
+  const getPhantomProvider = () => {
+    if (typeof window === 'undefined') return null as any;
+    return (window as any).solana || null;
+  };
+
+  const connectWallet = async () => {
+    try {
+      const provider = getPhantomProvider();
+      if (!provider?.isPhantom) {
+        toast.error('Phantom wallet not found. Install Phantom to continue.');
+        return;
+      }
+      const res = await provider.connect();
+      const key = res?.publicKey?.toString?.() || provider.publicKey?.toString?.() || '';
+      if (key) {
+        setWalletAddress(key);
+        toast.success('Wallet connected');
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Wallet action canceled.');
+    }
+  };
+
+  const disconnectWallet = async () => {
+    try {
+      const provider = getPhantomProvider();
+      if (provider?.isPhantom) {
+        await provider.disconnect();
+      }
+    } catch {}
+    setWalletAddress('');
+    toast('Wallet disconnected');
+  };
 
   return (
     <div className="avatarContainer">
@@ -47,6 +82,21 @@ export function AvatarButton({ onClick }: AvatarButtonProps) {
 
             <div className="menuBody">
               <UsernameInput onClose={() => setIsOpen(false)} />
+              <div
+                className="menuItem"
+                onClick={() => (walletAddress ? disconnectWallet() : connectWallet())}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    walletAddress ? disconnectWallet() : connectWallet();
+                  }
+                }}
+              >
+                <span className="menuIcon">🔌</span>
+                <span className="menuText">{walletAddress ? 'Disconnect Wallet' : 'Connect Wallet'}</span>
+              </div>
             </div>
           </div>
         </div>
