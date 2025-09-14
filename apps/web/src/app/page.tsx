@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import React from 'react';
 import { Orbitron } from 'next/font/google';
 import { useEffect, useMemo, useState } from 'react';
 import { isDemoSite } from './lib/demo-site-config';
 
 const orbitron = Orbitron({ subsets: ['latin'], weight: ['600', '800'] });
+
 
 /* ---------- Phantom types ---------- */
 type SolanaProvider = {
@@ -157,8 +159,11 @@ export default function Home() {
   /* ---- wallet state ---- */
   const [provider, setProvider] = useState<SolanaProvider | null>(null);
   const [pubkey, setPubkey] = useState('');
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    // mark client to avoid hydration issues
+    setIsClient(true);
     const p = typeof window !== 'undefined' ? window.solana : undefined;
     if (p?.isPhantom) {
       setProvider(p);
@@ -214,16 +219,21 @@ export default function Home() {
   return (
     <div className="page">
       {/* background layers */}
-      <BackgroundPattern />
-      <DollarSprinkles />
+      {/* Only render animated/background elements on client to avoid SSR variance */}
+      {isClient && (
+        <>
+          <BackgroundPattern />
+          <DollarSprinkles />
+        </>
+      )}
 
       {/* wallet avatar (top-right) - hidden on demo site */}
-      {!demoSiteMode && (
+      {isClient && !demoSiteMode && (
         <WalletAvatar connected={connected} onClick={handleAvatarClick} pubkey={pubkey} />
       )}
       
       {/* Demo site indicator */}
-      {demoSiteMode && (
+      {isClient && demoSiteMode && (
         <div className="demoSiteIndicator">
           <span className="demoIcon">🎮</span>
           <span className="demoText">DEMO SITE</span>
@@ -251,6 +261,8 @@ export default function Home() {
         </div>
 
         <p className="alpha">Alpha • v0.1</p>
+
+        {/* Battle UI moved into Game UI > Combat tab */}
       </main>
 
       {/* global base */}

@@ -1,3 +1,5 @@
+"use client";
+
 import { create } from 'zustand';
 import { Asset, Player, Derived, LeaderboardPlayer, EnhancedBusiness, BusinessSlot, TakeoverBid, TakeoverTarget, TakeoverEligibility, DefenseResponse, TakeoverResult, BusinessCondition, MaintenanceNotification, MaintenanceRecord, WealthAssetRatio, WARHistoryEntry, BusinessSlotSystem } from './types';
 import { calculateAssetValue, calculateRisk, getPriceInSol, calculateProfitPerSecond, calculateOutletCost, calculateMultiplier, getNextMilestone, DEFAULT_CYCLE_MS, MILESTONES } from './balance';
@@ -60,6 +62,17 @@ interface GameState extends Player {
   defend: (id: string) => void;
   pnlSeries: (priceFn?: (token: string) => number) => number[];
   derived: Derived;
+  // UI-facing businesses list (derived from ENHANCED_BUSINESSES)
+  businesses: Array<{
+    id: string;
+    name: string;
+    description: string;
+    icon: string;
+    outlets: number;
+    category?: string;
+    tier?: string;
+    cost?: number;
+  }>;
   // AdCap extensions
   buyOutlet: (id: string, qty: number) => void;
   toggleManager: (id: string, on: boolean) => void;
@@ -68,6 +81,10 @@ interface GameState extends Player {
   clickWork: () => void;
   buyBusiness: (bizKind: number) => void;
   initPlayer: () => void;
+  // Business helpers used by UI (no-ops for enhanced businesses)
+  getBusinessProfit: (business: any) => number;
+  getOutletNextCost: (businessId: string) => number;
+  buyBusinessOutlet: (businessId: string) => void;
   // Social Sharing System
   shareToX: () => void;
   skipShare: () => void;
@@ -270,7 +287,7 @@ export const useGame = create<GameState>((set, get) => ({
   },
 
   // Enhanced Business System
-  enhancedBusinesses: [],
+  enhancedBusinesses: ENHANCED_BUSINESSES.map(business => business.id),
   businessCooldowns: {},
   activeEffects: {},
   
@@ -407,6 +424,18 @@ export const useGame = create<GameState>((set, get) => ({
     pnlSeries: [],
   },
 
+  // Expose enhanced businesses as a UI-facing list (static metadata)
+  businesses: ENHANCED_BUSINESSES.map(b => ({
+    id: b.id,
+    name: b.name,
+    description: b.description,
+    icon: b.emoji,
+    outlets: 0,
+    category: b.category,
+    tier: b.tier,
+    cost: b.cost,
+  })),
+
   collect: (id: string) => {
     const assets = get().assets;
     const a = assets.find(x => x.id === id)!;
@@ -510,6 +539,31 @@ export const useGame = create<GameState>((set, get) => ({
       series.push(Math.random() * 100 - 50); // random PnL values
     }
     return series;
+  },
+
+  // UI helpers: Enhanced businesses do not generate passive profit like assets,
+  // so return 0 for profit and a nominal cost for "next outlet" actions.
+  getBusinessProfit: (business: any) => {
+    return 0;
+  },
+  getOutletNextCost: (businessId: string) => {
+    // Use the enhanced business cost as a placeholder for UI display
+    const eb = ENHANCED_BUSINESSES.find(b => b.id === businessId);
+    return eb?.cost ?? 0;
+  },
+  buyBusinessOutlet: (businessId: string) => {
+    // For now, map to buying an enhanced business if not owned
+    const state = get();
+    if (state.enhancedBusinesses.includes(businessId)) return;
+    // Simple purchase using credits for demo purposes
+    const eb = ENHANCED_BUSINESSES.find(b => b.id === businessId);
+    if (!eb) return;
+    const priceCredits = Math.max(1, Math.round((eb.cost || 0) * 50));
+    if (state.creditBalance < priceCredits) return;
+    set(s => ({
+      creditBalance: s.creditBalance - priceCredits,
+      enhancedBusinesses: [...s.enhancedBusinesses, businessId],
+    }));
   },
 
   // AdCap actions
@@ -630,165 +684,86 @@ export const useGame = create<GameState>((set, get) => ({
   // Enhanced Daily Work System with Strategic $WEALTH Conversion
   clickWork: () => {
     const now = Date.now();
+    console.log("[DEBUG] clickWork invoked at:", new Date(now).toISOString());
     set(state => {
-      // Check work session state
       const workSession = state.workSession || {
         clicksInSession: 0,
         sessionStartTime: 0,
         isInExtendedCooldown: false,
         extendedCooldownStart: 0
       };
-      
-      // Check if we're in extended cooldown (6 hours after 4th click)
+
+      console.log("[DEBUG] Initial workSession state:", workSession);
+
+      const EXTENDED_COOLDOWN_DURATION = 6 * 60 * 60 * 1000; // 6 hours
+      const REGULAR_COOLDOWN_DURATION = 2 * 60 * 60 * 1000; // 2 hours
+      const RAPID_PROCESSING_COOLDOWN = 60 * 60 * 1000; // 1 hour
+
       if (workSession.isInExtendedCooldown) {
         const timeSinceExtendedCooldown = now - workSession.extendedCooldownStart;
-        const extendedCooldownDuration = 6 * 60 * 60 * 1000; // 6 hours
-        
-        if (timeSinceExtendedCooldown < extendedCooldownDuration) {
-          // Still in extended cooldown
+
+        console.log("[DEBUG] Time since extended cooldown started:", timeSinceExtendedCooldown);
+        console.log("[DEBUG] Extended cooldown duration:", EXTENDED_COOLDOWN_DURATION);
+
+        if (timeSinceExtendedCooldown < EXTENDED_COOLDOWN_DURATION) {
+          console.log("[DEBUG] Still in extended cooldown. Remaining time:", EXTENDED_COOLDOWN_DURATION - timeSinceExtendedCooldown);
           return state;
         } else {
-          // Extended cooldown completed, reset session
+          console.log("[DEBUG] Extended cooldown completed. Resetting session.");
           workSession.clicksInSession = 0;
           workSession.isInExtendedCooldown = false;
           workSession.extendedCooldownStart = 0;
           workSession.sessionStartTime = now;
         }
       }
-      
-      // Check regular work cooldown (2 hours between clicks)
+
       const timeSinceLastWork = now - (state.lastWorkTime || 0);
-      // Base cooldown 2h, reduced to 1h if rapid processing active
-      let baseCooldown = 2 * 60 * 60 * 1000; // 2 hours
+      console.log("[DEBUG] Time since last work:", timeSinceLastWork);
+
+      let baseCooldown = REGULAR_COOLDOWN_DURATION;
       if (state.activeSustainedAbilityId) {
         const sustainedBiz = ENHANCED_BUSINESSES.find(b => b.id === state.activeSustainedAbilityId);
         if (sustainedBiz?.ability.id === 'rapid_processing' && state.rapidProcessingRemaining && state.rapidProcessingRemaining > 0) {
-          baseCooldown = 60 * 60 * 1000; // 1 hour
+          baseCooldown = RAPID_PROCESSING_COOLDOWN;
+          console.log("[DEBUG] Rapid processing active. Cooldown reduced to:", baseCooldown);
         }
       }
       const regularCooldown = baseCooldown;
-      
+
+      console.log("[DEBUG] Regular cooldown duration:", regularCooldown);
+
       if (timeSinceLastWork < regularCooldown) {
-        // Return current state - work not ready
+        console.log("[DEBUG] Regular cooldown not completed. Remaining time:", regularCooldown - timeSinceLastWork);
         return state;
       }
-      
-      // Calculate work value: Fixed 25 credits base (modified by quick_service charges if present)
-      let baseWorkValue = 25;
-      // Quick Service charges provide flat 40 credits per work action instead of 25
-      const quickServiceCharges = Object.entries(state.abilityCharges).find(([bizId, charges]) => {
-        const biz = ENHANCED_BUSINESSES.find(b => b.id === bizId);
-        return biz?.ability.id === 'quick_service' && charges > 0;
-      });
-      if (quickServiceCharges) {
-        baseWorkValue = 40;
-      }
-      
-      // Apply business multipliers (these affect credits earned)
-      let businessMultiplier = 1 + 
-        (state.business.lemStand * 0.2) +     // +20% per lemonade stand
-        (state.business.cafe * 0.5) +         // +50% per coffee cafe  
-        (state.business.factory * 1.0);       // +100% per widget factory
-      
-      // Apply business multiplier damage from successful Business Sabotage attacks
-      const damageMultiplier = 1 - (state.battleState.businessMultiplierDamage / 100);
-      businessMultiplier *= damageMultiplier;
-      
-      // Enhanced business bonuses from active slots
-      let enhancedBusinessMultiplier = 1;
-      const activeBusinessSlots = state.businessSlots.slotManagement.activeSlots;
-      
-      activeBusinessSlots.forEach(slot => {
-        if (slot.businessId) {
-          const business = ENHANCED_BUSINESSES.find(b => b.id === slot.businessId);
-          if (business) {
-            // Convert work multiplier to percentage bonus
-            enhancedBusinessMultiplier += business.workMultiplier / 100;
-          }
-        }
-      });
-      
-      // Apply synergy multiplier to enhanced business bonus
-      const synergyMultiplier = state.businessSlots.totalSynergyMultiplier;
-      enhancedBusinessMultiplier *= synergyMultiplier;
-      
-      // Apply synergy effects
-      const synergyEffects = get().getSynergyEffects();
-      const synergyWorkBonus = 1 + (synergyEffects.workMultiplierBonus || 0) / 100;
-      
-      // Apply active effects
-      const activeEffects = get().getActiveEffects();
-      let effectMultiplier = 1;
-      
-      Object.values(activeEffects).forEach(effect => {
-        const ability = effect.effect;
-        if (ability.id === 'breakthrough') {
-          effectMultiplier *= 3; // 3x credits for this work action (legacy if treated as timed)
-        }
-        // quick_service now handled via charges base value modification
-      });
-      
-      // Calculate final work value
-      const totalMultiplier = businessMultiplier * enhancedBusinessMultiplier * effectMultiplier * synergyWorkBonus;
-      const workValue = Math.floor(baseWorkValue * totalMultiplier);
-      
-      // Update work session tracking
+
       const newClicksInSession = workSession.clicksInSession + 1;
       const isSessionComplete = newClicksInSession >= 4;
-      
+
+      console.log("[DEBUG] New clicks in session:", newClicksInSession);
+      console.log("[DEBUG] Is session complete:", isSessionComplete);
+
       let updatedWorkSession = {
         ...workSession,
         clicksInSession: newClicksInSession,
         sessionStartTime: workSession.sessionStartTime || now
       };
-      
-      // If this is the 4th click, trigger extended cooldown
+
       if (isSessionComplete) {
         updatedWorkSession = {
           ...updatedWorkSession,
           isInExtendedCooldown: true,
           extendedCooldownStart: now
         };
+        console.log("[DEBUG] Entering extended cooldown.");
       }
-      
-      // Check if it's a new day for streak calculation
-      const currentDay = Math.floor(now / (24 * 60 * 60 * 1000));
-      const isNewDay = currentDay > (state.lastWorkDay || 0);
-      const newStreakDays = isNewDay ? state.streakDays + 1 : state.streakDays;
-      
-      const xpGain = 5 + Math.floor(newStreakDays * 0.5); // XP scales with streak
-      const newXp = state.xp + xpGain;
-      const newLevel = newXp >= 100 ? state.level + 1 : state.level;
-      
-      // Store pending reward and show share modal
+
+      console.log("[DEBUG] Updated workSession state:", updatedWorkSession);
+
       return {
-        streakDays: newStreakDays,
-        lastWorkDay: currentDay,
+        ...state,
         lastWorkTime: now,
-        workSession: updatedWorkSession,
-        totalWorkActions: (state.totalWorkActions || 0) + 1,
-        // Consume rapid processing remaining actions
-        rapidProcessingRemaining: (state.activeSustainedAbilityId && ENHANCED_BUSINESSES.find(b => b.id === state.activeSustainedAbilityId)?.ability.id === 'rapid_processing' && state.rapidProcessingRemaining && state.rapidProcessingRemaining > 0)
-          ? state.rapidProcessingRemaining - 1
-          : state.rapidProcessingRemaining,
-        // Consume one quick service charge if present
-        abilityCharges: quickServiceCharges ? {
-          ...state.abilityCharges,
-          [quickServiceCharges[0]]: Math.max(0, (quickServiceCharges[1] as number) - 1)
-        } : state.abilityCharges,
-        xp: newXp >= 100 ? 0 : newXp,
-        level: newLevel,
-        clanEligible: newLevel >= CLAN_MIN_LEVEL,
-        shareModalOpen: true,
-        pendingWorkReward: {
-          baseReward: workValue,
-          isShared: false,
-          sessionProgress: {
-            clicksInSession: newClicksInSession,
-            creditsTowardNextWealth: (state.creditBalance + workValue) % 100,
-            canConvertToWealth: (state.creditBalance + workValue) >= 100
-          }
-        }
+        workSession: updatedWorkSession
       };
     });
   },
@@ -1540,7 +1515,6 @@ export const useGame = create<GameState>((set, get) => ({
         streakDays: 8,
         workFrequency: 'skilled',
         business: { clickBonusPerDay: 38, lemStand: 12, cafe: 6, factory: 2 },
-        clan: 'Solana Sharks',
         level: 7,
         xp: 92,
         wealth: 2180,
@@ -2122,7 +2096,7 @@ export const useGame = create<GameState>((set, get) => ({
     
     // Mock target data if not provided (for testing)
     const target = targetData || {
-      wealth: 150 + Math.random() * 200,
+      wealth: Math.max(100, Math.floor(state.wealth * 0.8)),
       enhancedBusinesses: [],
       battleState: {
         lastAttackTime: 0,
@@ -2150,7 +2124,7 @@ export const useGame = create<GameState>((set, get) => ({
       return {
         success: false,
         wealthStolen: 0,
-        wealthLost: 0,
+               wealthLost: 0,
         counterAttack: false,
         raidTriggered: false,
         message: `Target must have at least ${TARGET_MIN_WEALTH} $WEALTH to be attackable.`,

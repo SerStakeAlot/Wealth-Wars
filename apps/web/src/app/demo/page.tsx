@@ -17,6 +17,8 @@ import {
   Target
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { ENHANCED_BUSINESSES } from '../lib/businesses';
+import { useGame } from '../lib/store';
 
 const DemoPage: React.FC = () => {
   const {
@@ -34,6 +36,8 @@ const DemoPage: React.FC = () => {
     buyBusiness,
     convertCreditsToWealth
   } = useDemoGame();
+
+  const { buyEnhancedBusiness } = useGame();
 
   const [playerName, setPlayerName] = useState('');
   const [showInfo, setShowInfo] = useState(false);
@@ -289,6 +293,29 @@ const DemoPage: React.FC = () => {
                   </p>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Business List */}
+          <div className="bg-slate-800/60 backdrop-blur-sm rounded-xl border border-slate-600/30 p-6 mt-6">
+            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+              <Target className="w-5 h-5 text-green-400" />
+              Available Businesses
+            </h3>
+            
+            <div className="businessList">
+              {ENHANCED_BUSINESSES.map((business: { id: string; name: string; description: string; cost: number }) => (
+                <div key={business.id} className="businessItem">
+                  <h4>{business.name}</h4>
+                  <p>{business.description}</p>
+                  <button
+                    onClick={() => buyEnhancedBusiness(business.id)}
+                    className="buyButton"
+                  >
+                    Buy for {business.cost} credits
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </div>

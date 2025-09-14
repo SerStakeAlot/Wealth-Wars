@@ -3,36 +3,43 @@
 type Handler = (payload: any) => void
 
 const handlers: Record<string, Handler[]> = {}
-let ws: WebSocket | null = null
 let urlInUse = ''
 
 function connect(url?: string) {
   if (typeof window === 'undefined') return
-  const u = url || (typeof process !== 'undefined' && (process.env.NEXT_PUBLIC_REALTIME_URL as string)) || 'ws://localhost:4000'
-  if (ws && urlInUse === u) return
+  const envUrl = (typeof process !== 'undefined' && (process.env.NEXT_PUBLIC_REALTIME_URL as string)) || ''
+  const u = url || envUrl
+  if (!u) {
+    console.info('[realtime] URL not configured, skipping connect')
+    return
+  }
+  if (urlInUse === u) return
   urlInUse = u
-  ws = new WebSocket(u)
-
-  ws.addEventListener('open', () => {
-    console.info('[realtime] connected to', u)
-  })
-
-  ws.addEventListener('message', (ev) => {
-    try {
-      const msg = JSON.parse(ev.data)
-      const { type, payload } = msg
-      ;(handlers[type] || []).forEach(h => h(payload))
-    } catch (e) {
-      console.warn('[realtime] invalid message', e)
-    }
-  })
-
-  ws.addEventListener('close', () => {
-    console.info('[realtime] disconnected')
-    // attempt reconnect
-    ws = null
-    setTimeout(() => connect(u), 2000)
-  })
+  // let ws: WebSocket | null = null;
+  //
+  // ws = new WebSocket(u)
+  //
+  // ws.addEventListener('open', () => {
+  //   console.info('[realtime] connected to', u)
+  // })
+  //
+  // ws.addEventListener('message', (ev) => {
+  //   try {
+  //     const msg = JSON.parse(ev.data)
+  //     const { type, payload } = msg
+  //     ;(handlers[type] || []).forEach(h => h(payload))
+  //   } catch (e) {
+  //     console.warn('[realtime] invalid message', e)
+  //   }
+  // })
+  //
+  // ws.addEventListener('close', () => {
+  //   console.info('[realtime] disconnected')
+  //   // attempt reconnect
+  //   ws = null
+  //   // Only attempt reconnect if URL is configured
+  //   if (u) setTimeout(() => connect(u), 2000)
+  // })
 }
 
 function on(event: string, handler: Handler) {
@@ -44,17 +51,17 @@ function on(event: string, handler: Handler) {
 }
 
 function emit(type: string, payload: any) {
-  if (!ws || ws.readyState !== WebSocket.OPEN) {
-    console.info('[realtime] not connected, skipping emit', type)
-    return
-  }
-  ws.send(JSON.stringify({ type, payload }))
+  // if (!ws || ws.readyState !== WebSocket.OPEN) {
+  //   console.info('[realtime] not connected, skipping emit', type)
+  //   return
+  // }
+  // ws.send(JSON.stringify({ type, payload }))
 }
 
 function close() {
-  if (!ws) return
-  ws.close()
-  ws = null
+  // if (!ws) return
+  // ws.close()
+  // ws = null
 }
 
 export const realtime = {

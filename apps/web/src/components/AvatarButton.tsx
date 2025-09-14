@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { Orbitron, Inter } from 'next/font/google';
 import { useGame } from '../app/lib/store';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { UsernameInput } from './UsernameInput';
 const inter = Inter({ subsets: ['latin'] });
 const orbitron = Orbitron({ subsets: ['latin'], weight: ['600', '800'] });
@@ -16,9 +14,7 @@ interface AvatarButtonProps {
 
 export function AvatarButton({ onClick }: AvatarButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const { username, walletAddress, setWalletAddress } = useGame();
-  const { publicKey, connect, disconnect, connected } = useWallet();
-  const { setVisible } = useWalletModal();
+  const { username, walletAddress } = useGame();
 
   const handleClick = () => {
     setIsOpen(!isOpen);
@@ -27,49 +23,11 @@ export function AvatarButton({ onClick }: AvatarButtonProps) {
 
   const displayName = walletAddress && username ? username : 'Player';
 
-  const isConnected = !!walletAddress;
-  const handleToggleWallet = async () => {
-    try {
-      if (publicKey) {
-        // Disconnect via adapter
-        await disconnect();
-        setWalletAddress('');
-      } else {
-        // Prefer opening the modal if available (gives choice of wallets)
-        if (setVisible) {
-          setVisible(true);
-        } else if (connect) {
-          await connect();
-        }
-        // wallet adapter will update publicKey; we sync in useEffect below
-      }
-    } catch (err) {
-      console.error('Wallet connect/disconnect failed', err);
-    }
-  };
-
-  // Sync adapter publicKey into Zustand store
-  useEffect(() => {
-    if (publicKey) {
-      const addr = publicKey.toString();
-      setWalletAddress(addr);
-      toast.success('Wallet connected', { description: `${addr.slice(0,6)}...${addr.slice(-4)}` });
-    } else {
-      // Only show disconnect toast if we previously had a walletAddress
-      if (walletAddress) {
-        toast('Wallet disconnected');
-      }
-      setWalletAddress('');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [publicKey]);
-
   return (
     <div className="avatarContainer">
       <button className="avatarBtn" onClick={handleClick}>
         <div className="avatar">
           <span className="avatarIcon">👤</span>
-          {isConnected && <span className="statusDot" />}
         </div>
         <span className="avatarLabel">{displayName}</span>
       </button>
@@ -82,13 +40,8 @@ export function AvatarButton({ onClick }: AvatarButtonProps) {
                 <div className="menuAvatar">👤</div>
                 <div>
                   <div className="menuName">{displayName}</div>
-                  <div className="menuSub">{isConnected ? walletAddress : 'Not connected'}</div>
+                  <div className="menuSub">{walletAddress}</div>
                 </div>
-              </div>
-              <div className="walletActions">
-                <button className="btn connect" onClick={handleToggleWallet}>
-                  {isConnected ? 'Disconnect' : 'Connect Wallet'}
-                </button>
               </div>
             </div>
 
@@ -130,17 +83,6 @@ export function AvatarButton({ onClick }: AvatarButtonProps) {
           display: flex;
           align-items: center;
           justify-content: center;
-        }
-
-        .statusDot {
-          width: 9px;
-          height: 9px;
-          border-radius: 50%;
-          background: #34d399; /* green-400 */
-          position: absolute;
-          right: -2px;
-          top: -2px;
-          box-shadow: 0 0 0 2px rgba(16,24,40,0.6);
         }
 
         .avatarIcon {
@@ -202,16 +144,6 @@ export function AvatarButton({ onClick }: AvatarButtonProps) {
         .menuSub {
           font-size: 12px;
           color: #9aa7bd;
-        }
-
-        .walletActions .btn.connect {
-          background: #10b981;
-          color: white;
-          border: none;
-          padding: 6px 8px;
-          border-radius: 6px;
-          font-size: 13px;
-          cursor: pointer;
         }
 
         .menuItem {

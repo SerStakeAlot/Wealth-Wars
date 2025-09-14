@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Inter, Orbitron } from 'next/font/google';
 import { useRouter } from 'next/navigation';
 import { useGame } from '../lib/store';
+import { useWallet } from '@solana/wallet-adapter-react';
 
 const inter = Inter({ subsets: ['latin'] });
 const orbitron = Orbitron({ subsets: ['latin'], weight: ['600', '800'] });
@@ -14,6 +15,7 @@ export default function ForbesListPage() {
     level, xp, wealth, liquidity, prestige, clanEligible, 
     leaderboardPlayers, refreshLeaderboard, viewPlayerProfile, selectedPlayer
   } = useGame();
+  const { connect, connected, publicKey } = useWallet();
   const [profileOpen, setProfileOpen] = useState(false);
   const [selectedPlayerModalOpen, setSelectedPlayerModalOpen] = useState(false);
 
@@ -291,6 +293,17 @@ export default function ForbesListPage() {
                     <span className="modalInfoValue">{selectedPlayer.xp}/100</span>
                   </div>
                 </div>
+              </div>
+
+              <div className="modalSection">
+                <h4>Wallet Connection</h4>
+                {connected ? (
+                  <div className="walletInfo">
+                    <p>Connected Wallet: {publicKey?.toBase58()}</p>
+                  </div>
+                ) : (
+                  <button onClick={connect} className="connectWalletBtn">Connect Wallet</button>
+                )}
               </div>
             </div>
           </div>

@@ -1,25 +1,40 @@
+"use client";
+
 import React, { useState, useEffect } from 'react'
 import { useMultiplayerStore } from '@/lib/multiplayerStore'
 import { useGameStore } from '@/lib/gameStore'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { 
+import {
+  Swords,
+  Shield,
+  Zap,
+  Target,
+  Crown,
+  Timer,
+  Coins,
+  Users,
+  Search,
   X,
-  Play
-} from '@phosphor-icons/react'
-import { AlertTriangle, Sword, Zap, Shield, Target, Crown, Timer, Coins, Users, CheckCircle, XCircle, Search } from 'lucide-react'
+  Play,
+  CheckCircle,
+  XCircle,
+  AlertTriangle
+} from 'lucide-react'
 
 export function RealTimeBattleSystem() {
   const multiplayerStore = useMultiplayerStore()
   const gameStore = useGameStore()
   const [selectedOpponent, setSelectedOpponent] = useState<string>('')
-  const [battleType, setBattleType] = useState<string>('raid')
-  const [stakeAmount, setStakeAmount] = useState<number>(100)
+  const [battleType, setBattleType] = useState<string>('standard')
+  const [stakeAmount, setStakeAmount] = useState<number>(0)
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [currentTime, setCurrentTime] = useState(Date.now())
+  const [resultModal, setResultModal] = useState<null | { won: boolean; title: string; description: string }>(null)
 
   // Update time every second for real-time countdowns
   useEffect(() => {
@@ -43,32 +58,43 @@ export function RealTimeBattleSystem() {
 
   const getBattleTypeInfo = (type: string) => {
     switch (type) {
-      case 'raid':
+      case 'standard':
         return {
-          name: 'Wealth Raid',
-          description: 'Steal wealth directly from opponent',
-          icon: <Coins className="h-4 w-4" />,
-          color: 'text-warning'
+          name: 'Standard Attack',
+          description: 'Basic attack with 10% max theft',
+          icon: <Swords className="h-4 w-4" />,
+          color: 'text-warning',
+          cost: { amount: 15, currency: 'credits' }
         }
-      case 'sabotage':
+      case 'business_sabotage':
         return {
           name: 'Business Sabotage',
           description: 'Damage opponent\'s businesses',
           icon: <AlertTriangle className="h-4 w-4" />,
-          color: 'text-destructive'
+          color: 'text-destructive',
+          cost: { amount: 25, currency: 'credits' }
         }
-      case 'steal':
+      case 'wealth_assault':
         return {
-          name: 'Credit Heist',
-          description: 'Steal credits from opponent',
-          icon: <Target className="h-4 w-4" />,
-          color: 'text-info'
+          name: 'Wealth Assault',
+          description: 'High-stakes wealth theft (25% cap)',
+          icon: <Coins className="h-4 w-4" />,
+          color: 'text-info',
+          cost: { amount: 10, currency: 'wealth' }
+        }
+      case 'land_siege':
+        return {
+          name: 'Land Siege',
+          description: 'Siege to capture or plunder land (35% cap)',
+          icon: <Crown className="h-4 w-4" />,
+          color: 'text-warning',
+          cost: { amount: 25, currency: 'wealth' }
         }
       default:
         return {
           name: 'Unknown',
           description: 'Unknown battle type',
-          icon: <Sword className="h-4 w-4" />,
+          icon: <Swords className="h-4 w-4" />,
           color: 'text-muted-foreground'
         }
     }
@@ -80,8 +106,9 @@ export function RealTimeBattleSystem() {
       return
     }
 
-    if (stakeAmount > gameStore.player.credits) {
-      toast.error('Insufficient credits for this battle')
+    // Stakes are optional and in credits; only enforce if > 0
+    if (stakeAmount > 0 && stakeAmount > gameStore.player.credits) {
+      toast.error('Insufficient credits for the stake amount')
       return
     }
 
@@ -91,47 +118,228 @@ export function RealTimeBattleSystem() {
       return
     }
 
-    multiplayerStore.challengePlayer(selectedOpponent, battleType, {
-      type: 'credits',
-      amount: stakeAmount
-    })
+    multiplayerStore.challengePlayer(selectedOpponent, battleType, { type: 'credits', amount: stakeAmount })
 
     toast.success(`Battle challenge sent to ${opponent.username}!`)
     setSelectedOpponent('')
-    setStakeAmount(100)
+  setStakeAmount(0)
   }
-
-  // Attack cost and cooldowns mapping to match `performAttack`
-  const attackMeta: Record<string, { costAmount: number; costCurrency: 'credits' | 'wealth'; cooldownMs: number }> = {
-    raid: { costAmount: 25, costCurrency: 'wealth', cooldownMs: 24 * 60 * 60 * 1000 }, // land_siege
-    sabotage: { costAmount: 25, costCurrency: 'credits', cooldownMs: 8 * 60 * 60 * 1000 }, // business_sabotage
-    steal: { costAmount: 15, costCurrency: 'credits', cooldownMs: 4 * 60 * 60 * 1000 } // standard
-  }
-
-  const getCooldownRemaining = (typeKey: string) => {
-    const mapping = {
-      raid: 'lastLandSiege',
-      sabotage: 'lastBusinessSabotage',
-      steal: 'lastStandardAttack'
-    } as Record<string, keyof typeof gameStore.battleState>
-
-    const last = (gameStore.battleState as any)[mapping[typeKey]] || 0
-    const cooldown = attackMeta[typeKey].cooldownMs
-    const rem = Math.max(0, (last + cooldown) - currentTime)
-    return rem
-  }
-
-  const canAffordAttack = (typeKey: string) => {
-    const meta = attackMeta[typeKey]
-    if (meta.costCurrency === 'credits') return gameStore.player.credits >= meta.costAmount
-    return gameStore.player.wealth >= meta.costAmount
-  }
-
-  const isOnCooldown = (typeKey: string) => getCooldownRemaining(typeKey) > 0
 
   const acceptBattle = (battleId: string) => {
+    // Move invite to active (for internal state consistency), then resolve immediately
     multiplayerStore.acceptBattleChallenge(battleId)
-    toast.success('Battle accepted! Preparing for combat...')
+
+    const ms = useMultiplayerStore.getState()
+    const active = ms.activeBattles.find(b => b.id === battleId)
+    if (!active) {
+      toast.error('Battle not found')
+      return
+    }
+
+    // Enforce attack costs based on type
+    const info = getBattleTypeInfo(active.attackType)
+    const cost = (info as any).cost as { amount: number; currency: 'credits' | 'wealth' } | undefined
+    if (cost && cost.amount > 0) {
+      if (cost.currency === 'credits') {
+        if (gameStore.player.credits < cost.amount) {
+          toast.error(`Need ${cost.amount} credits for this attack`)
+          return
+        }
+        useGameStore.setState(s => ({ player: { ...s.player, credits: s.player.credits - cost.amount } }))
+      } else {
+        if (gameStore.player.wealth < cost.amount) {
+          toast.error(`Need ${cost.amount} $WEALTH for this attack`)
+          return
+        }
+        useGameStore.setState(s => ({ player: { ...s.player, wealth: Math.max(0, s.player.wealth - cost.amount) } }))
+      }
+    }
+
+    // Determine roles and opponent
+    const youId = gameStore.player.id || 'current_player'
+    const attackerIsYou = active.attacker === youId || active.attacker === 'current_player'
+    const opponentId = attackerIsYou ? active.defender : active.attacker
+    const opponent = ms.onlinePlayers.find(p => p.id === opponentId)
+
+    // Offense/Defense scores
+    const yourWAR = (() => { try { return gameStore.calculateWAR() } catch { return 1000 } })()
+    const oppScore = opponent?.battlePower ?? 1200
+    const defenderDefenseRating = attackerIsYou
+      ? Math.min(100, Math.floor((opponent?.battlePower ?? 1200) / 20)) // approx
+      : gameStore.getDefenseRating()
+
+    const attackerScore = attackerIsYou ? yourWAR : oppScore
+    const defenderScore = attackerIsYou ? oppScore : yourWAR
+
+    // Success chance modeled on core attack math, adjusted by defense rating
+    let successChance = 0.6 + ((attackerScore - defenderScore) / 2000) - (defenderDefenseRating / 200)
+    successChance = Math.max(0.1, Math.min(0.9, successChance))
+    const roll = Math.random()
+    const attackerWins = roll < successChance
+
+    // Stakes transfer (credits) — compute actual deltas (clamp at available balances)
+    const stake = active.stakes?.type === 'credits' ? (active.stakes?.amount ?? 0) : 0
+    const youWin = attackerIsYou ? attackerWins : !attackerWins
+    let creditDeltaForYou = 0
+    let actualStakePaid = 0
+    if (stake > 0) {
+      const myCreditsBefore = useGameStore.getState().player.credits
+      const oppCreditsBefore = opponent?.credits ?? 0
+      if (youWin) {
+        // Opponent pays up to their available credits; you receive that amount
+        actualStakePaid = Math.min(stake, oppCreditsBefore)
+        creditDeltaForYou = actualStakePaid
+        // You gain
+        useGameStore.setState(s => ({ player: { ...s.player, credits: s.player.credits + actualStakePaid } }))
+        // Opponent loses
+        try {
+          useMultiplayerStore.setState((ms: any) => ({
+            onlinePlayers: ms.onlinePlayers.map((p: any) => p.id === opponentId ? { ...p, credits: Math.max(0, (p.credits ?? 0) - actualStakePaid) } : p)
+          }))
+        } catch {}
+      } else {
+        // You pay up to your available credits; opponent receives that amount
+        actualStakePaid = Math.min(stake, myCreditsBefore)
+        creditDeltaForYou = -actualStakePaid
+        // You lose
+        useGameStore.setState(s => ({ player: { ...s.player, credits: Math.max(0, s.player.credits - actualStakePaid) } }))
+        // Opponent gains
+        try {
+          useMultiplayerStore.setState((ms: any) => ({
+            onlinePlayers: ms.onlinePlayers.map((p: any) => p.id === opponentId ? { ...p, credits: (p.credits ?? 0) + actualStakePaid } : p)
+          }))
+        } catch {}
+      }
+    }
+
+    // Wealth transfer on successful wealth-related attacks (standard/wealth_assault/land_siege)
+    let wealthDeltaForYou = 0
+    const isWealthTheft = active.attackType === 'standard' || active.attackType === 'wealth_assault' || active.attackType === 'land_siege'
+    if (attackerWins && isWealthTheft) {
+      const cap = active.attackType === 'standard' ? 0.10 : (active.attackType === 'wealth_assault' ? 0.25 : 0.35)
+      // Determine defender's current wealth based on roles
+      const defenderWealth = attackerIsYou ? (opponent?.wealth ?? 0) : (useGameStore.getState().player.wealth)
+      let stolen = Math.floor(defenderWealth * cap)
+      if (stolen < 0) stolen = 0
+      if (stolen > defenderWealth) stolen = defenderWealth
+      if (stolen > 0) {
+        if (attackerIsYou) {
+          // You gain, opponent loses
+          useGameStore.setState(s => ({ player: { ...s.player, wealth: s.player.wealth + stolen } }))
+          try {
+            useMultiplayerStore.setState((ms: any) => ({
+              onlinePlayers: ms.onlinePlayers.map((p: any) => p.id === opponentId ? { ...p, wealth: Math.max(0, (p.wealth ?? 0) - stolen) } : p)
+            }))
+          } catch {}
+          wealthDeltaForYou = stolen
+        } else {
+          // You lose, opponent gains
+          useGameStore.setState(s => ({ player: { ...s.player, wealth: Math.max(0, s.player.wealth - stolen) } }))
+          try {
+            useMultiplayerStore.setState((ms: any) => ({
+              onlinePlayers: ms.onlinePlayers.map((p: any) => p.id === opponentId ? { ...p, wealth: (p.wealth ?? 0) + stolen } : p)
+            }))
+          } catch {}
+          wealthDeltaForYou = -stolen
+        }
+      }
+    }
+
+    // Apply sabotage effects on defender when attacker wins
+    if (active.attackType === 'business_sabotage' && attackerWins) {
+      if (!attackerIsYou) {
+        // You are the defender; apply damage to your businesses
+        const state = useGameStore.getState()
+        const hasInsurance = state.enhancedBusinesses.some(b => b.owned && state.activeSlots.includes(b.id) && b.id === 'insurance_company')
+        let dmg = 30
+        if (hasInsurance) dmg = Math.floor(dmg / 2)
+        // Increase normal business damage meter
+        useGameStore.setState(s => ({
+          battleState: {
+            ...s.battleState,
+            businessDamage: Math.min(100, (s.battleState.businessDamage || 0) + dmg)
+          }
+        }))
+
+        // Nick 1–2 random owned enhanced businesses' condition by 5–10% (halved if insurance), floor 60%
+        const owned = state.enhancedBusinesses
+          .map((eb, i) => ({ eb, i }))
+          .filter(x => x.eb.owned)
+        if (owned.length > 0) {
+          const count = Math.min(owned.length, 1 + Math.round(Math.random()))
+          const shuffled = owned.sort(() => Math.random() - 0.5).slice(0, count)
+          const impacted: Array<{ name: string; delta: number }> = []
+          useGameStore.setState(s => ({
+            enhancedBusinesses: s.enhancedBusinesses.map((eb, i) => {
+              const hit = shuffled.find(x => x.i === i)
+              if (!hit) return eb
+              const base = 5 + Math.floor(Math.random() * 6) // 5..10
+              const delta = hasInsurance ? Math.ceil(base / 2) : base
+              const current = typeof eb.condition === 'number' ? eb.condition! : 100
+              impacted.push({ name: eb.name, delta })
+              return { ...eb, condition: Math.max(60, current - delta) }
+            })
+          }))
+          if (impacted.length > 0) {
+            const details = impacted.map(i => `${i.name} -${i.delta}%`).join(', ')
+            toast.error(`Sabotage damaged enhanced businesses`, { description: details })
+          }
+        }
+      } else {
+        // Opponent is defender; reflect demo damage into mock multiplayer store target
+        const defId = opponentId
+        try {
+          useMultiplayerStore.setState((ms: any) => ({
+            onlinePlayers: ms.onlinePlayers.map((p: any) => p.id === defId ? {
+              ...p,
+              battleState: {
+                ...(p.battleState || {}),
+                businessDamage: Math.min(100, ((p.battleState?.businessDamage) || 0) + 30)
+              }
+            } : p)
+          }))
+        } catch {}
+      }
+    }
+
+    // Record result into history and clear from active
+    const winnerId = attackerWins ? active.attacker : active.defender
+    useMultiplayerStore.setState(state => ({
+      activeBattles: state.activeBattles.filter(b => b.id !== battleId),
+      battleHistory: [
+        {
+          ...active,
+          status: 'completed',
+          result: {
+            winner: winnerId,
+            damage: active.attackType === 'business_sabotage' ? (attackerWins ? 30 : 0) : 0,
+            loot: actualStakePaid,
+            reputation: attackerWins ? 10 : 2,
+            wealthDeltaAttacker: isWealthTheft ? (attackerWins ? Math.abs(wealthDeltaForYou) : 0) : 0
+          }
+        },
+        ...state.battleHistory
+      ]
+    }))
+
+    // Toast + modal like the Arena sim
+    const creditNote = creditDeltaForYou !== 0 ? ` ${creditDeltaForYou > 0 ? '+' : ''}${creditDeltaForYou} credits` : ''
+    if (youWin) {
+      const wealthNote = wealthDeltaForYou > 0 ? ` • +${wealthDeltaForYou} $WEALTH` : ''
+      toast.success(`Victory!${creditNote}${wealthNote}`)
+    } else {
+      const wealthNote = wealthDeltaForYou < 0 ? ` • ${wealthDeltaForYou} $WEALTH` : ''
+      toast.error(`Defeat!${creditNote}${wealthNote}`)
+    }
+    
+    // Show modal for more prominent feedback
+    setResultModal({
+      won: youWin,
+      title: youWin ? 'Victory!' : 'Defeat',
+      description: youWin
+        ? `You won the challenge.${creditDeltaForYou > 0 ? ` You received ${creditDeltaForYou} credits.` : ''}${wealthDeltaForYou > 0 ? ` You also stole ${wealthDeltaForYou} $WEALTH.` : ''}`
+        : `You lost the challenge.${creditDeltaForYou < 0 ? ` You paid ${Math.abs(creditDeltaForYou)} credits.` : ''}${wealthDeltaForYou < 0 ? ` You also lost ${Math.abs(wealthDeltaForYou)} $WEALTH.` : ''}`
+    })
   }
 
   const declineBattle = (battleId: string) => {
@@ -141,11 +349,25 @@ export function RealTimeBattleSystem() {
 
   return (
     <div className="space-y-6">
+      {/* Result Modal */}
+      {resultModal && (
+        <Dialog open={!!resultModal} onOpenChange={(o) => !o && setResultModal(null)}>
+          <DialogContent className="sm:max-w-md bg-card border border-border shadow-lg">
+            <DialogHeader>
+              <DialogTitle>{resultModal.title}</DialogTitle>
+              <DialogDescription>{resultModal.description}</DialogDescription>
+            </DialogHeader>
+            <div className="mt-2">
+              <Button className="w-full" onClick={() => setResultModal(null)}>Continue</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
       {/* Battle Status Header */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Sword className="h-5 w-5 text-primary" />
+            <Swords className="h-5 w-5 text-primary" />
             Real-Time Battle System
           </CardTitle>
         </CardHeader>
@@ -174,7 +396,7 @@ export function RealTimeBattleSystem() {
               <div>
                 <p className="text-sm font-medium">Battles Today</p>
                 <p className="text-lg font-bold text-info">
-                  0
+                  {gameStore.battleState.attacksToday}
                 </p>
               </div>
             </div>
@@ -182,75 +404,7 @@ export function RealTimeBattleSystem() {
         </CardContent>
       </Card>
 
-      {/* Active Battles */}
-      {multiplayerStore.activeBattles.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Zap className="h-5 w-5 animate-pulse text-warning" />
-              Active Battles
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {multiplayerStore.activeBattles.map(battle => {
-              const opponent = multiplayerStore.onlinePlayers.find(p => 
-                p.id === (battle.attacker === gameStore.player.id ? battle.defender : battle.attacker)
-              )
-              const battleInfo = getBattleTypeInfo(battle.attackType)
-              
-              return (
-                <div key={battle.id} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {battleInfo.icon}
-                      <div>
-                        <h3 className="font-semibold">{battleInfo.name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          vs {opponent?.username || 'Unknown Player'}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge className="bg-warning text-warning-foreground">
-                      Active
-                    </Badge>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Battle Progress</span>
-                      <span>
-                        {formatTimeRemaining(battle.startTime + battle.duration)}
-                      </span>
-                    </div>
-                    <Progress 
-                      value={((currentTime - battle.startTime) / battle.duration) * 100} 
-                      className="h-2"
-                    />
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => multiplayerStore.executeBattleAction(battle.id, 'aggressive')}
-                      className="flex-1 bg-destructive hover:bg-destructive/90"
-                    >
-                      <Sword className="h-4 w-4 mr-2" />
-                      Attack
-                    </Button>
-                    <Button
-                      onClick={() => multiplayerStore.executeBattleAction(battle.id, 'defensive')}
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      <Shield className="h-4 w-4 mr-2" />
-                      Defend
-                    </Button>
-                  </div>
-                </div>
-              )
-            })}
-          </CardContent>
-        </Card>
-      )}
+      {/* Active Battles removed: resolution happens instantly upon acceptance */}
 
       {/* Battle Invites */}
       {multiplayerStore.battleInvites.length > 0 && (
@@ -262,22 +416,42 @@ export function RealTimeBattleSystem() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {multiplayerStore.battleInvites.map(battle => {
+            {multiplayerStore.battleInvites.map((battle, idx) => {
               const challenger = multiplayerStore.onlinePlayers.find(p => p.id === battle.attacker)
               const battleInfo = getBattleTypeInfo(battle.attackType)
+              // Estimate success chance breakdown (attacker vs defender)
+              const youId = gameStore.player.id || 'current_player'
+              const attackerIsYou = battle.attacker === youId || battle.attacker === 'current_player'
+              const opponentId = attackerIsYou ? battle.defender : battle.attacker
+              const opponent = multiplayerStore.onlinePlayers.find(p => p.id === opponentId)
+              const yourWAR = (() => { try { return gameStore.calculateWAR() } catch { return 1000 } })()
+              const oppScore = opponent?.battlePower ?? 1200
+              const defenderDefenseRating = attackerIsYou
+                ? Math.min(100, Math.floor((opponent?.battlePower ?? 1200) / 20))
+                : gameStore.getDefenseRating()
+              const attackerScore = attackerIsYou ? yourWAR : oppScore
+              const defenderScore = attackerIsYou ? oppScore : yourWAR
+              let est = 0.6 + ((attackerScore - defenderScore) / 2000) - (defenderDefenseRating / 200)
+              est = Math.max(0.1, Math.min(0.9, est))
               
               return (
-                <div key={battle.id} className="border rounded-lg p-4 space-y-3">
+                <div key={`invite-${battle.id || idx}`} className="border rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      {battleInfo.icon}
+                      {battleInfo.icon ?? <Swords className="h-4 w-4" />}
                       <div>
                         <h3 className="font-semibold">Challenge from {challenger?.username}</h3>
                         <p className="text-sm text-muted-foreground">{battleInfo.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Offense: {attackerScore} • Defense: {defenderDefenseRating} • Est. Success: {Math.round(est * 100)}%
+                        </p>
+                        {battleInfo.cost && (
+                          <p className="text-xs text-muted-foreground">Cost: {battleInfo.cost.amount} {battleInfo.cost.currency === 'wealth' ? '$WEALTH' : 'Credits'}</p>
+                        )}
                       </div>
                     </div>
                     <Badge variant="outline">
-                      Stakes: {battle.stakes.amount} Credits
+                      Stakes: {battle.stakes?.amount ?? 0} Credits
                     </Badge>
                   </div>
                   
@@ -330,9 +504,10 @@ export function RealTimeBattleSystem() {
             <div>
               <label className="text-sm font-medium">Battle Type</label>
               <select value={battleType} onChange={(e) => setBattleType(e.target.value)}>
-                <option value="raid">Wealth Raid</option>
-                <option value="sabotage">Business Sabotage</option>
-                <option value="steal">Credit Heist</option>
+                <option value="standard">Standard Attack (15 Credits)</option>
+                <option value="wealth_assault">Wealth Assault (10 $WEALTH)</option>
+                <option value="land_siege">Land Siege (25 $WEALTH)</option>
+                <option value="business_sabotage">Business Sabotage (25 Credits)</option>
               </select>
             </div>
             
@@ -340,7 +515,7 @@ export function RealTimeBattleSystem() {
               <label className="text-sm font-medium">Stakes (Credits)</label>
               <input
                 type="number"
-                min={10}
+                min={0}
                 max={gameStore.player.credits}
                 value={stakeAmount}
                 onChange={(e) => setStakeAmount(Number(e.target.value))}
@@ -377,7 +552,7 @@ export function RealTimeBattleSystem() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold text-primary">
-                      {(player.wealth || 0).toLocaleString()} Wealth
+                      {player.wealth.toLocaleString()} Wealth
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Rep: {player.reputation}
@@ -397,36 +572,12 @@ export function RealTimeBattleSystem() {
 
           <Button
             onClick={challengePlayer}
-            disabled={!selectedOpponent || !canAffordAttack(battleType) || isOnCooldown(battleType)}
+            disabled={!selectedOpponent}
             className="w-full bg-wealth-gradient hover:opacity-90"
             size="lg"
           >
-            <Sword className="h-5 w-5 mr-2" />
-            {isOnCooldown(battleType) ? `Cooldown: ${formatTimeRemaining(currentTime + getCooldownRemaining(battleType))}` : 'Send Battle Challenge'}
-            <div className="text-xs ml-2">
-              {attackMeta[battleType].costAmount} {attackMeta[battleType].costCurrency === 'credits' ? 'Credits' : 'WEALTH'}
-            </div>
-          </Button>
-
-          <Button
-            onClick={async () => {
-              if (!selectedOpponent) return toast.error('Select an opponent')
-              // map UI battleType to gameStore attackType
-              const map: Record<string, any> = { raid: 'land_siege', sabotage: 'business_sabotage', steal: 'standard' }
-              const attackKey = map[battleType]
-              const result = gameStore.performAttack(selectedOpponent, attackKey)
-              if (result.success) {
-                toast.success(result.message || 'Attack succeeded')
-              } else {
-                toast.error(result.message || 'Attack failed')
-              }
-            }}
-            disabled={!selectedOpponent || !canAffordAttack(battleType) || isOnCooldown(battleType)}
-            variant="outline"
-            className="w-full mt-2"
-          >
-            <Zap className="h-4 w-4 mr-2" />
-            Execute Attack
+            <Swords className="h-5 w-5 mr-2" />
+            Send Battle Challenge
           </Button>
         </CardContent>
       </Card>
@@ -447,6 +598,11 @@ export function RealTimeBattleSystem() {
                   p.id === (battle.attacker === gameStore.player.id ? battle.defender : battle.attacker)
                 )
                 const isWinner = battle.result?.winner === gameStore.player.id
+                const attackerIsYou = battle.attacker === gameStore.player.id
+                const wealthDeltaAttacker = battle.result?.wealthDeltaAttacker ?? 0
+                const wealthDeltaForYou = attackerIsYou
+                  ? (isWinner ? wealthDeltaAttacker : 0)
+                  : (isWinner ? 0 : -wealthDeltaAttacker)
                 const battleInfo = getBattleTypeInfo(battle.attackType)
 
                 return (
@@ -469,9 +625,12 @@ export function RealTimeBattleSystem() {
                         {isWinner ? 'Victory' : 'Defeat'}
                       </Badge>
                       {battle.result && (
-                        <p className="text-sm mt-1">
-                          {isWinner ? '+' : '-'}{battle.result.loot} Credits
-                        </p>
+                        <div className="text-sm mt-1 space-y-0.5">
+                          <p>{isWinner ? '+' : '-'}{battle.result.loot} Credits</p>
+                          {wealthDeltaForYou !== 0 && (
+                            <p>{wealthDeltaForYou > 0 ? '+' : ''}{wealthDeltaForYou} $WEALTH</p>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>

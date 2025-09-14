@@ -1,4 +1,11 @@
+"use client"
+
 import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { calculateActiveSynergies, calculateSynergyEffects } from '@/app/lib/synergies'
+
+// Manager configuration
+const MANAGER_CHARGES_PER_HIRE = 20
 
 // Core game interfaces based on comprehensive mechanics document
 export interface Player {
@@ -52,6 +59,9 @@ export interface EnhancedBusiness {
   active: boolean
   abilityCharges?: number
   maxCharges?: number
+  // Maintenance
+  condition?: number // 0-100%, defaults to 100 when present
+  lastMaintenance?: number
 }
 
 export interface BattleState {
@@ -67,6 +77,12 @@ export interface BattleState {
     expires: number
   }
   businessDamage: number // 0-100%
+}
+
+// Global Manager contract (auto-work) state
+interface ManagerState {
+  charges: number // remaining automated work actions
+  purchases: number // number of manager hires (for cost scaling)
 }
 
 export interface LandNFT {
@@ -133,14 +149,76 @@ interface GameState {
   // Last boost event for UI feedback (transient)
   lastBoostEvent?: { id: string; message: string; timestamp: number } | null
   currentTime: number
+  // Amount of credits earned in the most recent Work action (for sharing)
+  lastWorkReward?: number
+
+  // Timed/sustained effects and utility flags
+  rapidProcessingUntil?: number // halves work cooldown while active
+  compoundActiveUntil?: number // investment bank accrual window end
+  compoundLastTick?: number // last interest grant ts
+  conversionBoostUntil?: number // marketing agency conversion buff
+  intelRevealUntil?: number // market research intel window
+  bypassDefensesUntil?: number // cyber security offensive window
+  synergyLastTick?: number // last daily synergy wealth grant
+
+  // Global Manager
+  manager: ManagerState
+
+  // On-chain adapter toggle and hooks (optional wiring)
+  onChainEnabled?: boolean
+  setOnChainEnabled?: (enabled: boolean) => void
+  setOnChainAdapter?: (adapter: {
+    initializePlayer?: () => Promise<{ success: boolean; error?: string }>
+    doWork?: () => Promise<{ success: boolean; reward?: number; cooldownRemaining?: number; error?: string }>
+    purchaseBusiness?: (businessId: number) => Promise<{ success: boolean; businessId?: number; cost?: number; error?: string }>
+    getPlayerState?: () => Promise<{
+      owner: any;
+      lastWorkTimestamp: any;
+      streakCount: number;
+      workFrequencyLevel: number;
+      totalWorkActions: any;
+      credits: any;
+      wealthTokens: any;
+      businessesOwned: number[];
+      activeBusinessSlots: number[];
+      lastStreakCheck: any;
+      cooldownHours: number;
+      bump: number;
+    } | null>
+    getCooldownRemaining?: () => Promise<number>
+  } | null) => void
+  // internal holder for adapter
+  _onChainAdapter?: {
+    initializePlayer?: () => Promise<{ success: boolean; error?: string }>
+    doWork?: () => Promise<{ success: boolean; reward?: number; cooldownRemaining?: number; error?: string }>
+    purchaseBusiness?: (businessId: number) => Promise<{ success: boolean; businessId?: number; cost?: number; error?: string }>
+    getPlayerState?: () => Promise<{
+      owner: any;
+      lastWorkTimestamp: any;
+      streakCount: number;
+      workFrequencyLevel: number;
+      totalWorkActions: any;
+      credits: any;
+      wealthTokens: any;
+      businessesOwned: number[];
+      activeBusinessSlots: number[];
+      lastStreakCheck: any;
+      cooldownHours: number;
+      bump: number;
+    } | null>
+    getCooldownRemaining?: () => Promise<number>
+  } | null
+  // If provided by on-chain error result, UI should respect this cooldown end time (ms since epoch)
+  onChainCooldownUntil?: number
 
   // Actions
   initializePlayer: (walletAddress?: string) => void
-  doWork: () => void
+  doWork: (opts?: { automated?: boolean }) => void
   buyBusinessOutlet: (businessId: string) => void
   setShareBoostActive: (active: boolean) => void
   hireManager: (businessId: string) => void
   repairBusiness: (businessId: string, repairAmount: number) => void
+  repairEnhancedBusiness: (businessId: string, repairAmount: number) => void
   buyEnhancedBusiness: (businessId: string) => void
   activateEnhancedBusiness: (businessId: string) => void
   toggleBusinessSlot: (businessId: string) => void
@@ -163,6 +241,22 @@ interface GameState {
   calculateWAR: () => number
   getWorkMultiplier: () => number
   getDefenseRating: () => number
+  // Centralized helpers
+  getBusinessProfit: (businessOrId: string | Business) => number
+  getOutletNextCost: (businessId: string) => number
+  getWorkCooldownRemaining: (now?: number) => number
+  // Preview next Work payout considering multipliers, abilities, synergies, and boosts
+  getExpectedWorkPayout: () => number
+  autoManagerWork: () => void
+  // Manager helpers
+  getManagerCost: () => number
+  hireGlobalManager: () => void
+  // Offline catch-up
+  catchUpManagerWork: () => void
+  // Internal helper (exposed for store-internal calls)
+  _applyWork: (now: number, automated: boolean) => void
+  // Periodic effect processor
+  tickEffects: () => void
 }
 
 // Mock businesses data based on comprehensive mechanics document
@@ -213,15 +307,17 @@ const mockEnhancedBusinesses: EnhancedBusiness[] = [
     description: 'A cutting-edge facility that automates your business processes',
     icon: '🏭',
     category: 'efficiency',
-    cost: 75, // $WEALTH cost
+    cost: 75,
     workMultiplier: 100,
     abilityName: 'Rapid Processing',
     abilityDescription: 'Reduces all cooldowns by 50% for 24 hours',
     abilityType: 'active',
-    cooldown: 604800000, // 7 days
+    cooldown: 86400000, // 24 hours
     lastActivated: 0,
     owned: false,
-    active: false
+    active: false,
+    condition: 100,
+    lastMaintenance: 0
   },
   {
     id: 'fast_food_chain',
@@ -234,10 +330,12 @@ const mockEnhancedBusinesses: EnhancedBusiness[] = [
     abilityName: 'Quick Service',
     abilityDescription: 'Next 3 work actions provide 20% bonus credits',
     abilityType: 'active',
-    cooldown: 432000000, // 5 days
+    cooldown: 43200000, // 12 hours
     lastActivated: 0,
     owned: false,
-    active: false
+    active: false,
+    condition: 100,
+    lastMaintenance: 0
   },
   {
     id: 'innovation_lab',
@@ -250,10 +348,12 @@ const mockEnhancedBusinesses: EnhancedBusiness[] = [
     abilityName: 'Breakthrough',
     abilityDescription: 'Next work action provides 3x credits',
     abilityType: 'active',
-    cooldown: 345600000, // 4 days
+    cooldown: 28800000, // 8 hours
     lastActivated: 0,
     owned: false,
-    active: false
+    active: false,
+    condition: 100,
+    lastMaintenance: 0
   },
   {
     id: 'security_firm',
@@ -269,7 +369,9 @@ const mockEnhancedBusinesses: EnhancedBusiness[] = [
     cooldown: 0,
     lastActivated: 0,
     owned: false,
-    active: false
+    active: false,
+    condition: 100,
+    lastMaintenance: 0
   },
   {
     id: 'insurance_company',
@@ -285,7 +387,9 @@ const mockEnhancedBusinesses: EnhancedBusiness[] = [
     cooldown: 0,
     lastActivated: 0,
     owned: false,
-    active: false
+    active: false,
+    condition: 100,
+    lastMaintenance: 0
   },
   {
     id: 'government_contract',
@@ -301,7 +405,9 @@ const mockEnhancedBusinesses: EnhancedBusiness[] = [
     cooldown: 0,
     lastActivated: 0,
     owned: false,
-    active: false
+    active: false,
+    condition: 100,
+    lastMaintenance: 0
   },
   {
     id: 'consulting_firm',
@@ -314,10 +420,12 @@ const mockEnhancedBusinesses: EnhancedBusiness[] = [
     abilityName: 'Corporate Espionage',
     abilityDescription: 'Add 6 hours to target player\'s work cooldown',
     abilityType: 'active',
-    cooldown: 1209600000, // 14 days
+    cooldown: 43200000, // 12 hours
     lastActivated: 0,
     owned: false,
-    active: false
+    active: false,
+    condition: 100,
+    lastMaintenance: 0
   },
   {
     id: 'cyber_security',
@@ -330,10 +438,12 @@ const mockEnhancedBusinesses: EnhancedBusiness[] = [
     abilityName: 'System Disruption',
     abilityDescription: 'Disable target\'s defensive businesses for 2 hours',
     abilityType: 'active',
-    cooldown: 86400000, // 1 day
+    cooldown: 28800000, // 8 hours
     lastActivated: 0,
     owned: false,
-    active: false
+    active: false,
+    condition: 100,
+    lastMaintenance: 0
   },
   {
     id: 'investment_bank',
@@ -346,10 +456,12 @@ const mockEnhancedBusinesses: EnhancedBusiness[] = [
     abilityName: 'Compound Interest',
     abilityDescription: 'Generate 5% interest on $WEALTH holdings daily for 7 days',
     abilityType: 'active',
-    cooldown: 604800000, // 7 days
+    cooldown: 172800000, // 2 days
     lastActivated: 0,
     owned: false,
-    active: false
+    active: false,
+    condition: 100,
+    lastMaintenance: 0
   },
   {
     id: 'trading_exchange',
@@ -365,7 +477,9 @@ const mockEnhancedBusinesses: EnhancedBusiness[] = [
     cooldown: 0,
     lastActivated: 0,
     owned: false,
-    active: false
+    active: false,
+    condition: 100,
+    lastMaintenance: 0
   },
   {
     id: 'market_research',
@@ -378,10 +492,12 @@ const mockEnhancedBusinesses: EnhancedBusiness[] = [
     abilityName: 'Intelligence Gathering',
     abilityDescription: 'Reveal target player\'s business portfolio and cooldowns',
     abilityType: 'active',
-    cooldown: 43200000, // 12 hours
+    cooldown: 14400000, // 4 hours
     lastActivated: 0,
     owned: false,
-    active: false
+    active: false,
+    condition: 100,
+    lastMaintenance: 0
   },
   {
     id: 'marketing_agency',
@@ -394,10 +510,12 @@ const mockEnhancedBusinesses: EnhancedBusiness[] = [
     abilityName: 'Market Boost',
     abilityDescription: '25% better conversion rates for 8 hours',
     abilityType: 'active',
-    cooldown: 129600000, // 36 hours
+    cooldown: 28800000, // 8 hours
     lastActivated: 0,
     owned: false,
-    active: false
+    active: false,
+    condition: 100,
+    lastMaintenance: 0
   },
   {
     id: 'venture_capital',
@@ -410,15 +528,17 @@ const mockEnhancedBusinesses: EnhancedBusiness[] = [
     abilityName: 'Risky Investment',
     abilityDescription: '60% chance +50 bonus credits, 40% chance lose 25 credits',
     abilityType: 'active',
-    cooldown: 10800000, // 3 hours
+    cooldown: 7200000, // 2 hours
     lastActivated: 0,
     owned: false,
-    active: false
+    active: false,
+    condition: 100,
+    lastMaintenance: 0
   }
 ]
 
 // Create the comprehensive game store
-export const useGameStore = create<GameState>((set, get) => ({
+export const useGameStore = create<GameState>()(persist((set, get) => ({
   // Player state
   player: {
     id: 'demo-player',
@@ -472,6 +592,26 @@ export const useGameStore = create<GameState>((set, get) => ({
   showShareModal: false,
   shareBoostActive: false,
   currentTime: Date.now(),
+  rapidProcessingUntil: undefined,
+  compoundActiveUntil: undefined,
+  compoundLastTick: undefined,
+  conversionBoostUntil: undefined,
+  intelRevealUntil: undefined,
+  bypassDefensesUntil: undefined,
+  synergyLastTick: undefined,
+
+  // Manager state
+  manager: {
+    charges: 0,
+    purchases: 0
+  },
+
+  // On-chain adapter wiring (off by default)
+  onChainEnabled: false,
+  _onChainAdapter: null,
+  setOnChainEnabled: (enabled: boolean) => set({ onChainEnabled: enabled }),
+  setOnChainAdapter: (adapter) => set({ _onChainAdapter: adapter }),
+  onChainCooldownUntil: undefined,
 
   // Actions
   initializePlayer: (walletAddress?: string) => {
@@ -483,26 +623,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     }))
   },
-  doWork: () => {
-    const now = Date.now()
+  // Internal work application that assumes cooldown eligibility has been validated outside
+  _applyWork: (now: number, automated: boolean) => {
     const state = get()
-
-    const last = state.player.lastWorkTimestamp || 0
-    let consecutive = state.player.consecutiveWorkClicks || 0
-
-    // If it's been a long time (>= 6 hours) since last work, reset consecutive counter
-    const sixHours = 6 * 60 * 60 * 1000
-    const twoHours = 2 * 60 * 60 * 1000
-    if (last === 0 || (now - last) >= sixHours) {
-      consecutive = 0
-    }
-
-    // Determine required cooldown before allowing new click: 2h normally, 6h when this is the 4th
-    const requiredCooldown = (consecutive >= 3) ? sixHours : twoHours
-    if (last !== 0 && (now - last) < requiredCooldown) {
-      return // Still on cooldown
-    }
-
     const workMultiplier = get().getWorkMultiplier()
     const baseCredits = 25
     const bonusCredits = Math.floor(baseCredits * (workMultiplier / 100))
@@ -513,74 +636,114 @@ export const useGameStore = create<GameState>((set, get) => ({
     enhancedBusinesses.forEach((b, idx) => {
       if (!b.owned || !b.active) return
 
-      // Fast Food Chain: abilityCharges provide 20% bonus per charge (consumed on work)
       if (b.id === 'fast_food_chain' && b.abilityCharges && b.abilityCharges > 0) {
         totalCredits = Math.floor(totalCredits * 1.2)
-        // consume one charge
         enhancedBusinesses[idx] = { ...b, abilityCharges: b.abilityCharges - 1 }
-        // set transient boost event for UI
-        set(s => ({ lastBoostEvent: { id: b.id, message: 'Quick Service used: +20% credits', timestamp: Date.now() } }))
+        set(() => ({ lastBoostEvent: { id: b.id, message: 'Quick Service used: +20% credits', timestamp: Date.now() } }))
       }
 
-      // Innovation Lab: next work action provides 3x credits (consumed)
       if (b.id === 'innovation_lab' && b.abilityCharges && b.abilityCharges > 0) {
         totalCredits = totalCredits * 3
         enhancedBusinesses[idx] = { ...b, abilityCharges: b.abilityCharges - 1 }
-        set(s => ({ lastBoostEvent: { id: b.id, message: 'Breakthrough used: 3x credits', timestamp: Date.now() } }))
+        set(() => ({ lastBoostEvent: { id: b.id, message: 'Breakthrough used: 3x credits', timestamp: Date.now() } }))
       }
-
-      // Automation Factory: if active (slot) reduce required cooldowns by 50% — handled in getWorkMultiplier/cooldown checks indirectly
     })
+    set(() => ({ enhancedBusinesses }))
 
-    // write back any consumed charges
-    set(state => ({ enhancedBusinesses: enhancedBusinesses }))
-
-    // Apply share boost (1.5x) if active for next work action
     if (state.shareBoostActive) {
       totalCredits = Math.floor(totalCredits * 1.5)
     }
 
     const xpGained = 25 + (state.player.workStreak * 2)
 
-    // Update state: credits, xp, streak, timestamps, and consecutive click count
-    set(state => ({
+    set(s => ({
       player: {
-        ...state.player,
-        credits: state.player.credits + totalCredits,
-        xp: state.player.xp + xpGained,
-        workStreak: state.player.workStreak + 1,
-        lastWorkDate: new Date().toISOString().split('T')[0],
-        workSessionCount: state.player.workSessionCount + 1,
+        ...s.player,
+        credits: s.player.credits + totalCredits,
+        xp: s.player.xp + xpGained,
+        workStreak: s.player.workStreak + 1,
+        lastWorkDate: new Date(now).toISOString().split('T')[0],
+        workSessionCount: s.player.workSessionCount + 1,
         lastSessionEnd: now,
         lastWorkTimestamp: now,
-        consecutiveWorkClicks: (consecutive || 0) + 1,
-        level: Math.floor(state.player.xp / 1000) + 1
+        consecutiveWorkClicks: (s.player.consecutiveWorkClicks || 0) + 1,
+        level: Math.floor(s.player.xp / 1000) + 1
       },
-      // after showing share modal, clear the one-time boost
+      lastWorkReward: totalCredits,
       shareBoostActive: false,
-      showShareModal: Math.random() > 0.8 // 20% chance to show share modal
+      // Always offer to share when the user manually clicks Work; never show for automated manager ticks
+      showShareModal: automated ? false : true
     }))
   },
 
-  buyBusinessOutlet: (businessId: string) => {
+  doWork: (opts?: { automated?: boolean }) => {
+    const now = Date.now()
     const state = get()
-    const businessIndex = state.businesses.findIndex(b => b.id === businessId)
+    const last = state.player.lastWorkTimestamp || 0
+    let consecutive = state.player.consecutiveWorkClicks || 0
+    const sixHours = 6 * 60 * 60 * 1000
+    const twoHours = 2 * 60 * 60 * 1000
+    if (last === 0 || (now - last) >= sixHours) {
+      consecutive = 0
+    }
+    // Base required cooldown
+    let requiredCooldown = (consecutive >= 3) ? sixHours : twoHours
+    // Rapid Processing halves cooldown if active
+    if ((state.rapidProcessingUntil || 0) > now) {
+      requiredCooldown = Math.floor(requiredCooldown / 2)
+    }
+    if (last !== 0 && (now - last) < requiredCooldown) {
+      return
+    }
 
-    if (businessIndex >= 0) {
-      const business = state.businesses[businessIndex]
-      const cost = Math.floor(business.baseCost * Math.pow(1.15, business.outlets))
+    // Route through centralized work applier (25 base credits + multipliers)
+    get()._applyWork(now, !!opts?.automated)
+  },
 
-      if (state.player.credits >= cost) {
-        set(state => ({
-          player: {
-            ...state.player,
-            credits: state.player.credits - cost
-          },
-          businesses: state.businesses.map((b, i) =>
-            i === businessIndex ? { ...b, outlets: b.outlets + 1 } : b
-          )
-        }))
+  buyBusinessOutlet: (businessId: string) => {
+    set(state => {
+      const business = state.businesses.find(b => b.id === businessId);
+      if (!business) {
+        console.error(`Business with ID ${businessId} not found.`);
+        return state;
       }
+
+      const cost = state.getOutletNextCost(businessId);
+      if (state.player.credits < cost) {
+        console.error('Not enough credits to purchase business outlet.');
+        return state;
+      }
+
+      return {
+        ...state,
+        player: {
+          ...state.player,
+          credits: state.player.credits - cost
+        },
+        businesses: state.businesses.map(b =>
+          b.id === businessId ? { ...b, outlets: b.outlets + 1 } : b
+        )
+      };
+    });
+  },
+
+  repairEnhancedBusiness: (businessId: string, repairAmount: number) => {
+    const state = get()
+    const idx = state.enhancedBusinesses.findIndex(b => b.id === businessId)
+    if (idx < 0) return
+    const b = state.enhancedBusinesses[idx]
+    const condition = b.condition ?? 100
+    const baseCost = Math.max(1, Math.floor((100 - condition) * (b.cost || 1) * 0.1))
+    // TODO: When a defend/repair instruction for enhanced businesses exists, route this via on-chain
+    if (state.player.credits >= baseCost) {
+      set(s => ({
+        player: { ...s.player, credits: s.player.credits - baseCost },
+        enhancedBusinesses: s.enhancedBusinesses.map((eb, i) => i === idx ? {
+          ...eb,
+          condition: Math.min(100, (eb.condition ?? 100) + repairAmount),
+          lastMaintenance: Date.now()
+        } : eb)
+      }))
     }
   },
 
@@ -639,17 +802,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (businessIndex >= 0) {
       const business = state.enhancedBusinesses[businessIndex]
 
-      if (state.player.wealth >= business.cost && !business.owned) {
-        set(state => ({
-          player: {
-            ...state.player,
-            wealth: state.player.wealth - business.cost
-          },
-          enhancedBusinesses: state.enhancedBusinesses.map((b, i) =>
-            i === businessIndex ? { ...b, owned: true } : b
-          )
-        }))
-      }
+      if (state.player.wealth < business.cost || business.owned) return
+
+      // Local-only purchase logic
+      set(state => ({
+        player: { ...state.player, wealth: state.player.wealth - business.cost },
+        enhancedBusinesses: state.enhancedBusinesses.map((b, i) => i === businessIndex ? { ...b, owned: true } : b)
+      }))
     }
   },
 
@@ -673,19 +832,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           )
         }))
 
-        // Special-case effects
-        if (business.id === 'security_firm') {
-          // Fortress Protection: grant an active shield for 48 hours
-          set(state => ({
-            battleState: {
-              ...state.battleState,
-              activeShield: {
-                type: 'advanced',
-                expires: now + 172800000 // 48 hours
-              }
-            }
-          }))
-        }
+        // Passive businesses should not trigger one-off activations
 
         if (business.id === 'fast_food_chain') {
           // Quick Service: next 3 work actions get a 20% bonus; store abilityCharges
@@ -694,6 +841,7 @@ export const useGameStore = create<GameState>((set, get) => ({
               i === businessIndex ? { ...b, abilityCharges: 3, lastActivated: now, active: true } : b
             )
           }))
+          set(() => ({ lastBoostEvent: { id: business.id, message: 'Quick Service activated: next 3 works +20%', timestamp: Date.now() } }))
         }
 
         if (business.id === 'innovation_lab') {
@@ -703,6 +851,45 @@ export const useGameStore = create<GameState>((set, get) => ({
               i === businessIndex ? { ...b, abilityCharges: 1, lastActivated: now, active: true } : b
             )
           }))
+          set(() => ({ lastBoostEvent: { id: business.id, message: 'Breakthrough primed: next Work x3', timestamp: Date.now() } }))
+        }
+
+        if (business.id === 'automation_factory') {
+          // Rapid Processing: halves cooldowns for 24h
+          set(() => ({ rapidProcessingUntil: now + (24 * 60 * 60 * 1000) }))
+          set(() => ({ lastBoostEvent: { id: business.id, message: 'Rapid Processing: cooldowns halved for 24h', timestamp: Date.now() } }))
+        }
+
+        if (business.id === 'investment_bank') {
+          // Compound Interest: 5% daily for 7 days
+          set(() => ({ compoundActiveUntil: now + (7 * 24 * 60 * 60 * 1000), compoundLastTick: now }))
+          set(() => ({ lastBoostEvent: { id: business.id, message: 'Compound Interest active for 7 days', timestamp: Date.now() } }))
+        }
+
+        if (business.id === 'marketing_agency') {
+          // Market Boost: +25% better conversion for 8h
+          set(() => ({ conversionBoostUntil: now + (8 * 60 * 60 * 1000) }))
+          set(() => ({ lastBoostEvent: { id: business.id, message: 'Market Boost: conversion rates improved for 8h', timestamp: Date.now() } }))
+        }
+
+        if (business.id === 'market_research') {
+          // Intelligence Gathering: reveal intel for 8h
+          set(() => ({ intelRevealUntil: now + (8 * 60 * 60 * 1000) }))
+          set(() => ({ lastBoostEvent: { id: business.id, message: 'Intelligence Gathering: target intel revealed for 8h', timestamp: Date.now() } }))
+        }
+
+        if (business.id === 'cyber_security') {
+          // System Disruption: bypass defenses for 2h
+          set(() => ({ bypassDefensesUntil: now + (2 * 60 * 60 * 1000) }))
+          set(() => ({ lastBoostEvent: { id: business.id, message: 'System Disruption: bypass defenses for 2h', timestamp: Date.now() } }))
+        }
+
+        if (business.id === 'venture_capital') {
+          // Risky Investment: RNG immediate effect on credits
+          const win = Math.random() < 0.6
+          const delta = win ? 50 : -25
+          set(s => ({ player: { ...s.player, credits: Math.max(0, s.player.credits + delta) } }))
+          set(() => ({ lastBoostEvent: { id: business.id, message: win ? 'Risky Investment won: +50 credits' : 'Risky Investment lost: -25 credits', timestamp: Date.now() } }))
         }
       }
     }
@@ -739,7 +926,16 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   convertCreditsToWealth: (amount: number) => {
     const state = get()
-    const wealthGained = Math.floor(amount / state.conversionRate)
+    // Base rate: credits per 1 WEALTH
+    let creditsPerWealth = state.conversionRate
+    // Passive: Trading Exchange improves rates by 15%
+    const hasTrading = state.enhancedBusinesses.some(b => b.owned && state.activeSlots.includes(b.id) && b.id === 'trading_exchange')
+    if (hasTrading) creditsPerWealth = Math.floor(creditsPerWealth * 0.85)
+    // Active boost: Marketing Agency +25% better
+    if ((state.conversionBoostUntil || 0) > Date.now()) {
+      creditsPerWealth = Math.floor(creditsPerWealth * 0.75)
+    }
+    const wealthGained = Math.floor(amount / Math.max(1, creditsPerWealth))
 
     if (state.player.credits >= amount && amount > 0) {
       set(state => ({
@@ -754,7 +950,14 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   convertWealthToCredits: (amount: number) => {
     const state = get()
-    const creditsGained = Math.floor(amount * state.wealthToCreditsRate)
+    // Base rate: credits per 1 WEALTH
+    let creditsPerWealth = state.wealthToCreditsRate
+    const hasTrading = state.enhancedBusinesses.some(b => b.owned && state.activeSlots.includes(b.id) && b.id === 'trading_exchange')
+    if (hasTrading) creditsPerWealth = Math.floor(creditsPerWealth * 1.15)
+    if ((state.conversionBoostUntil || 0) > Date.now()) {
+      creditsPerWealth = Math.floor(creditsPerWealth * 1.25)
+    }
+    const creditsGained = Math.floor(amount * creditsPerWealth)
 
     if (state.player.wealth >= amount && amount > 0) {
       set(state => ({
@@ -833,8 +1036,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     // per-player battleState, consult it for shields and insurance flags
     const targetHasShield = !!(target && (target as any).battleState && (target as any).battleState.activeShield && ((target as any).battleState.activeShield.expires || 0) > Date.now())
 
-    // Determine bypass behavior
-    const bypassesDefense = (attackType === 'wealth_assault' || attackType === 'land_siege')
+  // Determine bypass behavior (wealth/land always bypass; cyber window bypasses too)
+  const selfBypass = (state.bypassDefensesUntil || 0) > now
+  const bypassesDefense = selfBypass || (attackType === 'wealth_assault' || attackType === 'land_siege')
 
     if (!bypassesDefense && targetHasShield) {
       // target protected by shield - attack fails
@@ -899,15 +1103,17 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   purchaseShield: (type: 'basic' | 'advanced' | 'elite') => {
-    const costs = { basic: 100, advanced: 500, elite: 1000 }
-    const durations = { basic: 3600000, advanced: 86400000, elite: 259200000 } // 1h, 24h, 72h
+    // Costs now in $WEALTH: 25, 50, 100 respectively
+    const costs = { basic: 25, advanced: 50, elite: 100 }
+    // Durations unchanged: 1h, 24h, 72h
+    const durations = { basic: 3600000, advanced: 86400000, elite: 259200000 } // ms
 
     const state = get()
-    if (state.player.credits >= costs[type]) {
+    if (state.player.wealth >= costs[type]) {
       set(state => ({
         player: {
           ...state.player,
-          credits: state.player.credits - costs[type]
+          wealth: state.player.wealth - costs[type]
         },
         battleState: {
           ...state.battleState,
@@ -1025,17 +1231,36 @@ export const useGameStore = create<GameState>((set, get) => ({
     const state = get()
     let multiplier = 0
 
-    // Basic businesses
+    // Basic businesses (subject to sabotage damage)
+    let basicMult = 0
     state.businesses.forEach(business => {
-      multiplier += business.workMultiplier * business.outlets
+      basicMult += business.workMultiplier * business.outlets
     })
+    // Apply business damage reduction to basic portion only
+    const damage = Math.max(0, Math.min(100, state.battleState.businessDamage || 0))
+    const damagedBasic = Math.floor(basicMult * ((100 - damage) / 100))
+    multiplier += damagedBasic
 
     // Enhanced businesses (active slots only)
     state.enhancedBusinesses.forEach(business => {
       if (business.owned && state.activeSlots.includes(business.id)) {
-        multiplier += business.workMultiplier
+        const cond = typeof (business as any).condition === 'number' ? (business as any).condition as number : 100
+        const scaled = Math.floor(business.workMultiplier * (cond / 100))
+        multiplier += scaled
       }
     })
+
+    // Government Contract passive: +10% multiplier to all businesses when slotted
+    if (state.enhancedBusinesses.some(b => b.owned && state.activeSlots.includes(b.id) && b.id === 'government_contract')) {
+      multiplier += 10
+    }
+
+    // Synergy bonuses
+    try {
+      const activeSynergies = calculateActiveSynergies(state.activeSlots)
+      const effects = calculateSynergyEffects(activeSynergies)
+      multiplier += effects.workMultiplierBonus || 0
+    } catch {}
 
     return Math.min(multiplier, 200) // Cap at 200%
   },
@@ -1063,6 +1288,233 @@ export const useGameStore = create<GameState>((set, get) => ({
                 state.battleState.activeShield.type === 'advanced' ? 50 : 75
     }
 
+    // Synergy defense bonus
+    try {
+      const activeSynergies = calculateActiveSynergies(state.activeSlots)
+      const effects = calculateSynergyEffects(activeSynergies)
+      defense += effects.defenseBonus || 0
+    } catch {}
+
     return Math.min(defense, 100)
   }
+  ,
+
+  // Centralized helpers
+  getBusinessProfit: (businessOrId: string | Business) => {
+    const state = get()
+    const business: Business | undefined = typeof businessOrId === 'string' ? state.businesses.find(b => b.id === businessOrId) : businessOrId
+    if (!business) return 0
+    if (business.outlets === 0) return 0
+    const perOutlet = business.baseCost * 0.5
+    return Math.floor(perOutlet * business.outlets * (business.condition / 100))
+  },
+
+  getOutletNextCost: (businessId: string) => {
+    const state = get()
+    const business = state.businesses.find(b => b.id === businessId)
+    if (!business) return Number.POSITIVE_INFINITY
+    return Math.floor(business.baseCost * Math.pow(1.15, business.outlets))
+  },
+
+  getWorkCooldownRemaining: (now?: number) => {
+    const state = get()
+    const last = state.player.lastWorkTimestamp || 0
+    const consecutive = state.player.consecutiveWorkClicks || 0
+    if (last === 0) return 0
+    const sixHours = 6 * 60 * 60 * 1000
+    const twoHours = 2 * 60 * 60 * 1000
+    let required = consecutive >= 3 ? sixHours : twoHours
+    // Rapid Processing halves required cooldown if active
+    const current = now ?? Date.now()
+    if ((state.rapidProcessingUntil || 0) > current) {
+      required = Math.floor(required / 2)
+    }
+    const localRemaining = required - (current - last)
+    const chainRemaining = Math.max(0, (state.onChainCooldownUntil || 0) - current)
+    return Math.max(0, Math.max(localRemaining, chainRemaining))
+  },
+
+  // Compute expected payout for the next manual Work click without side effects
+  getExpectedWorkPayout: () => {
+    const state = get()
+    const baseCredits = 25
+    const workMultiplier = get().getWorkMultiplier()
+    const bonusCredits = Math.floor(baseCredits * (workMultiplier / 100))
+    let totalCredits = baseCredits + bonusCredits
+
+    // Apply active enhanced-business charges that modify the next work payouts
+    state.enhancedBusinesses.forEach((b) => {
+      if (!b.owned || !b.active) return
+      if (b.id === 'fast_food_chain' && (b.abilityCharges || 0) > 0) {
+        totalCredits = Math.floor(totalCredits * 1.2)
+      }
+      if (b.id === 'innovation_lab' && (b.abilityCharges || 0) > 0) {
+        totalCredits = totalCredits * 3
+      }
+    })
+
+    // If the share boost is primed, it applies to the next manual Work
+    if (state.shareBoostActive) {
+      totalCredits = Math.floor(totalCredits * 1.5)
+    }
+
+    return Math.max(0, Math.floor(totalCredits))
+  },
+
+  autoManagerWork: () => {
+    const state = get()
+    if ((state.manager.charges || 0) <= 0) return
+    const remaining = get().getWorkCooldownRemaining()
+    if (remaining === 0) {
+      const now = Date.now()
+      get()._applyWork(now, true)
+      set(s => ({ manager: { ...s.manager, charges: Math.max(0, (s.manager.charges || 0) - 1) } }))
+    }
+  }
+  ,
+
+  // Manager helpers
+  getManagerCost: () => {
+    const state = get()
+    const base = 500 // base credits cost
+    const factor = Math.pow(1.15, state.manager.purchases || 0)
+    return Math.floor(base * factor)
+  },
+
+  hireGlobalManager: () => {
+    const state = get()
+    const cost = get().getManagerCost()
+    const CHARGES = MANAGER_CHARGES_PER_HIRE // actions granted per hire
+    if (state.player.credits < cost) return
+    set(s => ({
+      player: { ...s.player, credits: s.player.credits - cost },
+      manager: { charges: (s.manager.charges || 0) + CHARGES, purchases: (s.manager.purchases || 0) + 1 }
+    }))
+  }
+  ,
+
+  // Offline catch-up: consume manager charges for elapsed cooldown windows
+  catchUpManagerWork: () => {
+    const MAX_LOOP = MANAGER_CHARGES_PER_HIRE // cap per resume equals actions per hire
+    const sixHours = 6 * 60 * 60 * 1000
+    const twoHours = 2 * 60 * 60 * 1000
+    let processed = 0
+    let state = get()
+    if ((state.manager.charges || 0) <= 0) return
+    let last = state.player.lastWorkTimestamp || 0
+    if (last === 0) return
+    let consecutive = state.player.consecutiveWorkClicks || 0
+    const now = Date.now()
+
+    // If it's been >= 6h since last work, consecutive resets (per current rules)
+    if ((now - last) >= sixHours) {
+      consecutive = 0
+    }
+
+    while ((state.manager.charges || 0) > 0 && processed < MAX_LOOP) {
+      let required = (consecutive >= 3) ? sixHours : twoHours
+      // Note: rapid processing may have been active during offline period; for simplicity, apply current effect
+      if ((get().rapidProcessingUntil || 0) > Date.now()) {
+        required = Math.floor(required / 2)
+      }
+      const eligibleAt = last + required
+      if (eligibleAt > now) break
+      const actionTime = eligibleAt + 1
+      get()._applyWork(actionTime, true)
+      // decrement one charge
+      set(s => ({ manager: { ...s.manager, charges: Math.max(0, (s.manager.charges || 0) - 1) } }))
+      // refresh state references for next iteration
+      state = get()
+      last = state.player.lastWorkTimestamp || actionTime
+      consecutive = (state.player.consecutiveWorkClicks || 0)
+      processed += 1
+    }
+  }
+  ,
+
+  // Process sustained effects (interest accrual, expirations)
+  tickEffects: () => {
+    const state = get()
+    const now = Date.now()
+
+    // Investment Bank: grant 5% daily while active
+    const activeUntil = state.compoundActiveUntil || 0
+    let lastTick = state.compoundLastTick || 0
+    const oneDay = 24 * 60 * 60 * 1000
+    if (activeUntil > now && lastTick > 0) {
+      // grant for each elapsed day
+      while ((now - lastTick) >= oneDay && (lastTick + oneDay) <= activeUntil) {
+        lastTick += oneDay
+        const grant = Math.floor(get().player.wealth * 0.05)
+        if (grant > 0) {
+          set(s => ({ player: { ...s.player, wealth: s.player.wealth + grant } }))
+          set(() => ({ lastBoostEvent: { id: 'investment_bank', message: `Compound Interest: +${grant} $WEALTH`, timestamp: Date.now() } }))
+        }
+      }
+      if (lastTick !== state.compoundLastTick) {
+        set(() => ({ compoundLastTick: lastTick }))
+      }
+    }
+
+    // Expiration cleanups (optional: can toggle active flags off)
+    // When rapid processing expires, nothing else to do
+    // When conversion boost expires, rates naturally revert
+
+    // Daily synergy wealth bonus (if any synergy grants it)
+    try {
+      const activeSynergies = calculateActiveSynergies(state.activeSlots)
+      const effects = calculateSynergyEffects(activeSynergies)
+      const daily = effects.dailyWealthBonus || 0
+      if (daily > 0) {
+        const last = state.synergyLastTick || 0
+        const oneDay = 24 * 60 * 60 * 1000
+        if (last === 0) {
+          set(() => ({ synergyLastTick: now }))
+        } else if ((now - last) >= oneDay) {
+          const days = Math.floor((now - last) / oneDay)
+          const gain = daily * days
+          if (gain > 0) {
+            set(s => ({ player: { ...s.player, wealth: s.player.wealth + gain } }))
+            set(() => ({ lastBoostEvent: { id: 'synergy', message: `Synergy bonus: +${gain} $WEALTH`, timestamp: Date.now() } }))
+          }
+          set(() => ({ synergyLastTick: last + days * oneDay }))
+        }
+      }
+    } catch {}
+  }
+}), {
+  name: 'wealth-wars-store',
+  version: 1,
+  storage: createJSONStorage(() => {
+    if (typeof window === 'undefined') {
+      // Returning undefined would break types; provide a minimal in-memory shim for SSR
+      const mem = new Map<string, string>()
+      return {
+        getItem: (name: string) => mem.get(name) ?? null,
+        setItem: (name: string, value: string) => { mem.set(name, value) },
+        removeItem: (name: string) => { mem.delete(name) },
+      } as unknown as Storage
+    }
+    return localStorage
+  }),
+  partialize: (state) => ({
+    player: state.player,
+    businesses: state.businesses,
+    enhancedBusinesses: state.enhancedBusinesses,
+    activeSlots: state.activeSlots,
+    maxSlots: state.maxSlots,
+    battleState: state.battleState,
+    treasuryReserve: state.treasuryReserve,
+    conversionRate: state.conversionRate,
+    wealthToCreditsRate: state.wealthToCreditsRate,
+    rapidProcessingUntil: state.rapidProcessingUntil,
+    compoundActiveUntil: state.compoundActiveUntil,
+    compoundLastTick: state.compoundLastTick,
+    conversionBoostUntil: state.conversionBoostUntil,
+    intelRevealUntil: state.intelRevealUntil,
+    bypassDefensesUntil: state.bypassDefensesUntil,
+    synergyLastTick: state.synergyLastTick,
+    manager: state.manager,
+    onChainCooldownUntil: state.onChainCooldownUntil,
+  })
 }))

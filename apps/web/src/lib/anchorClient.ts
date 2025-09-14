@@ -45,6 +45,10 @@ export function getProviderForWallet(connection: Connection, wallet: any): ancho
 
 export function getProgram(provider?: anchor.AnchorProvider) {
   const p = provider || getProvider();
+  // Ensure IDL address matches configured program id to satisfy provider-only constructor
+  try {
+    (idl as any).address = PROGRAM_ID.toString();
+  } catch {}
   return new anchor.Program(idl as any, p);
 }
 

@@ -1,3 +1,5 @@
+"use client";
+
 import { 
   PublicKey, 
   Connection, 
@@ -7,7 +9,7 @@ import {
   SystemProgram,
   SYSVAR_CLOCK_PUBKEY
 } from '@solana/web3.js';
-import { AnchorProvider, Program, BN } from '@coral-xyz/anchor';
+import { AnchorProvider, BN } from '@coral-xyz/anchor';
 import { AnchorWallet } from '@solana/wallet-adapter-react';
 import { toast } from 'react-hot-toast';
 
@@ -68,16 +70,95 @@ export class WealthWarsProgram {
   private connection: Connection;
   private wallet: AnchorWallet;
   private provider: AnchorProvider;
+  private sendAdapter: { sendTransaction: Function } | null = null;
   
-  constructor(connection: Connection, wallet: AnchorWallet) {
+  private async confirmSig(signature: string, latest: { blockhash: string; lastValidBlockHeight: number }) {
+    const maxRetries = 5;
+    let attempt = 0;
+    let delay = 1000; // Start with 1 second
+
+    while (attempt < maxRetries) {
+      try {
+        // Modern strategy
+        await (this.connection as any).confirmTransaction(
+          {
+            signature,
+            blockhash: latest.blockhash,
+            lastValidBlockHeight: latest.lastValidBlockHeight,
+          },
+          'confirmed'
+        );
+        return; // Success
+      } catch (e) {
+        console.warn(`Attempt ${attempt + 1} failed:`, e);
+        if (attempt === maxRetries - 1) {
+          throw new Error(
+            `Transaction confirmation failed after ${maxRetries} attempts. Check signature ${signature} on Solana Explorer.`
+          );
+        }
+        // Exponential backoff
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        delay *= 2;
+        attempt++;
+      }
+    }
+
+    // Fallback to legacy overload for environments/types pinned to older web3.js
+    try {
+      await (this.connection as any).confirmTransaction(signature, 'confirmed');
+    } catch (legacyError) {
+      console.error('Legacy confirmation strategy also failed:', legacyError);
+      throw new Error(
+        `Transaction confirmation failed using both modern and legacy strategies. Check signature ${signature} on Solana Explorer.`
+      );
+    }
+  }
+  
+  constructor(connection: Connection, wallet: AnchorWallet, adapter?: { sendTransaction?: Function } | null) {
     this.connection = connection;
     this.wallet = wallet;
     this.provider = new AnchorProvider(connection, wallet, {
       commitment: 'confirmed',
       preflightCommitment: 'confirmed',
     });
+    if (adapter && typeof adapter.sendTransaction === 'function') {
+      // Bind to the adapter object itself (the wallet), not a wrapper, to preserve internal context
+      this.sendAdapter = { sendTransaction: adapter.sendTransaction.bind(adapter) } as any;
+    }
   }
 
+  private async sendAndConfirmTx(transaction: Transaction): Promise<string> {
+    // Always ensure fee payer and recent blockhash are set for wallet signing
+    transaction.feePayer = this.wallet.publicKey;
+    const latestBlockhash = await this.connection.getLatestBlockhash('confirmed');
+    transaction.recentBlockhash = latestBlockhash.blockhash;
+
+    // Prefer the wallet adapter's sendTransaction in browser contexts
+    if (this.sendAdapter && typeof (this.sendAdapter as any).sendTransaction === 'function') {
+      const signature = await (this.sendAdapter as any).sendTransaction(transaction, this.connection, {
+        preflightCommitment: 'confirmed'
+      });
+      await this.confirmSig(signature as string, latestBlockhash);
+      return signature as string;
+    }
+
+    // Fallback: attempt manual sign + send via wallet if available
+    if (typeof (this.wallet as any).signTransaction === 'function') {
+      const signed = await (this.wallet as any).signTransaction(transaction);
+      const sig = await this.connection.sendRawTransaction(signed.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed'
+      });
+      await this.confirmSig(sig as string, latestBlockhash);
+      return sig as string;
+    }
+
+    throw new Error('No wallet adapter available to send transaction');
+  }
+
+  // -----------------------------------------
+  // PDA helpers (mirror on-chain seeds)
+  // -----------------------------------------
   /**
    * Get the PDA for a player's state account
    */
@@ -87,6 +168,50 @@ export class WealthWarsProgram {
       WEALTH_WARS_PROGRAM_ID
     );
     return pda;
+  }
+
+  // -----------------------------------------
+  // Instruction builders (Anchor discriminators)
+  // -----------------------------------------
+  private buildInitializePlayerIx(owner: PublicKey, playerPda: PublicKey): TransactionInstruction {
+    // Discriminator: sha256('global:initialize_player').slice(0,8)
+    const disc = Buffer.from([79, 249, 88, 177, 220, 62, 56, 128]);
+    return new TransactionInstruction({
+      keys: [
+        { pubkey: playerPda, isSigner: false, isWritable: true },
+        { pubkey: owner, isSigner: true, isWritable: true },
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      ],
+      programId: WEALTH_WARS_PROGRAM_ID,
+      data: disc,
+    });
+  }
+
+  private buildDoWorkIx(owner: PublicKey, playerPda: PublicKey): TransactionInstruction {
+    // Discriminator: sha256('global:do_work').slice(0,8)
+    const disc = Buffer.from([144, 196, 1, 15, 48, 134, 42, 39]);
+    return new TransactionInstruction({
+      keys: [
+        { pubkey: playerPda, isSigner: false, isWritable: true },
+        { pubkey: owner, isSigner: true, isWritable: true },
+      ],
+      programId: WEALTH_WARS_PROGRAM_ID,
+      data: disc,
+    });
+  }
+
+  private buildPurchaseBusinessIx(owner: PublicKey, playerPda: PublicKey, businessId: number): TransactionInstruction {
+    // Discriminator: sha256('global:purchase_business').slice(0,8)
+    const disc = Buffer.from([6, 207, 40, 18, 41, 94, 66, 137]);
+    const arg = Buffer.from(Uint8Array.of(businessId & 0xff)); // u8
+    return new TransactionInstruction({
+      keys: [
+        { pubkey: playerPda, isSigner: false, isWritable: true },
+        { pubkey: owner, isSigner: true, isWritable: true },
+      ],
+      programId: WEALTH_WARS_PROGRAM_ID,
+      data: Buffer.concat([disc, arg]),
+    });
   }
 
   /**
@@ -99,38 +224,16 @@ export class WealthWarsProgram {
       }
 
       const playerPDA = this.getPlayerPDA(this.wallet.publicKey);
-      
       // Check if player already exists
       const accountInfo = await this.connection.getAccountInfo(playerPDA);
       if (accountInfo) {
         return { success: true }; // Already initialized
       }
 
-      // Create initialize instruction
-      const instruction = new TransactionInstruction({
-        keys: [
-          {
-            pubkey: playerPDA,
-            isSigner: false,
-            isWritable: true,
-          },
-          {
-            pubkey: this.wallet.publicKey,
-            isSigner: true,
-            isWritable: true,
-          },
-          {
-            pubkey: SystemProgram.programId,
-            isSigner: false,
-            isWritable: false,
-          },
-        ],
-        programId: WEALTH_WARS_PROGRAM_ID,
-        data: Buffer.from([175, 175, 109, 31, 13, 152, 155, 237]), // initialize_player discriminator
-      });
-
-      const transaction = new Transaction().add(instruction);
-      const signature = await this.provider.sendAndConfirm(transaction);
+      // Build and send initialize_player instruction
+      const ix = this.buildInitializePlayerIx(this.wallet.publicKey, playerPDA);
+      const transaction = new Transaction().add(ix);
+      await this.sendAndConfirmTx(transaction);
       
       toast.success('Player account initialized!');
       return { success: true };
@@ -165,26 +268,10 @@ export class WealthWarsProgram {
         }
       }
 
-      // Create work instruction
-      const instruction = new TransactionInstruction({
-        keys: [
-          {
-            pubkey: playerPDA,
-            isSigner: false,
-            isWritable: true,
-          },
-          {
-            pubkey: this.wallet.publicKey,
-            isSigner: true,
-            isWritable: true,
-          },
-        ],
-        programId: WEALTH_WARS_PROGRAM_ID,
-        data: Buffer.from([181, 175, 109, 31, 13, 152, 155, 237]), // do_work discriminator (placeholder)
-      });
-
-      const transaction = new Transaction().add(instruction);
-      const signature = await this.provider.sendAndConfirm(transaction);
+      // Build and send do_work instruction
+      const ix = this.buildDoWorkIx(this.wallet.publicKey, playerPDA);
+      const transaction = new Transaction().add(ix);
+      await this.sendAndConfirmTx(transaction);
       
       // Fetch updated state
       const updatedState = await this.getPlayerState();
@@ -205,7 +292,11 @@ export class WealthWarsProgram {
       // Parse specific errors
       if (error instanceof Error) {
         if (error.message.includes('CooldownActive')) {
-          const cooldownRemaining = await this.getCooldownRemaining();
+          let cooldownRemaining = await this.getCooldownRemaining();
+          // If we can't read state yet (e.g., mock/empty), provide a reasonable fallback (2h)
+          if (!cooldownRemaining || cooldownRemaining <= 0) {
+            cooldownRemaining = 2 * 60 * 60; // seconds
+          }
           return { 
             success: false, 
             cooldownRemaining,
@@ -232,29 +323,10 @@ export class WealthWarsProgram {
 
       const playerPDA = this.getPlayerPDA(this.wallet.publicKey);
 
-      // Create purchase instruction
-      const instruction = new TransactionInstruction({
-        keys: [
-          {
-            pubkey: playerPDA,
-            isSigner: false,
-            isWritable: true,
-          },
-          {
-            pubkey: this.wallet.publicKey,
-            isSigner: true,
-            isWritable: true,
-          },
-        ],
-        programId: WEALTH_WARS_PROGRAM_ID,
-        data: Buffer.concat([
-          Buffer.from([182, 175, 109, 31, 13, 152, 155, 237]), // purchase_business discriminator (placeholder)
-          Buffer.from([businessId]) // business_id parameter
-        ]),
-      });
-
-      const transaction = new Transaction().add(instruction);
-      const signature = await this.provider.sendAndConfirm(transaction);
+      // Build and send purchase_business instruction
+      const ix = this.buildPurchaseBusinessIx(this.wallet.publicKey, playerPDA, businessId);
+      const transaction = new Transaction().add(ix);
+      await this.sendAndConfirmTx(transaction);
       
       return {
         success: true,
@@ -282,22 +354,41 @@ export class WealthWarsProgram {
       const accountInfo = await this.connection.getAccountInfo(playerPDA);
       
       if (!accountInfo) return null;
+      // Anchor account layout decode for PlayerState
+      const data = accountInfo.data;
+      // Offsets
+      let o = 0;
+      o += 8; // skip 8-byte account discriminator
+      const owner = new PublicKey(data.subarray(o, o + 32)); o += 32;
+      const lastWorkTimestamp = new BN(data.subarray(o, o + 8), 10, 'le'); o += 8;
+      const streakCount = data[o] | (data[o + 1] << 8) | (data[o + 2] << 16) | (data[o + 3] << 24); o += 4;
+      const workFrequencyLevel = data[o]; o += 1;
+      const totalWorkActions = new BN(data.subarray(o, o + 8), 10, 'le'); o += 8;
+      const credits = new BN(data.subarray(o, o + 8), 10, 'le'); o += 8;
+      const wealthTokens = new BN(data.subarray(o, o + 8), 10, 'le'); o += 8;
+      // businesses_owned: Vec<u8>
+      const boLen = data[o] | (data[o + 1] << 8) | (data[o + 2] << 16) | (data[o + 3] << 24); o += 4;
+      const businessesOwned: number[] = Array.from(data.subarray(o, o + boLen)); o += boLen;
+      // active_business_slots: Vec<u8>
+      const absLen = data[o] | (data[o + 1] << 8) | (data[o + 2] << 16) | (data[o + 3] << 24); o += 4;
+      const activeBusinessSlots: number[] = Array.from(data.subarray(o, o + absLen)); o += absLen;
+      const lastStreakCheck = new BN(data.subarray(o, o + 8), 10, 'le'); o += 8;
+      const cooldownHours = data[o]; o += 1;
+      const bump = data[o]; o += 1;
 
-      // Parse account data (simplified - would use proper deserialization)
-      // For now, return mock data structure
       return {
-        owner: this.wallet.publicKey,
-        lastWorkTimestamp: new BN(0),
-        streakCount: 0,
-        workFrequencyLevel: 0,
-        totalWorkActions: new BN(0),
-        credits: new BN(1000),
-        wealthTokens: new BN(0),
-        businessesOwned: [],
-        activeBusinessSlots: [],
-        lastStreakCheck: new BN(0),
-        cooldownHours: 24,
-        bump: 0,
+        owner,
+        lastWorkTimestamp,
+        streakCount,
+        workFrequencyLevel,
+        totalWorkActions,
+        credits,
+        wealthTokens,
+        businessesOwned,
+        activeBusinessSlots,
+        lastStreakCheck,
+        cooldownHours,
+        bump,
       };
       
     } catch (error) {
@@ -481,3 +572,22 @@ export class WealthWarsProgram {
     }
   }
 }
+
+// import { Connection, PublicKey } from '@solana/web3.js';
+// import { Program, Provider, web3 } from '@project-serum/anchor';
+// import idl from './wealthWars.json';
+//
+// const programID = new PublicKey(idl.metadata.address);
+//
+// export const initializeWealthWarsProgram = (connection: Connection, wallet: any) => {
+//   const provider = new Provider(connection, wallet, Provider.defaultOptions());
+//   return new Program(idl, programID, provider);
+// };
+//
+// export const fetchPlayerState = async (program: Program, playerPublicKey: PublicKey) => {
+//   return await program.account.playerState.fetch(playerPublicKey);
+// };
+//
+// export const fetchTreasuryState = async (program: Program) => {
+//   return await program.account.treasuryState.fetch(programID);
+// };

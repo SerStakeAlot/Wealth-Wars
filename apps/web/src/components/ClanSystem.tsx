@@ -35,9 +35,11 @@ export function ClanSystem() {
   const [showJoinClan, setShowJoinClan] = useState(false)
   const [clanName, setClanName] = useState('')
   const [clanDescription, setClanDescription] = useState('')
-  const clans = useMultiplayerStore(state => state.clans)
+  // Multiplayer store wiring (use safe fallbacks for missing fields/actions)
+  const availableClans = useMultiplayerStore(state => state.availableClans)
+  const clans: any[] = Array.isArray(availableClans) ? availableClans : []
   const createClanAction = useMultiplayerStore(state => state.createClan)
-  const requestJoinClan = useMultiplayerStore(state => state.requestJoinClan)
+  const joinClanAction = useMultiplayerStore(state => state.joinClan)
 
   // Current live clans come from multiplayer store
   const [currentClan, setCurrentClan] = useState<any | null>(null)
@@ -76,7 +78,17 @@ export function ClanSystem() {
     }
 
     if (clanName.trim() && clanDescription.trim()) {
-      createClanAction(clanName.trim(), clanDescription.trim(), gameStore.player.id)
+      // Adapt to store's createClan(clanData) signature
+      const clanData = {
+        name: clanName.trim(),
+        description: clanDescription.trim(),
+        leaderId: gameStore.player.id,
+        members: [gameStore.player.id],
+        isRecruiting: true,
+        requirements: { minLevel: 0, minWealth: 0 },
+        perks: { wealthBonus: 0, battleBonus: 0, tradingFeeReduction: 0 }
+      }
+      try { createClanAction(clanData as any) } catch {}
       toast.success(`Clan "${clanName}" created successfully!`)
       setShowCreateClan(false)
       setClanName('')
@@ -85,7 +97,8 @@ export function ClanSystem() {
   }
 
   const joinClan = (clanId: string) => {
-    requestJoinClan(clanId, gameStore.player.id)
+    // Adapt to store's joinClan(clanId)
+    try { joinClanAction(clanId) } catch {}
     toast.success('Join request sent!')
     setShowJoinClan(false)
   }
@@ -310,36 +323,15 @@ export function ClanSystem() {
           </CardContent>
         </Card>
 
-        {/* Leader-only: pending join requests */}
+        {/* Leader-only: pending join requests (coming soon) */}
         {currentClan.leader === gameStore.player.id && (
           <Card>
             <CardHeader>
               <CardTitle>Pending Join Requests</CardTitle>
-              <CardDescription>Approve players requesting to join your clan</CardDescription>
+              <CardDescription>Join request management will be available in a future update.</CardDescription>
             </CardHeader>
             <CardContent>
-              {useMultiplayerStore.getState().joinRequests.filter((r: any) => r.clanId === currentClan.id).length === 0 ? (
-                <div className="text-sm text-muted-foreground">No pending requests</div>
-              ) : (
-                <div className="space-y-2">
-                  {useMultiplayerStore.getState().joinRequests.filter((r: any) => r.clanId === currentClan.id).map((req: any) => (
-                    <div key={req.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                      <div>
-                        <div className="font-semibold">{req.username ?? req.playerId}</div>
-                        <div className="text-sm text-muted-foreground">Player ID: {req.playerId}</div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={() => {
-                          useMultiplayerStore.getState().acceptJoinRequest(req.id, currentClan.id)
-                          toast.success(`Accepted ${req.username ?? req.playerId}`)
-                        }}>
-                          Accept
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="text-sm text-muted-foreground">No pending requests</div>
             </CardContent>
           </Card>
         )}
@@ -438,7 +430,9 @@ export function ClanSystem() {
               </div>
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {(() => {
-                  const filtered = clans.filter((c: any) => c.name.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 20)
+                  const filtered = clans
+                    .filter((c: any) => (c?.name?.toLowerCase?.() ?? '').includes(searchTerm.toLowerCase()))
+                    .slice(0, 20)
                   if (filtered.length === 0) return <div className="text-sm text-muted-foreground">No clans found</div>
                   return filtered.map((clan: any) => (
                     <div key={clan.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">

@@ -17,7 +17,7 @@ import {
   Zap, 
   Shield, 
   Swords,
-  Timer,
+  Timer as TimerIcon,
   Star,
   Trophy,
   User,
@@ -43,10 +43,12 @@ import MultiplayerPanel from '@/components/MultiplayerPanel'
 import { ClanSystem } from '@/components/ClanSystem'
 import { EnhancedLeaderboards } from '@/components/EnhancedLeaderboards'
 import { UnifiedBattleSystem } from '@/components/UnifiedBattleSystem'
+import RealTimeBattleSystem from '@/components/RealTimeBattleSystem'
 import BoostBar from '@/components/BoostBar'
 import WealthWarsLogo from '@/components/WealthWarsLogo'
 import { AvatarButton } from '@/components/AvatarButton'
 import { useMultiplayerStore } from '@/lib/multiplayerStore'
+import { calculateActiveSynergies, calculateSynergyEffects } from '@/app/lib/synergies'
 
 interface SparkGameUIProps {
   onReturnHome?: () => void
@@ -54,20 +56,24 @@ interface SparkGameUIProps {
 
 export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
   const gameStore = useGameStore()
+  const isSSR = typeof window === 'undefined';
   const [isConnected, setIsConnected] = useState(true) // Assume connected since we're in game
-  const [currentTime, setCurrentTime] = useState(Date.now())
+  const [currentTime, setCurrentTime] = useState(isSSR ? 0 : Date.now())
   const [activeTab, setActiveTab] = useState('overview')
   const [showConverterModal, setShowConverterModal] = useState(false)
   const [convertAmount, setConvertAmount] = useState<number>(100)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [activeSubTab, setActiveSubTab] = useState('overview') // State for active sub-tab in businesses tab
   
   // Update current time every second for cooldown calculations
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(Date.now())
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [])
+    if (!isSSR) {
+      const interval = setInterval(() => {
+        setCurrentTime(Date.now());
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, []);
   
   // Initialize player on first load
   useEffect(() => {
@@ -87,24 +93,39 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
   // Start realtime client once on mount
   useEffect(() => {
     try {
-      const start = useMultiplayerStore.getState().startRealtime
-      start()
+      const connect = useMultiplayerStore.getState().connectToMultiplayer
+      // Fire and forget; connection handled internally
+      connect()
     } catch (e) {
       console.info('failed to start realtime', e)
     }
   }, [])
-  
-  // Calculate work cooldown
+  // Calculate work cooldown using centralized store helper
   const workCooldownRemaining = () => {
-    const last = gameStore.player.lastWorkTimestamp || 0
-    const consecutive = gameStore.player.consecutiveWorkClicks || 0
-    if (last === 0) return 0
-    const sixHours = 6 * 60 * 60 * 1000
-    const twoHours = 2 * 60 * 60 * 1000
-    const required = consecutive >= 3 ? sixHours : twoHours
-    const timeRemaining = required - (currentTime - last)
-    return Math.max(0, timeRemaining)
+    return gameStore.getWorkCooldownRemaining(currentTime)
   }
+  
+  // Auto-manager tick: periodically attempts automated work when cooldown ends
+  useEffect(() => {
+    // On resume, first perform offline catch-up
+    try {
+      useGameStore.getState().catchUpManagerWork()
+    } catch {}
+
+    const tick = () => {
+      try {
+        useGameStore.getState().autoManagerWork()
+        // Process sustained/timed effects
+        useGameStore.getState().tickEffects()
+      } catch {
+        // ignore
+      }
+    }
+    // run once, then interval
+    tick()
+    const id = setInterval(tick, 30000)
+    return () => clearInterval(id)
+  }, [])
 
   const isWorkOnCooldown = () => workCooldownRemaining() > 0
   
@@ -133,14 +154,13 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
   }
   
   const calculateBusinessProfit = (business: any) => {
-    if (business.outlets === 0) return 0
     // Enhanced businesses don't generate passive profit, only work bonuses
     if (business.category) return 0
-    return business.baseCost * business.outlets * (business.condition / 100) * 0.1 // 10% of base cost per outlet
+    return gameStore.getBusinessProfit(business)
   }
   
   const calculateBusinessNextCost = (business: any) => {
-    return Math.floor(business.baseCost * Math.pow(1.15, business.outlets))
+    return gameStore.getOutletNextCost(business.id)
   }
   
   const canAfford = (cost: number) => gameStore.player.credits >= cost
@@ -163,7 +183,10 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
               // Activate a one-time 1.5x boost for next work action, then open Twitter intent
               gameStore.setShareBoostActive(true)
 
-              const text = encodeURIComponent("I'm playing @wealthwars — building my empire in Wealth Wars! Join me and earn rewards. #WealthWars")
+              const amount = gameStore.lastWorkReward ?? 0
+              const text = encodeURIComponent(
+                `Just clocked in at @WealthWars and earned ${amount} credits! 💰 Building my business empire one work action at a time. #WealthWars #GameFi #Crypto`
+              )
               const url = `https://twitter.com/intent/tweet?text=${text}`
               window.open(url, '_blank', 'noopener')
 
@@ -332,7 +355,6 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
               <TabsTrigger value="businesses">Businesses</TabsTrigger>
               <TabsTrigger value="combat">Combat</TabsTrigger>
               <TabsTrigger value="clans">Clans</TabsTrigger>
-              <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
               <TabsTrigger value="achievements">Achievements</TabsTrigger>
               <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -343,8 +365,8 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
               {/* Enhanced Analytics */}
               <EnhancedGameStats />
               
-              {/* Player Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Player Stats (remove duplicated Credits/Wealth since EnhancedGameStats covers them) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card>
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
@@ -370,30 +392,6 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-muted-foreground">Credits</p>
-                        <p className="text-2xl font-bold">{gameStore.player.credits.toLocaleString()}</p>
-                      </div>
-                      <Coins className="h-8 w-8 text-primary" />
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Wealth</p>
-                        <p className="text-2xl font-bold">{gameStore.player.wealth.toLocaleString()}</p>
-                      </div>
-                      <TrendingUp className="h-8 w-8 text-green-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
                         <p className="text-sm text-muted-foreground">Work Streak</p>
                         <p className="text-2xl font-bold">{gameStore.player.workStreak}</p>
                       </div>
@@ -407,7 +405,7 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
               <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Timer className="h-5 w-5" />
+                      <TimerIcon className="h-5 w-5" />
                       Clock In
                     </CardTitle>
                     <CardDescription>
@@ -418,19 +416,19 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                   <div className="flex flex-col sm:flex-row gap-4 items-center">
                     <Button
                       size="lg"
-                      onClick={gameStore.doWork}
+                      onClick={() => gameStore.doWork()}
                       disabled={isWorkOnCooldown()}
                       className="bg-green-600 hover:bg-green-700 font-semibold text-lg px-8"
                     >
                       {isWorkOnCooldown() ? (
                         <>
-                          <Timer className="h-5 w-5 mr-2" />
+                          <TimerIcon className="h-5 w-5 mr-2" />
                           Cooldown: {formatTime(workCooldownRemaining())}
                         </>
                       ) : (
                         <>
                           <Zap className="h-5 w-5 mr-2" />
-                          Work (+25 Credits)
+                          Work (+{gameStore.getExpectedWorkPayout()} Credits)
                         </>
                       )}
                     </Button>
@@ -466,11 +464,36 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                           {isWorkOnCooldown() ? formatTime(workCooldownRemaining()) : `Ready (${nextCooldownLabel()})`}
                         </p>
                       </div>
-                      <Timer className="h-6 w-6" />
+                      <TimerIcon className="h-6 w-6" />
                     </div>
                   </CardContent>
                 </Card>
               </div>
+              {/* Manager Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wrench className="h-5 w-5" />
+                    Manager
+                  </CardTitle>
+                  <CardDescription>
+                    A global manager auto-clicks work for you when off cooldown. Each hire grants limited actions.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex items-center justify-between gap-4">
+                  <div className="text-sm">
+                    <div className="font-medium">Remaining Actions</div>
+                    <div className="text-2xl font-bold">{gameStore.manager.charges}</div>
+                  </div>
+                  <Button
+                    onClick={() => gameStore.hireGlobalManager()}
+                    disabled={gameStore.player.credits < gameStore.getManagerCost()}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    Hire (+20 actions) — {gameStore.getManagerCost()} credits
+                  </Button>
+                </CardContent>
+              </Card>
               {/* Boost bar showing active enhanced-business abilities */}
               <div className="mt-4">
                 <BoostBar />
@@ -513,185 +536,238 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
             
             {/* Business tabs */}
             <TabsContent value="businesses" className="space-y-4">
-              <div className="grid gap-4">
-                {gameStore.businesses.map((business) => (
-                  <Card key={business.id} className="hover:shadow-lg transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="text-3xl">{business.icon}</div>
-                          <div>
-                            <h3 className="font-semibold">{business.name}</h3>
-                            <p className="text-sm text-muted-foreground">{business.description}</p>
-                            <div className="flex items-center gap-4 mt-2 text-sm">
-                              <span>Outlets: {business.outlets}</span>
-                              <span>Profit/cycle: {calculateBusinessProfit(business)}</span>
-                              <div className="flex items-center gap-1">
-                                <span>Condition:</span>
-                                <Progress value={business.condition} className="w-16 h-2" />
-                                <span>{business.condition}%</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex flex-col gap-2">
-                          <Button
-                            onClick={() => gameStore.buyBusinessOutlet(business.id)}
-                            disabled={!canAfford(calculateBusinessNextCost(business))}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            Buy Outlet ({calculateBusinessNextCost(business)} credits)
-                          </Button>
-                          
-                          {business.outlets > 0 && !business.hasManager && (
-                            <Button
-                              variant="outline"
-                              onClick={() => gameStore.hireManager(business.id)}
-                              disabled={!canAfford(business.baseCost * 5)}
-                            >
-                              Hire Manager ({business.baseCost * 5} credits)
-                            </Button>
-                          )}
-                          
-                          {business.condition < 100 && (
-                            <Button
-                              variant="secondary"
-                              onClick={() => gameStore.repairBusiness(business.id, 100 - business.condition)}
-                            >
-                              Repair Business
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-              
-              {/* Enhanced Businesses */}
-              <Separator />
-              <h3 className="text-lg font-semibold">Enhanced Businesses</h3>
-              <div className="grid gap-4">
-                {gameStore.enhancedBusinesses.map((business) => {
-                  const isOnCooldown = currentTime - business.lastActivated < business.cooldown
-                  const cooldownRemaining = business.cooldown - (currentTime - business.lastActivated)
-                  const isSlotActive = gameStore.activeSlots.includes(business.id)
-                  
-                  return (
-                    <Card key={business.id} className="hover:shadow-lg transition-shadow border-green-200">
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className="text-3xl">{business.icon}</div>
-                            <div>
-                              <div className="flex items-center gap-2">
+              <Tabs
+                value={activeSubTab} // Added state to control the active sub-tab
+                onValueChange={setActiveSubTab} // Added handler to update the state
+                defaultValue="overview"
+                className="space-y-4"
+              >
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="overview">Overview</TabsTrigger>
+                  <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="overview">
+                  <div className="grid gap-4">
+                    {gameStore.businesses.map((business) => (
+                      <Card key={business.id} className="hover:shadow-lg transition-shadow">
+                        <CardContent className="p-6">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-start gap-4">
+                              <div className="text-3xl">{business.icon}</div>
+                              <div>
                                 <h3 className="font-semibold">{business.name}</h3>
-                                <Badge variant={business.abilityType === 'passive' ? 'default' : 'secondary'}>
-                                  {business.abilityType}
-                                </Badge>
-                                {isSlotActive && (
-                                  <Badge className="bg-green-600 text-white">
-                                    Active Slot
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-sm text-muted-foreground">{business.description}</p>
-                              <div className="mt-2">
-                                <p className="text-sm font-medium text-primary">{business.abilityName}</p>
-                                <p className="text-xs text-muted-foreground">{business.abilityDescription}</p>
-                              </div>
-                              <div className="flex items-center gap-4 mt-2 text-sm">
-                                <span>Cost: {business.cost} $WEALTH</span>
-                                <span>Work Multiplier: +{business.workMultiplier}%</span>
+                                <p className="text-sm text-muted-foreground">{business.description}</p>
+                                <div className="flex items-center gap-4 mt-2 text-sm">
+                                  <span>Outlets: {business.outlets}</span>
+                                  <span>Profit/cycle: {calculateBusinessProfit(business)}</span>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          
-                          <div className="flex flex-col gap-2">
-                            {!business.owned ? (
+                            <div className="shrink-0">
                               <Button
-                                onClick={() => gameStore.buyEnhancedBusiness(business.id)}
-                                disabled={gameStore.player.wealth < business.cost}
+                                onClick={() => gameStore.buyBusinessOutlet(business.id)}
+                                disabled={!canAfford(calculateBusinessNextCost(business))}
                                 className="bg-green-600 hover:bg-green-700"
+                                size="sm"
                               >
-                                Buy ({business.cost} $WEALTH)
+                                Buy Outlet ({calculateBusinessNextCost(business)} credits)
                               </Button>
-                            ) : (
-                              <>
-                                {business.abilityType !== 'passive' && (
-                                  <Button
-                                    onClick={() => gameStore.activateEnhancedBusiness(business.id)}
-                                    disabled={isOnCooldown}
-                                    variant="outline"
-                                  >
-                                    {isOnCooldown ? `Cooldown: ${formatTime(cooldownRemaining)}` : 'Activate'}
-                                  </Button>
-                                )}
-                                
-                                <Button
-                                  onClick={() => gameStore.toggleBusinessSlot(business.id)}
-                                  variant={isSlotActive ? 'default' : 'outline'}
-                                  size="sm"
-                                >
-                                  {isSlotActive ? 'Remove from Slot' : 'Add to Slot'}
-                                </Button>
-                                
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => gameStore.buyBusinessOutlet(business.id)}
-                                  disabled={!canAfford(calculateBusinessNextCost(business))}
-                                >
-                                  +Outlet ({calculateBusinessNextCost(business)})
-                                </Button>
-                              </>
-                            )}
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
-              
-              {gameStore.activeSlots.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5" />
-                      Active Business Slots
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">Work Multiplier:</span>
-                      <Badge className="bg-green-600 text-white">
-                        +{gameStore.getWorkMultiplier()}%
-                      </Badge>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Enhanced Businesses Controls */}
+                  <div className="mt-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Building2 className="h-5 w-5" />
+                        Enhanced Businesses
+                      </h3>
+                      <div className="text-sm text-muted-foreground">
+                        Active Slots: {gameStore.activeSlots.length}/{gameStore.maxSlots}
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              )}
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {gameStore.enhancedBusinesses.map((eb) => {
+                        const owned = eb.owned;
+                        const isActive = gameStore.activeSlots.includes(eb.id);
+                        const now = currentTime;
+                        const last = eb.lastActivated || 0;
+                        const cd = eb.cooldown || 0;
+                        const remaining = Math.max(0, cd - (now - last));
+                        const canActivate = owned && remaining === 0;
+                        return (
+                          <Card key={eb.id} className={`hover:shadow-lg transition-shadow ${isActive ? 'border-green-600' : ''}`}>
+                            <CardContent className="p-5 space-y-3">
+                              <div className="flex items-start gap-4">
+                                <div className="text-3xl">{eb.icon}</div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-semibold">{eb.name}</h4>
+                                    {owned ? (
+                                      <Badge variant="secondary">Owned</Badge>
+                                    ) : (
+                                      <Badge>Cost: {eb.cost} $WEALTH</Badge>
+                                    )}
+                                    {isActive && <Badge className="bg-green-600">Slotted</Badge>}
+                                  </div>
+                                  <p className="text-sm text-muted-foreground">{eb.description}</p>
+                                  <div className="text-xs text-muted-foreground capitalize">Category: {eb.category}</div>
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {!owned ? (
+                                  <Button
+                                    onClick={() => gameStore.buyEnhancedBusiness(eb.id)}
+                                    disabled={gameStore.player.wealth < eb.cost}
+                                    className="bg-green-600 hover:bg-green-700"
+                                    size="sm"
+                                  >
+                                    Buy — {eb.cost} $WEALTH
+                                  </Button>
+                                ) : (
+                                  <>
+                                    <Button
+                                      variant={isActive ? 'outline' : 'default'}
+                                      onClick={() => gameStore.toggleBusinessSlot(eb.id)}
+                                      disabled={!isActive && gameStore.activeSlots.length >= gameStore.maxSlots}
+                                      size="sm"
+                                    >
+                                      {isActive ? 'Remove from Slot' : 'Activate Slot'}
+                                    </Button>
+                                    <Button
+                                      onClick={() => gameStore.activateEnhancedBusiness(eb.id)}
+                                      disabled={!canActivate}
+                                      size="sm"
+                                    >
+                                      {canActivate ? 'Activate Ability' : `CD: ${formatTime(remaining)}`}
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="maintenance">
+                  <MaintenanceSystem />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
             
             <TabsContent value="combat">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div>
-                  <UnifiedBattleSystem />
+                <div className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Swords className="h-5 w-5" />
+                        PvP Actions
+                      </CardTitle>
+                      <CardDescription>Choose your attack mode and engage rivals.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <UnifiedBattleSystem />
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Zap className="h-5 w-5" />
+                        Real-time Battles
+                      </CardTitle>
+                      <CardDescription>Live skirmishes and instant feedback.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <RealTimeBattleSystem />
+                    </CardContent>
+                  </Card>
                 </div>
-                <div>
-                  <MultiplayerPanel />
+                <div className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Shield className="h-5 w-5" />
+                        Defense & Shields
+                      </CardTitle>
+                      <CardDescription>Purchase shields and view current protection.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {/* Compact controls sourced from store to avoid duplication */}
+                      <div className="flex flex-col gap-3">
+                        <div className="text-sm text-muted-foreground">
+                          Defense Rating: {gameStore.getDefenseRating()}
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => gameStore.purchaseShield('basic')}
+                            disabled={gameStore.player.wealth < 25}
+                            title="1 hour duration"
+                          >
+                            Basic • 25 $WEALTH
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => gameStore.purchaseShield('advanced')}
+                            disabled={gameStore.player.wealth < 50}
+                            title="24 hours duration"
+                          >
+                            Advanced • 50 $WEALTH
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => gameStore.purchaseShield('elite')}
+                            disabled={gameStore.player.wealth < 100}
+                            title="72 hours duration"
+                          >
+                            Elite • 100 $WEALTH
+                          </Button>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {gameStore.battleState.activeShield && gameStore.battleState.activeShield.expires > Date.now()
+                            ? `Active: ${gameStore.battleState.activeShield.type} shield`
+                            : 'No active shield'}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <TimerIcon className="h-5 w-5" />
+                        Attack Cooldowns
+                      </CardTitle>
+                      <CardDescription>Keep an eye on when each attack is ready.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>Standard: <span className="font-medium">{Math.max(0, (4*60*60*1000) - (Date.now() - (gameStore.battleState.lastStandardAttack || 0))) > 0 ? formatTime(Math.max(0, (4*60*60*1000) - (Date.now() - (gameStore.battleState.lastStandardAttack || 0)))) : 'Ready'}</span></div>
+                        <div>Wealth Assault: <span className="font-medium">{Math.max(0, (12*60*60*1000) - (Date.now() - (gameStore.battleState.lastWealthAssault || 0))) > 0 ? formatTime(Math.max(0, (12*60*60*1000) - (Date.now() - (gameStore.battleState.lastWealthAssault || 0)))) : 'Ready'}</span></div>
+                        <div>Land Siege: <span className="font-medium">{Math.max(0, (24*60*60*1000) - (Date.now() - (gameStore.battleState.lastLandSiege || 0))) > 0 ? formatTime(Math.max(0, (24*60*60*1000) - (Date.now() - (gameStore.battleState.lastLandSiege || 0)))) : 'Ready'}</span></div>
+                        <div>Sabotage: <span className="font-medium">{Math.max(0, (8*60*60*1000) - (Date.now() - (gameStore.battleState.lastBusinessSabotage || 0))) > 0 ? formatTime(Math.max(0, (8*60*60*1000) - (Date.now() - (gameStore.battleState.lastBusinessSabotage || 0)))) : 'Ready'}</span></div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  {/* Multiplayer grid positioned below the attack cooldown grid on the right side */}
+                  <MultiplayerPanel embedded />
                 </div>
               </div>
             </TabsContent>
             
             <TabsContent value="clans">
               <ClanSystem />
-            </TabsContent>
-            
-            <TabsContent value="maintenance">
-              <MaintenanceSystem />
             </TabsContent>
             
             <TabsContent value="achievements">
@@ -721,19 +797,19 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                 <CardContent className="space-y-4">
                   <Button
                     size="lg"
-                    onClick={gameStore.doWork}
+                    onClick={() => gameStore.doWork()}
                     disabled={isWorkOnCooldown()}
                     className="w-full bg-green-600 hover:bg-green-700 font-semibold text-lg"
                   >
                     {isWorkOnCooldown() ? (
                       <>
-                        <Timer className="h-5 w-5 mr-2" />
+                        <TimerIcon className="h-5 w-5 mr-2" />
                         Cooldown: {formatTime(workCooldownRemaining())}
                       </>
                     ) : (
                       <>
                         <Zap className="h-5 w-5 mr-2" />
-                        Work (+25 Credits)
+                        Work (+{gameStore.getExpectedWorkPayout()} Credits)
                       </>
                     )}
                   </Button>
@@ -771,6 +847,81 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                   </CardContent>
                 </Card>
               ))}
+
+              {/* Enhanced Businesses (mobile) */}
+              <div className="pt-2">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-base font-semibold flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Enhanced Businesses
+                  </h3>
+                  <div className="text-xs text-muted-foreground">
+                    {gameStore.activeSlots.length}/{gameStore.maxSlots} slots
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {gameStore.enhancedBusinesses.map((eb) => {
+                    const owned = eb.owned;
+                    const isActive = gameStore.activeSlots.includes(eb.id);
+                    const now = currentTime;
+                    const last = eb.lastActivated || 0;
+                    const cd = eb.cooldown || 0;
+                    const remaining = Math.max(0, cd - (now - last));
+                    const canActivate = owned && remaining === 0;
+                    return (
+                      <Card key={eb.id}>
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="text-2xl">{eb.icon}</div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-semibold text-sm">{eb.name}</h4>
+                                {owned ? (
+                                  <Badge variant="secondary">Owned</Badge>
+                                ) : (
+                                  <Badge>Cost: {eb.cost} $WEALTH</Badge>
+                                )}
+                                {isActive && <Badge className="bg-green-600">Slotted</Badge>}
+                              </div>
+                              <p className="text-xs text-muted-foreground">{eb.description}</p>
+                            </div>
+                          </div>
+                          <div className="mt-3 grid grid-cols-2 gap-2">
+                            {!owned ? (
+                              <Button
+                                onClick={() => gameStore.buyEnhancedBusiness(eb.id)}
+                                disabled={gameStore.player.wealth < eb.cost}
+                                className="col-span-2 bg-green-600 hover:bg-green-700"
+                                size="sm"
+                              >
+                                Buy — {eb.cost} $WEALTH
+                              </Button>
+                            ) : (
+                              <>
+                                <Button
+                                  variant={isActive ? 'outline' : 'default'}
+                                  onClick={() => gameStore.toggleBusinessSlot(eb.id)}
+                                  disabled={!isActive && gameStore.activeSlots.length >= gameStore.maxSlots}
+                                  size="sm"
+                                >
+                                  {isActive ? 'Remove Slot' : 'Activate Slot'}
+                                </Button>
+                                <Button
+                                  onClick={() => gameStore.activateEnhancedBusiness(eb.id)}
+                                  disabled={!canActivate}
+                                  size="sm"
+                                >
+                                  {canActivate ? 'Activate' : `CD: ${formatTime(remaining)}`}
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
           
@@ -778,12 +929,12 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-4">
                 <UnifiedBattleSystem />
-                <MultiplayerPanel />
+                <RealTimeBattleSystem />
+                <MultiplayerPanel embedded />
               </div>
             </div>
           )}
           {activeTab === 'clans' && <ClanSystem />}
-          {activeTab === 'maintenance' && <MaintenanceSystem />}
           {activeTab === 'achievements' && <AchievementSystem />}
           {activeTab === 'leaderboard' && <EnhancedLeaderboards />}
         </div>

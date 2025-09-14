@@ -41,8 +41,10 @@ const getMaintenanceCost = (business: any) => {
 
 export function MaintenanceSystem() {
   const businesses = useGameStore(state => state.businesses)
+  const enhanced = useGameStore(state => state.enhancedBusinesses)
   const playerCredits = useGameStore(state => state.player.credits)
   const repairBusiness = useGameStore(state => state.repairBusiness)
+  const repairEnhancedBusiness = useGameStore(state => state.repairEnhancedBusiness)
 
   const handleMaintain = (business: any) => {
     const cost = getMaintenanceCost(business)
@@ -146,6 +148,78 @@ export function MaintenanceSystem() {
           </Card>
         ))}
       </div>
+
+      {/* Enhanced Businesses Maintenance */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wrench className="h-5 w-5" />
+            Enhanced Businesses
+          </CardTitle>
+          <CardDescription>
+            Maintain your enhanced businesses to keep their efficiency high
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {enhanced.filter(b => b.owned).map((b) => {
+              const ebCondition = b.condition ?? 100
+              const ebCost = Math.floor((100 - ebCondition) * (b.cost || 1) * 0.1)
+              return (
+                <Card key={b.id}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-3 flex-1">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2">
+                            {getStatusIcon(ebCondition)}
+                            <span className="font-medium">{b.name}</span>
+                          </div>
+                          <span className={`text-sm font-medium capitalize ${getStatusColor(ebCondition)}`}>
+                            {ebCondition >= 80 ? 'excellent' : ebCondition >= 60 ? 'good' : ebCondition >= 40 ? 'poor' : 'critical'}
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span>Condition</span>
+                            <span className={getStatusColor(ebCondition)}>{ebCondition}%</span>
+                          </div>
+                          <Progress value={ebCondition} className="h-2" />
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Last maintenance: {timeAgo(b.lastMaintenance || 0)}
+                        </div>
+                      </div>
+                      <div className="ml-6 flex flex-col gap-2">
+                        <Button
+                          size="sm"
+                          variant={ebCondition < 60 ? 'default' : 'outline'}
+                          className="min-w-[160px]"
+                          onClick={() => {
+                            if (playerCredits < ebCost) {
+                              toast.error('Not enough credits for maintenance')
+                              return
+                            }
+                            repairEnhancedBusiness(b.id, 20)
+                            toast.success(`${b.name} maintained`, { description: `- ${ebCost} credits` })
+                          }}
+                          disabled={ebCondition >= 100}
+                        >
+                          <Wrench className="h-4 w-4 mr-2" />
+                          Maintain ({ebCost} credits)
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+            {enhanced.filter(b => b.owned).length === 0 && (
+              <div className="text-sm text-muted-foreground">No enhanced businesses owned yet.</div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Maintenance Tips */}
       <Card>
