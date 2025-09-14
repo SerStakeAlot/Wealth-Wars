@@ -49,6 +49,7 @@ import WealthWarsLogo from '@/components/WealthWarsLogo'
 import { AvatarButton } from '@/components/AvatarButton'
 import { useMultiplayerStore } from '@/lib/multiplayerStore'
 import { calculateActiveSynergies, calculateSynergyEffects } from '@/app/lib/synergies'
+import AboutTab from '@/components/AboutTab'
 
 interface SparkGameUIProps {
   onReturnHome?: () => void
@@ -382,6 +383,7 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
               <TabsTrigger value="clans">Clans</TabsTrigger>
               <TabsTrigger value="achievements">Achievements</TabsTrigger>
               <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
+              <TabsTrigger value="about">About</TabsTrigger>
             </TabsList>
             
             {/* Overview Tab */}
@@ -798,6 +800,10 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
             
             <TabsContent value="leaderboard">
               <EnhancedLeaderboards />
+            </TabsContent>
+
+            <TabsContent value="about">
+              <AboutTab />
             </TabsContent>
           </Tabs>
         </div>
