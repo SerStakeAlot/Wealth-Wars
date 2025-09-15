@@ -33,15 +33,15 @@ import {
 } from 'lucide-react'
 
 // Import our new components
-import { Leaderboard } from '@/components/Leaderboard'
+// Removed legacy standalone Leaderboard import; combined into Progress tab
 import { BattleSystem } from '@/components/BattleSystem'
 import { MaintenanceSystem } from '@/components/MaintenanceSystem'
 import { EnhancedGameStats } from '@/components/EnhancedGameStats'
 import { NotificationCenter } from '@/components/NotificationCenter'
-import { AchievementSystem } from '@/components/AchievementSystem'
+// Removed direct AchievementSystem import; rendered inside ProgressTab
 import MultiplayerPanel from '@/components/MultiplayerPanel'
 import { ClanSystem } from '@/components/ClanSystem'
-import { EnhancedLeaderboards } from '@/components/EnhancedLeaderboards'
+// Removed direct EnhancedLeaderboards import; rendered inside ProgressTab
 import { UnifiedBattleSystem } from '@/components/UnifiedBattleSystem'
 import RealTimeBattleSystem from '@/components/RealTimeBattleSystem'
 import BoostBar from '@/components/BoostBar'
@@ -50,6 +50,7 @@ import { AvatarButton } from '@/components/AvatarButton'
 import { useMultiplayerStore } from '@/lib/multiplayerStore'
 import { calculateActiveSynergies, calculateSynergyEffects } from '@/app/lib/synergies'
 import AboutTab from '@/components/AboutTab'
+import ProgressTab from '@/components/ProgressTab'
 
 interface SparkGameUIProps {
   onReturnHome?: () => void
@@ -304,7 +305,7 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
           { id: 'overview', icon: Home, label: 'Home' },
           { id: 'combat', icon: Zap, label: 'Combat' },
           { id: 'clans', icon: Shield, label: 'Clans' },
-          { id: 'leaderboard', icon: Trophy, label: 'Top' }
+          { id: 'progress', icon: Trophy, label: 'Progress' }
         ].map(tab => (
           <Button
             key={tab.id}
@@ -376,13 +377,12 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
         {/* Desktop Navigation */}
         <div className="hidden md:block">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-8">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="businesses">Businesses</TabsTrigger>
               <TabsTrigger value="combat">Combat</TabsTrigger>
               <TabsTrigger value="clans">Clans</TabsTrigger>
-              <TabsTrigger value="achievements">Achievements</TabsTrigger>
-              <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
+              <TabsTrigger value="progress">Progress</TabsTrigger>
               <TabsTrigger value="about">About</TabsTrigger>
             </TabsList>
             
@@ -794,12 +794,8 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
               <ClanSystem />
             </TabsContent>
             
-            <TabsContent value="achievements">
-              <AchievementSystem />
-            </TabsContent>
-            
-            <TabsContent value="leaderboard">
-              <EnhancedLeaderboards />
+            <TabsContent value="progress">
+              <ProgressTab />
             </TabsContent>
 
             <TabsContent value="about">
@@ -963,8 +959,7 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
             </div>
           )}
           {activeTab === 'clans' && <ClanSystem />}
-          {activeTab === 'achievements' && <AchievementSystem />}
-          {activeTab === 'leaderboard' && <EnhancedLeaderboards />}
+          {activeTab === 'progress' && <ProgressTab />}
         </div>
         
       </main>
