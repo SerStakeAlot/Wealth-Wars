@@ -611,8 +611,16 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                         <Building2 className="h-5 w-5" />
                         Enhanced Businesses
                       </h3>
-                      <div className="text-sm text-muted-foreground">
-                        Active Slots: {gameStore.activeSlots.length}/{gameStore.maxSlots}
+                      <div
+                        className="flex items-center gap-2"
+                        title="Fill all 4 slots to unlock the ultimate synergy bonuses."
+                      >
+                        <div className="text-sm text-muted-foreground">
+                          Active Slots: {gameStore.activeSlots.length}/{gameStore.maxSlots}
+                        </div>
+                        {gameStore.activeSlots.length >= 4 && (
+                          <Badge className="bg-purple-600">Ultimate synergy</Badge>
+                        )}
                       </div>
                     </div>
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -863,8 +871,16 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                     <Building2 className="h-4 w-4" />
                     Enhanced Businesses
                   </h3>
-                  <div className="text-xs text-muted-foreground">
-                    {gameStore.activeSlots.length}/{gameStore.maxSlots} slots
+                  <div
+                    className="flex items-center gap-2"
+                    title="Fill all 4 slots to unlock the ultimate synergy bonuses."
+                  >
+                    <span className="text-xs text-muted-foreground">
+                      {gameStore.activeSlots.length}/{gameStore.maxSlots} slots
+                    </span>
+                    {gameStore.activeSlots.length >= 4 && (
+                      <Badge className="bg-purple-600">Ultimate</Badge>
+                    )}
                   </div>
                 </div>
                 <div className="space-y-3">
