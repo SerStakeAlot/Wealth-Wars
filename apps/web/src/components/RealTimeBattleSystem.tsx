@@ -417,6 +417,12 @@ export function RealTimeBattleSystem() {
           </CardHeader>
           <CardContent className="space-y-4">
             {multiplayerStore.battleInvites.map((battle, idx) => {
+              // Guard against malformed invites to avoid render-time crashes
+              if (!battle || !battle.id && (!battle.attacker || !battle.defender || !battle.attackType)) {
+                console.warn('Skipping malformed battle invite', battle)
+                return null
+              }
+
               const challenger = multiplayerStore.onlinePlayers.find(p => p.id === battle.attacker)
               const battleInfo = getBattleTypeInfo(battle.attackType)
               // Estimate success chance breakdown (attacker vs defender)
@@ -433,8 +439,10 @@ export function RealTimeBattleSystem() {
               const defenderScore = attackerIsYou ? oppScore : yourWAR
               let est = 0.6 + ((attackerScore - defenderScore) / 2000) - (defenderDefenseRating / 200)
               est = Math.max(0.1, Math.min(0.9, est))
-              
-              const inviteKey = battle.id || `invite-${battle.attacker}-${battle.defender}-${battle.attackType}-${battle.startTime || idx}`
+
+              // Stable composite key with nullish fallbacks to prevent runtime errors
+              const safe = (v: any, fb: string = 'unknown') => (v ?? fb)
+              const inviteKey = battle.id ?? `invite-${safe(battle.attacker)}-${safe(battle.defender)}-${safe(battle.attackType)}-${battle.startTime ?? idx}`
               return (
                 <div key={inviteKey} className="border rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between">

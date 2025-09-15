@@ -42,7 +42,7 @@ import { NotificationCenter } from '@/components/NotificationCenter'
 import MultiplayerPanel from '@/components/MultiplayerPanel'
 import { ClanSystem } from '@/components/ClanSystem'
 // Removed direct EnhancedLeaderboards import; rendered inside ProgressTab
-import { UnifiedBattleSystem } from '@/components/UnifiedBattleSystem'
+// Removed UnifiedBattleSystem (simulated PvP) — real-time battles remain
 import RealTimeBattleSystem from '@/components/RealTimeBattleSystem'
 import BoostBar from '@/components/BoostBar'
 import WealthWarsLogo from '@/components/WealthWarsLogo'
@@ -300,11 +300,10 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
   // Mobile Navigation
   const MobileNav = () => (
     <div className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
-      <div className="grid grid-cols-4 gap-1 p-2">
+      <div className="grid grid-cols-3 gap-1 p-2">
         {[
           { id: 'overview', icon: Home, label: 'Home' },
           { id: 'combat', icon: Zap, label: 'Combat' },
-          { id: 'clans', icon: Shield, label: 'Clans' },
           { id: 'progress', icon: Trophy, label: 'Progress' }
         ].map(tab => (
           <Button
@@ -377,11 +376,10 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
         {/* Desktop Navigation */}
         <div className="hidden md:block">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="businesses">Businesses</TabsTrigger>
               <TabsTrigger value="combat">Combat</TabsTrigger>
-              <TabsTrigger value="clans">Clans</TabsTrigger>
               <TabsTrigger value="progress">Progress</TabsTrigger>
               <TabsTrigger value="about">About</TabsTrigger>
             </TabsList>
@@ -695,18 +693,6 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
-                        <Swords className="h-5 w-5" />
-                        PvP Actions
-                      </CardTitle>
-                      <CardDescription>Choose your attack mode and engage rivals.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <UnifiedBattleSystem />
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
                         <Zap className="h-5 w-5" />
                         Real-time Battles
                       </CardTitle>
@@ -784,14 +770,12 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                       </div>
                     </CardContent>
                   </Card>
+                  {/* Clans integrated into Combat */}
+                  <ClanSystem />
                   {/* Multiplayer grid positioned below the attack cooldown grid on the right side */}
                   <MultiplayerPanel embedded />
                 </div>
               </div>
-            </TabsContent>
-            
-            <TabsContent value="clans">
-              <ClanSystem />
             </TabsContent>
             
             <TabsContent value="progress">
@@ -952,13 +936,13 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
           {activeTab === 'combat' && (
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-4">
-                <UnifiedBattleSystem />
                 <RealTimeBattleSystem />
                 <MultiplayerPanel embedded />
+                {/* Clans integrated into Combat on mobile */}
+                <ClanSystem />
               </div>
             </div>
           )}
-          {activeTab === 'clans' && <ClanSystem />}
           {activeTab === 'progress' && <ProgressTab />}
         </div>
         
