@@ -37,13 +37,14 @@ export function ClanSystem() {
   const [clanDescription, setClanDescription] = useState('')
   // Multiplayer store wiring (use safe fallbacks for missing fields/actions)
   const availableClans = useMultiplayerStore(state => state.availableClans)
+  const onlinePlayers = useMultiplayerStore(state => state.onlinePlayers)
   const clans: any[] = Array.isArray(availableClans) ? availableClans : []
   const createClanAction = useMultiplayerStore(state => state.createClan)
   const joinClanAction = useMultiplayerStore(state => state.joinClan)
 
   // Current live clans come from multiplayer store
   const [currentClan, setCurrentClan] = useState<any | null>(null)
-  const [clanMembers] = useState<any[]>([])
+  const [clanMembers, setClanMembers] = useState<any[]>([])
   const [topClans, setTopClans] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -51,6 +52,44 @@ export function ClanSystem() {
     // populate top clans initially from the multiplayer store
     setTopClans(clans.slice(0, 10))
   }, [clans])
+
+  // Derive member objects with real usernames/avatars when possible
+  useEffect(() => {
+    if (!currentClan) {
+      setClanMembers([])
+      return
+    }
+    // Members can be an array of IDs or number count in mock data; handle both
+    const memberIds: string[] = Array.isArray(currentClan.members)
+      ? currentClan.members
+      : []
+
+    const resolved = (memberIds.length > 0 ? memberIds : [])
+      .map((id: string, idx: number) => {
+        const p = onlinePlayers.find(op => op.id === id)
+        return {
+          id: id || `unknown_${idx}`,
+          name: p?.username ?? `Member ${idx + 1}`,
+          avatar: p?.avatar ?? '👤',
+          level: p?.level ?? 1,
+          contribution: Math.floor((p?.wealth ?? 1000) / 10),
+          role: idx === 0 ? 'Leader' : 'Member'
+        }
+      })
+
+    // If no IDs are provided, create friendly placeholders up to a small number
+    const fallbackCount = typeof currentClan.members === 'number' ? currentClan.members : (resolved.length || 0)
+    const placeholders = Array.from({ length: Math.max(0, Math.min(4, fallbackCount - resolved.length)) }).map((_, i) => ({
+      id: `placeholder_${i}`,
+      name: `Member ${resolved.length + i + 1}`,
+      avatar: '👤',
+      level: 1,
+      contribution: 0,
+      role: 'Member'
+    }))
+
+    setClanMembers([...resolved, ...placeholders])
+  }, [currentClan, onlinePlayers])
 
   useEffect(() => {
     // set a sensible default current clan when clans load
@@ -132,8 +171,8 @@ export function ClanSystem() {
                 <div className="text-2xl font-bold text-primary">{currentClan?.level ?? 0}</div>
                 <div className="text-sm text-muted-foreground">Clan Level</div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-500">{currentClan?.members ?? 0}</div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-500">{Array.isArray(currentClan?.members) ? currentClan.members.length : (currentClan?.members ?? 0)}</div>
                 <div className="text-sm text-muted-foreground">Members</div>
               </div>
               <div className="text-center">
