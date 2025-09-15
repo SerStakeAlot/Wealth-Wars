@@ -559,7 +559,7 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
   businesses: mockBusinesses,
   enhancedBusinesses: mockEnhancedBusinesses,
   activeSlots: [],
-  maxSlots: 3,
+  maxSlots: 4,
 
   // Battle system
   battleState: {
