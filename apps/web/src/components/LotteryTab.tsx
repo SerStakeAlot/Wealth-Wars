@@ -48,7 +48,12 @@ export default function LotteryTab() {
       const open = !round.locked && !round.settled && timeLeftMs > 0
       if (!open) return
       const existing = new Set(uniquePlayers)
-      const needed = Math.max(0, Math.min(settings.maxEntries - existing.size, botCount))
+      const playerEntered = existing.has(game.player.id)
+      // Reserve one slot for the player if they haven't entered yet
+      const maxFill = settings.maxEntries - (playerEntered ? 0 : 1)
+      const current = existing.size
+      if (current >= maxFill) return
+      const needed = Math.max(0, Math.min(maxFill - current, botCount))
       if (needed <= 0) return
       // Random chance to add 0-2 bots per second
       const attempts = Math.floor(Math.random() * 3)
