@@ -10,6 +10,8 @@ import { Progress } from '@/components/ui/progress'
 export default function LotteryTab() {
   const game = useGameStore()
   const [tick, setTick] = useState(0)
+  const [botsOn, setBotsOn] = useState(true)
+  const [botCount, setBotCount] = useState(8)
   useEffect(() => {
     const id = setInterval(() => setTick(t => t + 1), 1000)
     return () => clearInterval(id)
@@ -38,6 +40,31 @@ export default function LotteryTab() {
   const handleClaim = () => {
     game.claimLotteryShare()
   }
+
+  // Demo bots: randomly try to enter while round is open, up to botCount unique bots
+  useEffect(() => {
+    if (!botsOn) return
+    const tryBot = () => {
+      const open = !round.locked && !round.settled && timeLeftMs > 0
+      if (!open) return
+      const existing = new Set(uniquePlayers)
+      const needed = Math.max(0, Math.min(settings.maxEntries - existing.size, botCount))
+      if (needed <= 0) return
+      // Random chance to add 0-2 bots per second
+      const attempts = Math.floor(Math.random() * 3)
+      for (let i = 0; i < attempts; i++) {
+        // pick a bot id that is not in existing
+        const botId = pickBotId(existing)
+        if (!botId) break
+        ;(game.enterLotteryBot as any)?.(botId)
+        existing.add(botId)
+      }
+    }
+    tryBot()
+    const id = setInterval(tryBot, 1000)
+    return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [botsOn, tick, botCount, settings.maxEntries, timeLeftMs])
 
   return (
     <div className="space-y-6">
@@ -72,6 +99,14 @@ export default function LotteryTab() {
             </Button>
             {!canEnter && !round.settled && <Badge variant="secondary">Closed</Badge>}
             {round.settled && <Badge className="bg-purple-600">Settled</Badge>}
+            <label className="ml-auto text-xs flex items-center gap-2">
+              <input type="checkbox" className="accent-green-600" checked={botsOn} onChange={(e)=>setBotsOn(e.target.checked)} />
+              Demo bots
+            </label>
+            <div className="text-xs flex items-center gap-2">
+              <span>Bots:</span>
+              <input type="number" min={0} max={settings.maxEntries} value={botCount} onChange={(e)=>setBotCount(Number(e.target.value))} className="w-16 border rounded p-1 bg-background" />
+            </div>
           </div>
 
           <div className="mt-2 text-xs text-muted-foreground">
@@ -130,4 +165,13 @@ function formatMs(ms: number) {
   const m = Math.floor(total / 60)
   const s = total % 60
   return `${m}m ${s.toString().padStart(2, '0')}s`
+}
+
+function pickBotId(existing: Set<string>): string | null {
+  // Generate a pool of bot ids BOT_1..BOT_100 and pick first unused
+  for (let i = 1; i <= 100; i++) {
+    const id = `BOT_${i}`
+    if (!existing.has(id)) return id
+  }
+  return null
 }

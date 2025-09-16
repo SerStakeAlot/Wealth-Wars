@@ -296,6 +296,7 @@ interface GameState {
   _settleLottery?: () => void
   claimLotteryShare: () => { success: boolean; amount?: number; reason?: string }
   getLotteryRemainingMs: () => number
+  enterLotteryBot?: (botId: string) => { success: boolean; reason?: string }
 
   // Battle actions
   performAttack: (targetId: string, attackType: 'standard' | 'wealth_assault' | 'land_siege' | 'business_sabotage') => { success: boolean; message?: string; stolen?: number; damage?: number }
@@ -774,6 +775,38 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
     if (after.entries.length >= maxEntries) {
       set(s => ({ lottery: { ...s.lottery, currentRound: { ...s.lottery.currentRound, locked: true } } }))
   ;(get()._settleLottery as any)()
+    }
+    return { success: true }
+  },
+  enterLotteryBot: (botId: string) => {
+    const state = get()
+    const { entryAmount, maxEntries } = state.lottery.settings
+    const round = state.lottery.currentRound
+    const remaining = get().getLotteryRemainingMs()
+    if (round.locked || round.settled || remaining <= 0) {
+      return { success: false, reason: 'Round closed' }
+    }
+    if (round.entries.length >= maxEntries) {
+      return { success: false, reason: 'Entry cap reached' }
+    }
+    const already = round.entries.some(e => e.playerId === botId)
+    if (already) return { success: false, reason: 'Already entered' }
+    // Simulate bot paying into the pot without touching local player balances
+    set(s => ({
+      lottery: {
+        ...s.lottery,
+        currentRound: {
+          ...s.lottery.currentRound,
+          entries: [...s.lottery.currentRound.entries, { playerId: botId, timestamp: Date.now(), amount: entryAmount }],
+          pot: s.lottery.currentRound.pot + entryAmount
+        }
+      }
+    }))
+    // Auto lock/settle if cap reached
+    const after = get().lottery.currentRound
+    if (after.entries.length >= maxEntries) {
+      set(s => ({ lottery: { ...s.lottery, currentRound: { ...s.lottery.currentRound, locked: true } } }))
+      ;(get()._settleLottery as any)()
     }
     return { success: true }
   },
