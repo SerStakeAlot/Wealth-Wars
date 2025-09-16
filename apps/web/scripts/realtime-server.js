@@ -1,79 +1,125 @@
 #!/usr/bin/env node
-// Simple WebSocket server to broadcast clan create/join messages for local testing
+// Realtime Presence WebSocket server
 // Usage: node scripts/realtime-server.js
 
-// const WebSocket = require('ws');
-// const port = 8080;
-// const wss = new WebSocket.Server({ port });
-//
-// wss.on('connection', (ws) => {
-//   console.log('[WebSocket Server] Client connected');
-//   ws.on('message', (raw) => {
-//     console.log('[WebSocket Server] Message received:', raw);
-//   });
-//   ws.on('close', () => {
-//     console.log('[WebSocket Server] Client disconnected');
-//   });
-// });
-//
-// console.log(`[WebSocket Server] Running on ws://localhost:${port}`);
+const WebSocket = require('ws')
+const http = require('http')
 
-let clans = [
-  { id: '1', name: 'Dragon Lords', tag: '[DL]', leader: 'demo-1', members: 50, maxMembers: 50, description: 'Top PvP clan', trophies: 2100, rank: 1 },
-  { id: '2', name: 'Phoenix Rising', tag: '[PR]', leader: 'demo-2', members: 48, maxMembers: 50, description: 'Rising stars', trophies: 1950, rank: 2 }
-]
+const PORT = process.env.PORT ? Number(process.env.PORT) : 8080
+const HEARTBEAT_INTERVAL_MS = process.env.HEARTBEAT_INTERVAL_MS ? Number(process.env.HEARTBEAT_INTERVAL_MS) : 15000
+const STALE_AFTER_MS = process.env.STALE_AFTER_MS ? Number(process.env.STALE_AFTER_MS) : 45000
 
-// pending join requests: { id, clanId, playerId, username }
-let joinRequests = []
+// Minimal presence record kept in memory
+// players: Map<playerId, { id, username, lastSeen }>
+const players = new Map()
+// clientIndex: Map<WebSocket, playerId>
+const clientIndex = new Map()
+
+const server = http.createServer()
+const wss = new WebSocket.Server({ server })
+
+function now() { return Date.now() }
 
 function broadcast(type, payload) {
   const msg = JSON.stringify({ type, payload })
   wss.clients.forEach(client => {
-    if (client.readyState === WebSocket.OPEN) client.send(msg)
+    if (client.readyState === WebSocket.OPEN) {
+      try { client.send(msg) } catch {}
+    }
   })
 }
 
-// wss.on('connection', (ws) => {
-//   console.info('[realtime-server] client connected')
-//   // send current clans
-//   ws.send(JSON.stringify({ type: 'clans:update', payload: clans }))
-//
-//   ws.on('message', (raw) => {
-//     try {
-//       const msg = JSON.parse(raw)
-//       const { type, payload } = msg
-//       console.info('[realtime-server] received', type)
-//       if (type === 'clan:create') {
-//         // simple server-side create
-//         clans = [payload, ...clans]
-//         broadcast('clans:update', clans)
-//       } else if (type === 'clan:joinRequest') {
-//         // store the request and notify clan leaders
-//         const id = `${Date.now()}`
-//         const req = { id, clanId: payload.clanId, playerId: payload.playerId, username: payload.username || payload.playerId }
-//         joinRequests.push(req)
-//         broadcast('clan:joinRequest', req)
-//       } else if (type === 'clan:acceptJoin') {
-//         // payload: { requestId, clanId }
-//         const reqIndex = joinRequests.findIndex(r => r.id === payload.requestId)
-//         if (reqIndex >= 0) {
-//           const req = joinRequests.splice(reqIndex, 1)[0]
-//           // find clan and increment members (very naive)
-//           const clan = clans.find(c => c.id === payload.clanId)
-//           if (clan) {
-//             clan.members = (clan.members || 0) + 1
-//             // broadcast updated clans and accepted event
-//             broadcast('clans:update', clans)
-//             broadcast('clan:joinAccepted', { clanId: clan.id, playerId: req.playerId, username: req.username })
-//           }
-//         }
-//       }
-//     } catch (e) {
-//       console.warn('[realtime-server] invalid message', e)
-//     }
-//   })
-//
-//   ws.on('close', () => console.info('[realtime-server] client disconnected'))
-// })
+function sendPresence(ws) {
+  const list = Array.from(players.values()).map(p => ({ id: p.id, username: p.username, lastSeen: p.lastSeen }))
+  const msg = JSON.stringify({ type: 'presence:update', payload: list })
+  try { ws.send(msg) } catch {}
+}
 
-// console.info(`[realtime-server] running on ws://localhost:${port}`)
+function upsertPresence(id, username) {
+  const entry = players.get(id) || { id, username: username || `Guest_${id.slice(-4)}`, lastSeen: 0 }
+  entry.username = username || entry.username
+  entry.lastSeen = now()
+  players.set(id, entry)
+}
+
+function removePresenceById(id) {
+  if (players.has(id)) {
+    players.delete(id)
+    broadcast('presence:update', Array.from(players.values()))
+  }
+}
+
+function pruneStale() {
+  const cutoff = now() - STALE_AFTER_MS
+  let changed = false
+  for (const [id, rec] of players.entries()) {
+    if ((rec.lastSeen || 0) < cutoff) {
+      players.delete(id)
+      changed = true
+    }
+  }
+  if (changed) broadcast('presence:update', Array.from(players.values()))
+}
+
+wss.on('connection', (ws) => {
+  console.info('[presence] client connected')
+
+  // Attach ping/pong heartbeat at socket level
+  ws.isAlive = true
+  ws.on('pong', () => { ws.isAlive = true })
+
+  // Send initial presence snapshot
+  sendPresence(ws)
+
+  ws.on('message', (raw) => {
+    try {
+      const msg = JSON.parse(raw)
+      const { type, payload } = msg
+      if (type === 'hello') {
+        const id = String(payload?.id || '') || `guest_${Math.random().toString(36).slice(2, 10)}`
+        const username = String(payload?.username || '') || `Guest_${id.slice(-4)}`
+        clientIndex.set(ws, id)
+        upsertPresence(id, username)
+        broadcast('presence:update', Array.from(players.values()))
+      } else if (type === 'heartbeat') {
+        const id = clientIndex.get(ws)
+        if (id) {
+          upsertPresence(id, payload?.username)
+          // Optionally throttle presence broadcasts; for simplicity broadcast on each heartbeat
+          broadcast('presence:update', Array.from(players.values()))
+        }
+      } else if (type === 'set:username') {
+        const id = clientIndex.get(ws)
+        if (id) {
+          upsertPresence(id, String(payload?.username || ''))
+          broadcast('presence:update', Array.from(players.values()))
+        }
+      }
+    } catch (e) {
+      console.warn('[presence] invalid message', e)
+    }
+  })
+
+  ws.on('close', () => {
+    const id = clientIndex.get(ws)
+    clientIndex.delete(ws)
+    if (id) removePresenceById(id)
+    console.info('[presence] client disconnected')
+  })
+})
+
+// Server-level heartbeat to terminate dead connections
+const interval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) return ws.terminate()
+    ws.isAlive = false
+    try { ws.ping() } catch {}
+  })
+  pruneStale()
+}, HEARTBEAT_INTERVAL_MS)
+
+wss.on('close', () => clearInterval(interval))
+
+server.listen(PORT, () => {
+  console.info(`[presence] running on ws://localhost:${PORT}`)
+})

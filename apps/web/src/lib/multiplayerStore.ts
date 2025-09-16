@@ -165,7 +165,7 @@ export interface MultiplayerState {
   setActiveTab: (tab: string) => void
 }
 
-// Mock WebSocket connection for demonstration
+// Mock WebSocket connection for demonstration and fallback
 class MockWebSocket {
   private callbacks: Map<string, Function[]> = new Map()
   private connected = false
@@ -362,10 +362,85 @@ const mockClans: Clan[] = [
 ]
 
 const mockWebSocket = new MockWebSocket()
+
+// Real WebSocket presence client (optional)
+class PresenceClient {
+  private ws: WebSocket | null = null
+  private url: string
+  private callbacks: Map<string, Function[]> = new Map()
+  private heartbeatTimer: any = null
+  private id: string
+  private username: string
+  private connected = false
+
+  constructor(url: string, id: string, username: string) {
+    this.url = url
+    this.id = id
+    this.username = username
+  }
+
+  connect() {
+    try {
+      this.ws = new WebSocket(this.url)
+    } catch (e) {
+      // Browser will provide WebSocket global; SSR should skip
+      return
+    }
+    this.ws.onopen = () => {
+      this.connected = true
+      this.emit('connected', {})
+      this.send({ type: 'hello', payload: { id: this.id, username: this.username } })
+      // Heartbeat every 10s (server tolerates up to 45s by default)
+      this.heartbeatTimer = setInterval(() => {
+        this.send({ type: 'heartbeat', payload: { username: this.username } })
+      }, 10000)
+    }
+    this.ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data as any)
+        const { type, payload } = msg
+        this.emit(type, payload)
+      } catch {}
+    }
+    this.ws.onclose = () => {
+      this.connected = false
+      if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
+      this.emit('disconnected', {})
+    }
+    this.ws.onerror = () => {
+      // Let caller decide to fallback
+    }
+  }
+
+  disconnect() {
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
+    if (this.ws) try { this.ws.close() } catch {}
+  }
+
+  setUsername(name: string) {
+    this.username = name
+    this.send({ type: 'set:username', payload: { username: name } })
+  }
+
+  on(event: string, callback: Function) {
+    if (!this.callbacks.has(event)) this.callbacks.set(event, [])
+    this.callbacks.get(event)!.push(callback)
+  }
+
+  private emit(event: string, data: any) {
+    const callbacks = this.callbacks.get(event)
+    if (callbacks) callbacks.forEach(cb => cb(data))
+  }
+
+  private send(obj: any) {
+    try { (this.ws as any)?.send(JSON.stringify(obj)) } catch {}
+  }
+}
 // Guard to ensure we only register websocket listeners once. In dev/StrictMode
 // effects can run twice causing duplicate listener registration which resulted
 // in multiple (e.g. 4x) identical battle_invite entries per single challenge.
 let wsListenersRegistered = false
+let presenceClient: PresenceClient | null = null
 
 // Create the multiplayer store
 export const useMultiplayerStore = create<MultiplayerState>()((set, get) => ({
@@ -416,14 +491,39 @@ export const useMultiplayerStore = create<MultiplayerState>()((set, get) => ({
 
     if (!wsListenersRegistered) {
       // Set up WebSocket event listeners (only once)
-      mockWebSocket.on('connected', () => {
+      const handleConnected = () => {
         set({ isConnected: true, connectionStatus: 'connected' })
-      })
-      
-      mockWebSocket.on('players_online', (players: MultiplayerPlayer[]) => {
-        set({ onlinePlayers: players })
-      })
-      
+      }
+      const handlePresenceUpdate = (players: any[]) => {
+        // Map presence payload into MultiplayerPlayer shell objects
+        const mapped: MultiplayerPlayer[] = players.map(p => ({
+          id: p.id,
+          username: p.username || `Guest_${String(p.id).slice(-4)}`,
+          level: 1,
+          wealth: 0,
+          credits: 0,
+          walletAddress: '',
+          isOnline: true,
+          lastSeen: p.lastSeen || Date.now(),
+          battlePower: 0,
+          reputation: 0,
+          achievements: [],
+          avatar: '👤'
+        }))
+        set({ onlinePlayers: mapped })
+      }
+
+      mockWebSocket.on('connected', handleConnected)
+      mockWebSocket.on('players_online', (players: MultiplayerPlayer[]) => set({ onlinePlayers: players }))
+      // Presence client events
+      // @ts-ignore - runtime registration only if presenceClient is used
+      const registerPresence = () => {
+        if (!presenceClient) return
+        presenceClient.on('connected', handleConnected)
+        presenceClient.on('presence:update', handlePresenceUpdate)
+      }
+      registerPresence()
+
       mockWebSocket.on('trade_offers', (offers: TradeOffer[]) => {
         set({ activeTradeOffers: offers })
       })
@@ -460,12 +560,51 @@ export const useMultiplayerStore = create<MultiplayerState>()((set, get) => ({
       wsListenersRegistered = true
     }
 
-    // Connect (idempotent)
+    // Connect: try presence server first (browser only), else fallback to mock
+    try {
+      if (typeof window !== 'undefined') {
+        // Create a guest id/username
+        const stored = window.localStorage.getItem('ww-guest')
+        let guest = stored ? JSON.parse(stored) : null
+        if (!guest) {
+          guest = { id: `guest_${Math.random().toString(36).slice(2,10)}`, username: '' }
+          window.localStorage.setItem('ww-guest', JSON.stringify(guest))
+        }
+        const baseUrl = (typeof location !== 'undefined' && location.hostname) ? location.hostname : 'localhost'
+        const port = 8080
+        const url = `ws://${baseUrl}:${port}`
+        presenceClient = new PresenceClient(url, guest.id, guest.username || guest.id.replace('guest_', 'Guest_'))
+        presenceClient.connect()
+        // Re-register presence listeners in case they were not attached yet
+        presenceClient.on('connected', () => set({ isConnected: true, connectionStatus: 'connected' }))
+        presenceClient.on('presence:update', (list: any[]) => {
+          const mapped: MultiplayerPlayer[] = list.map((p: any) => ({
+            id: p.id,
+            username: p.username || `Guest_${String(p.id).slice(-4)}`,
+            level: 1,
+            wealth: 0,
+            credits: 0,
+            walletAddress: '',
+            isOnline: true,
+            lastSeen: p.lastSeen || Date.now(),
+            battlePower: 0,
+            reputation: 0,
+            achievements: [],
+            avatar: '👤'
+          }))
+          set({ onlinePlayers: mapped })
+        })
+        return
+      }
+    } catch {}
+
+    // Fallback to mock
     mockWebSocket.connect()
   },
   
   disconnect: () => {
     mockWebSocket.disconnect()
+    try { presenceClient?.disconnect() } catch {}
     set({ 
       isConnected: false, 
       connectionStatus: 'disconnected',
