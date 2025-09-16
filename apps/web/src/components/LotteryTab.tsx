@@ -17,7 +17,7 @@ export default function LotteryTab() {
     return () => clearInterval(id)
   }, [])
 
-  // Auto settle when window ends
+  // Auto settle when window ends (tick-driven check)
   useEffect(() => {
     try { game.settleLotteryIfNeeded() } catch {}
   }, [tick])
@@ -36,7 +36,7 @@ export default function LotteryTab() {
   }
 
   const last = game.lottery.lastRound
-  const youCanClaim = !!last && last.settled && last.winnerId !== game.player.id && (last.entries.some(e => e.playerId === game.player.id)) && !(last.claims && last.claims[game.player.id])
+  const claimable = Math.floor((game.lottery.claimable?.[game.player.id] || 0))
   const handleClaim = () => {
     game.claimLotteryShare()
   }
@@ -146,11 +146,12 @@ export default function LotteryTab() {
                 <div className="rounded border border-border p-2">Treasury: {last.payouts?.treasury ?? 0}</div>
                 <div className="rounded border border-border p-2">Redistribution: {last.payouts?.redistribution ?? 0}</div>
               </div>
-              <div className="flex items-center gap-2 mt-2">
-                <Button onClick={handleClaim} disabled={!youCanClaim}>
-                  Claim Redistribution
+              <div className="flex items-center gap-3 mt-2">
+                <div className="text-sm">Your claimable total: <span className="font-semibold">{claimable} $WEALTH</span></div>
+                <Button onClick={handleClaim} disabled={claimable <= 0}>
+                  Claim Now
                 </Button>
-                {!youCanClaim && <span className="text-xs text-muted-foreground">No claim available</span>}
+                {claimable <= 0 && <span className="text-xs text-muted-foreground">No claimable yet</span>}
               </div>
             </div>
           )}

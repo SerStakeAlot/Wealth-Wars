@@ -289,6 +289,8 @@ interface GameState {
       payouts?: { winner: number; treasury: number; redistribution: number }
       claims?: Record<string, boolean>
     }
+    // Accumulated redistribution per player across rounds
+    claimable?: Record<string, number>
   }
   enterLottery: () => { success: boolean; reason?: string }
   settleLotteryIfNeeded: () => void
@@ -691,7 +693,8 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
       settled: false,
       pot: 0,
       claims: {}
-    }
+    },
+    claimable: {}
   },
 
   // UI state
@@ -770,11 +773,10 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
       }
     }))
     try { useNotificationStore.getState().push({ type: 'success', title: 'Entered lottery', message: `-${entryAmount} $WEALTH`, showInBanner: false }) } catch {}
-    // If we hit cap, lock and settle
+    // If we hit cap, lock (do not settle; wait for duration to elapse)
     const after = get().lottery.currentRound
     if (after.entries.length >= maxEntries) {
       set(s => ({ lottery: { ...s.lottery, currentRound: { ...s.lottery.currentRound, locked: true } } }))
-  ;(get()._settleLottery as any)()
     }
     return { success: true }
   },
@@ -802,11 +804,10 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
         }
       }
     }))
-    // Auto lock/settle if cap reached
+    // Auto lock if cap reached (do not settle; wait for timer)
     const after = get().lottery.currentRound
     if (after.entries.length >= maxEntries) {
       set(s => ({ lottery: { ...s.lottery, currentRound: { ...s.lottery.currentRound, locked: true } } }))
-      ;(get()._settleLottery as any)()
     }
     return { success: true }
   },
@@ -853,7 +854,22 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
       set(s => ({ treasuryReserve: { ...s.treasuryReserve, wealth: s.treasuryReserve.wealth + treasuryCut } }))
     }
 
-    // Finalize current round and rotate to lastRound
+    // Build accumulated claimable for losers (redistribution pool)
+    const losers = uniquePlayers.filter(id => id !== winnerId)
+    const loserShare = (losers.length > 0) ? Math.floor(redistribution / losers.length) : 0
+    if (loserShare > 0 && losers.length > 0) {
+      set(s => ({
+        lottery: {
+          ...s.lottery,
+          claimable: losers.reduce((acc, id) => ({
+            ...acc,
+            [id]: (s.lottery.claimable?.[id] || 0) + loserShare
+          }), { ...(s.lottery.claimable || {}) })
+        }
+      }))
+    }
+
+    // Finalize current round and rotate to lastRound (keep last result for display only)
     const roundResult = {
       ...r,
       locked: true,
@@ -878,7 +894,8 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
           settled: false,
           pot: 0,
           claims: {}
-        }
+        },
+        claimable: s.lottery.claimable
       }
     }))
     try {
@@ -887,31 +904,18 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
   },
   claimLotteryShare: () => {
     const state = get()
-    const last = state.lottery.lastRound
-    if (!last || !last.settled) return { success: false, reason: 'Nothing to claim' }
     const pid = state.player.id
-    const participated = last.entries.some(e => e.playerId === pid)
-    if (!participated) return { success: false, reason: 'Not eligible' }
-    if (last.winnerId === pid) return { success: false, reason: 'Winner has no share' }
-    const already = (last.claims && last.claims[pid]) || false
-    if (already) return { success: false, reason: 'Already claimed' }
-    const losers = Array.from(new Set(last.entries.map(e => e.playerId))).filter(id => id !== last.winnerId)
-    const pool = last.payouts?.redistribution || 0
-    if (losers.length === 0 || pool <= 0) return { success: false, reason: 'No pool' }
-    const share = Math.floor(pool / losers.length)
-    if (share <= 0) return { success: false, reason: 'No share' }
+    const amt = Math.floor((state.lottery.claimable?.[pid] || 0))
+    if (!amt || amt <= 0) return { success: false, reason: 'No claimable amount' }
     set(s => ({
-      player: { ...s.player, wealth: s.player.wealth + share },
+      player: { ...s.player, wealth: s.player.wealth + amt },
       lottery: {
         ...s.lottery,
-        lastRound: {
-          ...(s.lottery.lastRound as any),
-          claims: { ...(s.lottery.lastRound?.claims || {}), [pid]: true }
-        }
+        claimable: { ...(s.lottery.claimable || {}), [pid]: 0 }
       }
     }))
-    try { useNotificationStore.getState().push({ type: 'success', title: 'Claimed lottery share', message: `+${share} $WEALTH`, showInBanner: false }) } catch {}
-    return { success: true, amount: share }
+    try { useNotificationStore.getState().push({ type: 'success', title: 'Claimed lottery share', message: `+${amt} $WEALTH`, showInBanner: false }) } catch {}
+    return { success: true, amount: amt }
   },
   // Internal work application that assumes cooldown eligibility has been validated outside
   _applyWork: (now: number, automated: boolean) => {
