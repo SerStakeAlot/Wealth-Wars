@@ -244,6 +244,8 @@ export default function Home() {
       <main className="content">
         <h1 className={`${orbitron.className} logo`}>WEALTH WARS</h1>
 
+        <p className={`${orbitron.className} tagline`}>Build your empire, defend your Wealth</p>
+
         <div className="buttonGroup">
           {!demoSiteMode && (
             <Link href="/game">
@@ -475,7 +477,16 @@ export default function Home() {
           border-radius: 12px;
           padding: 8px 12px;
         }
+          position: relative;
 
+        .tagline::after {
+          content: "";
+          position: absolute; inset: 0; pointer-events: none;
+          background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.45) 14%, transparent 28%);
+          transform: translateX(-120%);
+          animation: logoShine 4.2s ease-in-out infinite;
+          mix-blend-mode: screen;
+        }
         .avatar {
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           border: 1px solid rgba(255,255,255,0.18);
@@ -486,6 +497,35 @@ export default function Home() {
           background: rgba(255,255,255,0.06);
           border: 1px solid var(--line);
           color: var(--text);
+        }
+
+        /* Tagline under the logo */
+        .tagline {
+          margin: -8px 0 26px 0;
+          font-size: clamp(18px, 3.2vw, 34px);
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.14em;
+          line-height: 1.15;
+          /* Use the same rich gold gradient as the logo for maximum visibility */
+          background: linear-gradient(
+            180deg,
+            #fde68a 0%,
+            #fbbf24 14%,
+            #f9c742 28%,
+            #b07c24 42%,
+            #f2d271 58%,
+            #ffd34a 72%,
+            #9b6a1a 86%,
+            #ffd98c 100%
+          );
+          -webkit-background-clip: text; background-clip: text; color: transparent;
+          /* Crisp outline + glow to pop on dark backgrounds */
+          -webkit-text-stroke: 0.5px rgba(0,0,0,0.35);
+          text-shadow: 0 2px 0 rgba(0,0,0,0.35), 0 8px 20px rgba(255,199,84,0.22), 0 0 24px rgba(255,215,0,0.2);
+        }
+        @media (min-width: 768px) {
+          .tagline { letter-spacing: 0.16em; }
         }
       `}</style>
     </div>

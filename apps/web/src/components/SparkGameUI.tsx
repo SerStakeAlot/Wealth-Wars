@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useGameStore } from '@/lib/gameStore'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -31,6 +31,7 @@ import {
   Menu,
   Home
 } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 // Import our new components
 // Removed legacy standalone Leaderboard import; combined into Progress tab
@@ -38,6 +39,7 @@ import { BattleSystem } from '@/components/BattleSystem'
 import { MaintenanceSystem } from '@/components/MaintenanceSystem'
 import { EnhancedGameStats } from '@/components/EnhancedGameStats'
 import { NotificationCenter } from '@/components/NotificationCenter'
+import { useNotificationStore } from '@/lib/notificationStore'
 // Removed direct AchievementSystem import; rendered inside ProgressTab
 import MultiplayerPanel from '@/components/MultiplayerPanel'
 import { ClanSystem } from '@/components/ClanSystem'
@@ -51,6 +53,11 @@ import { useMultiplayerStore } from '@/lib/multiplayerStore'
 import { calculateActiveSynergies, calculateSynergyEffects } from '@/app/lib/synergies'
 import AboutTab from '@/components/AboutTab'
 import ProgressTab from '@/components/ProgressTab'
+import LotteryTab from '@/components/LotteryTab'
+import BusinessDetailsCard from '@/components/BusinessDetailsCard'
+import BusinessAssetDetails from '@/components/BusinessAssetDetails'
+import type { Asset } from '@/app/lib/types'
+import type { Business } from '@/lib/gameStore'
 
 interface SparkGameUIProps {
   onReturnHome?: () => void
@@ -58,15 +65,92 @@ interface SparkGameUIProps {
 
 export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
   const gameStore = useGameStore()
+  // Seed a welcome/banner notif once per session if none exist
+  const pushNotif = useNotificationStore((s) => s.push)
+  const notifCount = useNotificationStore((s) => s.notifications.length)
   const isSSR = typeof window === 'undefined';
   const [mounted, setMounted] = useState(false)
   const [isConnected, setIsConnected] = useState(true) // Assume connected since we're in game
   const [currentTime, setCurrentTime] = useState(isSSR ? 0 : Date.now())
   const [activeTab, setActiveTab] = useState('overview')
-  const [showConverterModal, setShowConverterModal] = useState(false)
+  // Treasury & DEX local UI state
   const [convertAmount, setConvertAmount] = useState<number>(100)
+  const [swapFrom, setSwapFrom] = useState<'USD' | 'SOL' | 'WEALTH'>('USD')
+  const [swapTo, setSwapTo] = useState<'USD' | 'SOL' | 'WEALTH'>('WEALTH')
+  const [swapAmount, setSwapAmount] = useState<number>(100)
+  const [slippagePct, setSlippagePct] = useState<number>(1)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [activeSubTab, setActiveSubTab] = useState('overview') // State for active sub-tab in businesses tab
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [detailsBizId, setDetailsBizId] = useState<string | undefined>(undefined)
+  const [assetOpen, setAssetOpen] = useState(false)
+  const [assetDetails, setAssetDetails] = useState<Asset | null>(null)
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Open details by deep link (?biz=id) and keep URL in sync
+  useEffect(() => {
+    const q = searchParams?.get('biz')
+    if (q && q !== detailsBizId) {
+      setDetailsBizId(q)
+      setDetailsOpen(true)
+    }
+    if (!q && detailsOpen) {
+      // If param removed externally, close modal
+      setDetailsOpen(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
+  const openBizDetails = (id: string) => {
+    // Route to proper modal based on whether it's an enhanced business or a standard asset
+    const isEnhanced = gameStore.enhancedBusinesses.some((b:any) => b.id === id)
+    if (isEnhanced) {
+      setDetailsBizId(id)
+      setDetailsOpen(true)
+      try {
+        const params = new URLSearchParams(searchParams?.toString() || '')
+        params.set('biz', id)
+        router.replace(`?${params.toString()}`, { scroll: false })
+      } catch {}
+      return
+    }
+    // Standard business: open BusinessAssetDetails without touching URL
+      // Map our GameStore Business -> Asset shape used by BusinessAssetDetails
+      const toAsset = (b: Business): Asset => ({
+        id: b.id,
+        name: b.name,
+        level: Math.max(1, (b.outlets ?? 0)),
+        yieldPerTick: Math.max(1, Math.round(b.workMultiplier)),
+        upgradeCost: Math.max(1, Math.round(b.baseCost * (1 + (b.outlets ?? 0) * 0.5))),
+        condition: b.condition,
+        cooldowns: { collect: 0, upgrade: 0, defend: 0 },
+        outlets: b.outlets,
+        multiplier: 1,
+      })
+      const biz = gameStore.businesses.find((a:any) => a.id === id) as Business | undefined
+      const asset = biz ? toAsset(biz) : null
+    setAssetDetails(asset)
+    setAssetOpen(!!asset)
+  }
+
+  const closeBizDetails = () => {
+    setDetailsOpen(false)
+    try {
+      const params = new URLSearchParams(searchParams?.toString() || '')
+      params.delete('biz')
+      const q = params.toString()
+      router.replace(q ? `?${q}` : '?', { scroll: false })
+    } catch {}
+  }
+  const closeAssetDetails = () => {
+    setAssetOpen(false)
+    setAssetDetails(null)
+  }
+  // Mobile Treasury tabs (Convert/Swap/Details)
+  const [treasuryTab, setTreasuryTab] = useState<'convert' | 'swap' | 'details'>('convert')
+  // Toggle for live price nudges in the demo DEX
+  const [liveQuotes, setLiveQuotes] = useState(true)
   
   // Update current time every second for cooldown calculations
   useEffect(() => {
@@ -82,6 +166,19 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Welcome banner once when empty
+  useEffect(() => {
+    if (notifCount === 0) {
+      pushNotif({
+        type: 'info',
+        title: 'Build your empire, defend your Wealth',
+        message: 'Welcome to the alpha — check the Treasury/DEX and battle systems. This banner auto-hides.',
+        showInBanner: true,
+        durationMs: 7000,
+      })
+    }
+  }, [notifCount, pushNotif])
   
   // Initialize player on first load
   useEffect(() => {
@@ -238,73 +335,97 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
     </Dialog>
   )
 
-  const TreasuryModal = () => (
-    <Dialog open={showConverterModal} onOpenChange={setShowConverterModal}>
-  <DialogContent className="sm:max-w-md bg-card border border-border shadow-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ArrowUpRight className="h-5 w-5 text-primary" />
-            Treasury Converter
-          </DialogTitle>
-          <DialogDescription>
-            Convert between Credits and $WEALTH. Enter an amount then choose conversion direction.
-          </DialogDescription>
-        </DialogHeader>
+  // Inline quote helper for the DEX
+  const dexQuote = (from: 'USD' | 'SOL' | 'WEALTH', to: 'USD' | 'SOL' | 'WEALTH', amount: number) => {
+    try {
+      const fn = (gameStore as any).getDexQuote as ((f:any,t:any,a:number)=>{amountOut:number,fee:number}) | undefined
+      return fn ? fn(from, to, amount) : { amountOut: 0, fee: 0 }
+    } catch { return { amountOut: 0, fee: 0 } }
+  }
+  
+  const swapBalances = () => ({
+    USD: (gameStore.player.usd || 0),
+    SOL: (gameStore.player.sol || 0),
+    WEALTH: gameStore.player.wealth,
+  }) as Record<'USD' | 'SOL' | 'WEALTH', number>
 
-        <div className="flex flex-col gap-4">
-          <input
-            type="number"
-            min={1}
-            value={convertAmount}
-            onChange={(e) => setConvertAmount(Number(e.target.value))}
-            className="w-full border rounded p-2"
-          />
+  // Live price updates
+  useEffect(() => {
+    // Keep legacy nudge for WEALTH price jitter when live quotes are enabled
+    const nudge = (useGameStore.getState() as any).nudgeMarketPrices as (() => void) | undefined
+    let nudgeId: any = null
+    if (nudge && liveQuotes) {
+      nudgeId = setInterval(() => { try { nudge() } catch {} }, 5000)
+    }
 
-          <div className="flex gap-2">
-            <Button
-              onClick={() => {
-                if (!canConvertCredits(convertAmount)) {
-                  toast.error(`Need ${convertAmount} credits to convert`)
-                  return
-                }
-                gameStore.convertCreditsToWealth(convertAmount)
-                toast.success(`Converted ${convertAmount} credits to $WEALTH`)
-                setShowConverterModal(false)
-              }}
-              className="flex-1 bg-green-600 hover:bg-green-700"
-            >
-              Credits → $WEALTH
-            </Button>
+    // Fetch SOL/USD from a public API for more accurate pricing
+    let cancelled = false
+    const setPrices = (useGameStore.getState() as any).setMarketPrices as ((next: Partial<{ solUsd: number; wealthUsd: number }>) => void) | undefined
+    const fetchPrices = async () => {
+      if (!liveQuotes || !setPrices) return
+      try {
+        const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd')
+        const j = await r.json().catch(() => null)
+        const solUsd = j?.solana?.usd
+        if (!cancelled && typeof solUsd === 'number' && isFinite(solUsd)) {
+          try { setPrices({ solUsd }) } catch {}
+        }
+      } catch {
+        // ignore network errors; keep demo defaults
+      }
+    }
 
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (!canConvertWealth(convertAmount)) {
-                  toast.error(`Need ${convertAmount} $WEALTH to convert`)
-                  return
-                }
-                gameStore.convertWealthToCredits(convertAmount)
-                toast.success(`Converted ${convertAmount} $WEALTH to credits`)
-                setShowConverterModal(false)
-              }}
-              className="flex-1"
-            >
-              $WEALTH → Credits
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
+    // initial fetch + interval
+    fetchPrices()
+    const priceId = setInterval(fetchPrices, 60_000)
+
+    return () => {
+      cancelled = true
+      if (nudgeId) clearInterval(nudgeId)
+      clearInterval(priceId)
+    }
+  }, [liveQuotes])
+
+  // Unified quote values to keep displayed numbers consistent within a render
+  const { qAmountOut, qFee, recvOut, minOut } = useMemo(() => {
+    const q = dexQuote(swapFrom, swapTo, swapAmount)
+    const out = q.amountOut || 0
+    const fee = q.fee || 0
+    const recv = swapTo === 'SOL' ? (Math.round(out * 1e4) / 1e4) : Math.floor(out)
+    const min = swapTo === 'SOL'
+      ? Math.round((out * (1 - slippagePct / 100)) * 1e4) / 1e4
+      : Math.floor(out * (1 - slippagePct / 100))
+    return { qAmountOut: out, qFee: fee, recvOut: recv, minOut: min }
+  }, [swapFrom, swapTo, swapAmount, slippagePct, (gameStore as any).marketPrices, (gameStore as any).dexFeeBps])
+
+  // Swap handler used by both mobile and desktop DEX buttons
+  const handleSwap = () => {
+    try {
+      const fn = (gameStore as any).swapTokens as ((f:any,t:any,a:number)=>{ success: boolean; amountOut?: number; error?: string }) | undefined
+      if (!fn) { toast.error('DEX not available'); return }
+      const q = dexQuote(swapFrom, swapTo, swapAmount)
+      const minOut = swapTo === 'SOL'
+        ? Math.round((q.amountOut * (1 - slippagePct/100)) * 1e4)/1e4
+        : Math.floor(q.amountOut * (1 - slippagePct/100))
+      if ((q.amountOut || 0) <= 0) { toast.error('Invalid quote'); return }
+      const res = fn(swapFrom, swapTo, swapAmount)
+      if (!res.success) { toast.error(res.error || 'Swap failed'); return }
+      if ((res.amountOut || 0) < minOut) { toast.error('Slippage exceeded'); return }
+      toast.success(`Swapped ${swapAmount} ${swapFrom} → ${res.amountOut} ${swapTo}`)
+    } catch (e:any) {
+      toast.error(e?.message || 'Swap failed')
+    }
+  }
   
   // Mobile Navigation
   const MobileNav = () => (
     <div className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
-      <div className="grid grid-cols-3 gap-1 p-2">
+      <div className="grid grid-cols-4 gap-1 p-2">
         {[
           { id: 'overview', icon: Home, label: 'Home' },
           { id: 'combat', icon: Zap, label: 'Combat' },
-          { id: 'progress', icon: Trophy, label: 'Progress' }
+          { id: 'progress', icon: Trophy, label: 'Progress' },
+          { id: 'lottery', icon: Sparkles, label: 'Lottery' }
         ].map(tab => (
           <Button
             key={tab.id}
@@ -376,11 +497,12 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
         {/* Desktop Navigation */}
         <div className="hidden md:block">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="businesses">Businesses</TabsTrigger>
               <TabsTrigger value="combat">Combat</TabsTrigger>
               <TabsTrigger value="progress">Progress</TabsTrigger>
+              <TabsTrigger value="lottery">Lottery</TabsTrigger>
               <TabsTrigger value="about">About</TabsTrigger>
             </TabsList>
             
@@ -523,36 +645,191 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                 <BoostBar />
               </div>
               
-              {/* Economy System */}
+              {/* Treasury & DEX */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                      <ArrowUpRight className="h-5 w-5" />
-                      Treasury
-                    </CardTitle>
-                    <CardDescription>
-                      Convert between credits and $WEALTH in the Treasury
-                    </CardDescription>
+                    <ArrowUpRight className="h-5 w-5" />
+                    Treasury & DEX
+                  </CardTitle>
+                  <CardDescription>Swap SOL / USD / $WEALTH and convert Credits ⇄ $WEALTH. Tokenomics and reserves below.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Button
-                      onClick={() => gameStore.convertCreditsToWealth(100)}
-                      disabled={!canAfford(100)}
-                      className="h-24 flex flex-col gap-2"
-                    >
-                      <span>Convert Credits → $WEALTH</span>
-                      <span className="text-sm opacity-75">100 Credits = 1 $WEALTH</span>
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      disabled={gameStore.player.wealth < 1}
-                      className="h-24 flex flex-col gap-2"
-                    >
-                      <span>Convert $WEALTH → Credits</span>
-                      <span className="text-sm opacity-75">1 $WEALTH = 50 Credits</span>
-                    </Button>
+                <CardContent className="space-y-6">
+                  {/* Balances Overview */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div className="rounded border border-border p-3">
+                      <div className="text-muted-foreground">Credits</div>
+                      <div className="text-lg font-semibold">{gameStore.player.credits.toLocaleString()}</div>
+                    </div>
+                    <div className="rounded border border-border p-3">
+                      <div className="text-muted-foreground">$WEALTH</div>
+                      <div className="text-lg font-semibold">{gameStore.player.wealth.toLocaleString()}</div>
+                    </div>
+                    <div className="rounded border border-border p-3">
+                      <div className="text-muted-foreground">USD</div>
+                      <div className="text-lg font-semibold">{(gameStore.player.usd || 0).toLocaleString()}</div>
+                    </div>
+                    <div className="rounded border border-border p-3">
+                      <div className="text-muted-foreground">SOL</div>
+                      <div className="text-lg font-semibold">{(gameStore.player.sol || 0).toLocaleString()}</div>
+                    </div>
+                  </div>
+                  {/* Mobile: Tabs for Converter, Swap, Details */}
+                  <div className="md:hidden">
+                    <Tabs value={treasuryTab} onValueChange={(v) => setTreasuryTab(v as 'convert' | 'swap' | 'details')} className="space-y-3">
+                      <TabsList className="grid grid-cols-3">
+                        <TabsTrigger value="convert">Convert</TabsTrigger>
+                        <TabsTrigger value="swap">Swap</TabsTrigger>
+                        <TabsTrigger value="details">Details</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="convert">
+                        {/* Credits ⇄ WEALTH Converter (mobile) */}
+                        <div className="rounded-lg border border-border p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="font-medium">Credits ⇄ $WEALTH</div>
+                            <div className="text-xs text-muted-foreground">Rates: {gameStore.conversionRate} C = 1 W • 1 W = {gameStore.wealthToCreditsRate} C</div>
+                          </div>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <input type="number" min={1} value={convertAmount} onChange={(e) => setConvertAmount(Number(e.target.value))} className="w-full sm:w-40 border rounded p-2 bg-background" />
+                            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <Button onClick={() => { if (!canConvertCredits(convertAmount)) { toast.error(`Need ${convertAmount} credits`); return } gameStore.convertCreditsToWealth(convertAmount); toast.success(`Converted ${convertAmount} credits → $WEALTH`) }} className="bg-green-600 hover:bg-green-700">Credits → $WEALTH</Button>
+                              <Button variant="outline" onClick={() => { if (!canConvertWealth(convertAmount)) { toast.error(`Need ${convertAmount} $WEALTH`); return } gameStore.convertWealthToCredits(convertAmount); toast.success(`Converted ${convertAmount} $WEALTH → credits`) }}>$WEALTH → Credits</Button>
+                            </div>
+                          </div>
+                        </div>
+                      </TabsContent>
+                      <TabsContent value="swap">
+                        {/* DEX Swapper (mobile) */}
+                        <div className="rounded-lg border border-border p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="font-medium">DEX: Swap Tokens</div>
+                            <div className="text-xs text-muted-foreground">1 SOL = ${(gameStore as any).marketPrices?.solUsd ?? 150} USD • 1 W = ${(gameStore as any).marketPrices?.wealthUsd ?? 1} USD • Fee {(gameStore as any).dexFeeBps ?? 50} bps</div>
+                          </div>
+                          <div className="grid grid-cols-1 gap-2 items-center">
+                            <div className="grid grid-cols-2 gap-2">
+                              <select value={swapFrom} onChange={(e) => setSwapFrom(e.target.value as any)} className="border rounded p-2 bg-background"><option>USD</option><option>SOL</option><option>WEALTH</option></select>
+                              <select value={swapTo} onChange={(e) => setSwapTo(e.target.value as any)} className="border rounded p-2 bg-background"><option>USD</option><option>SOL</option><option>WEALTH</option></select>
+                            </div>
+                            <div className="flex gap-2">
+                              <input type="number" min={0} value={swapAmount} onChange={(e) => setSwapAmount(Number(e.target.value))} className="border rounded p-2 bg-background w-full" />
+                              <Button variant="outline" size="sm" onClick={() => setSwapAmount(Math.floor(swapBalances()[swapFrom]))} title="Max">Max</Button>
+                              <Button variant="ghost" onClick={() => { const f = swapFrom; setSwapFrom(swapTo); setSwapTo(f) }} title="Flip">↕︎</Button>
+                            </div>
+                            <Button onClick={handleSwap} className="bg-green-600 hover:bg-green-700" disabled={swapFrom === swapTo || swapAmount <= 0 || swapBalances()[swapFrom] < swapAmount}>Swap</Button>
+                            <div className="flex flex-col gap-2 text-xs text-muted-foreground mt-2">
+                              <div>{mounted ? `You receive ≈ ${recvOut} ${swapTo} (fee ${swapFrom} ${Math.round((qFee||0)*100)/100})` : '…'}</div>
+                              <div className="flex items-center gap-2"><span>Slippage</span><input type="number" min={0} max={5} value={slippagePct} onChange={(e)=>setSlippagePct(Number(e.target.value))} className="w-16 border rounded p-1 bg-background" /><span>%</span></div>
+                              <div>{mounted ? `Min received: ${minOut} ${swapTo}` : 'Min received: …'}</div>
+                            </div>
+                          </div>
+                          {/* close rounded container */}
+                        </div>
+                        </TabsContent>
+                        <TabsContent value="details">
+                          {/* Tokenomics & Reserves (mobile) */}
+                          <div className="rounded-lg border border-border p-4">
+                            <div className="font-medium mb-2">Tokenomics</div>
+                            <div className="grid grid-cols-1 gap-3 text-sm">
+                              <div className="rounded border border-border p-3">
+                                <div className="text-muted-foreground">Treasury Reserves (Demo)</div>
+                                <div>Credits: {gameStore.treasuryReserve.credits.toLocaleString()}</div>
+                                <div>$WEALTH: {gameStore.treasuryReserve.wealth.toLocaleString()}</div>
+                              </div>
+                              <div className="rounded border border-border p-3">
+                                <div className="text-muted-foreground">Conversion Policy</div>
+                                <ul className="list-disc pl-5 space-y-1">
+                                  <li>Base 100 C → 1 W, 1 W → 50 C</li>
+                                  <li>Trading Exchange: 15% better rates when slotted</li>
+                                  <li>Marketing Agency: +25% better during active boost</li>
+                                </ul>
+                              </div>
+                              <div className="rounded border border-border p-3">
+                                <div className="text-muted-foreground">DEX Notes</div>
+                                <ul className="list-disc pl-5 space-y-1">
+                                  <li>Off-chain demo with fixed prices</li>
+                                  <li>Fee {(gameStore as any).dexFeeBps ?? 50} bps applied on input</li>
+                                  <li>SOL precision 4 dp, others integer</li>
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        </TabsContent>
+                    </Tabs>
+                  </div>
+
+                  {/* Desktop: stacked sections */}
+                  <div className="hidden md:block space-y-6">
+                    {/* Converter (desktop) */}
+                    <div className="rounded-lg border border-border p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="font-medium">Credits ⇄ $WEALTH</div>
+                        <div className="text-xs text-muted-foreground">Rates: {gameStore.conversionRate} C = 1 W • 1 W = {gameStore.wealthToCreditsRate} C</div>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input type="number" min={1} value={convertAmount} onChange={(e) => setConvertAmount(Number(e.target.value))} className="w-full sm:w-40 border rounded p-2 bg-background" />
+                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <Button onClick={() => { if (!canConvertCredits(convertAmount)) { toast.error(`Need ${convertAmount} credits`); return } gameStore.convertCreditsToWealth(convertAmount); toast.success(`Converted ${convertAmount} credits → $WEALTH`) }} className="bg-green-600 hover:bg-green-700">Credits → $WEALTH</Button>
+                          <Button variant="outline" onClick={() => { if (!canConvertWealth(convertAmount)) { toast.error(`Need ${convertAmount} $WEALTH`); return } gameStore.convertWealthToCredits(convertAmount); toast.success(`Converted ${convertAmount} $WEALTH → credits`) }}>$WEALTH → Credits</Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* DEX Swapper (desktop) */}
+                    <div className="rounded-lg border border-border p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="font-medium">DEX: Swap Tokens</div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-3">
+                          <span>Prices: 1 SOL = ${(gameStore as any).marketPrices?.solUsd ?? 150} USD • 1 W = ${(gameStore as any).marketPrices?.wealthUsd ?? 1} USD • Fee {(gameStore as any).dexFeeBps ?? 50} bps</span>
+                          <label className="flex items-center gap-1 cursor-pointer select-none">
+                            <input type="checkbox" className="accent-green-600" checked={liveQuotes} onChange={(e)=>setLiveQuotes(e.target.checked)} />
+                            <span>Live quotes</span>
+                          </label>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-5 gap-2 items-center">
+                        <select value={swapFrom} onChange={(e) => setSwapFrom(e.target.value as any)} className="border rounded p-2 bg-background"><option>USD</option><option>SOL</option><option>WEALTH</option></select>
+                        <div className="flex gap-2">
+                          <input type="number" min={0} value={swapAmount} onChange={(e) => setSwapAmount(Number(e.target.value))} className="border rounded p-2 bg-background w-full" />
+                          <Button variant="outline" size="sm" onClick={() => setSwapAmount(Math.floor(swapBalances()[swapFrom]))} title="Max">Max</Button>
+                        </div>
+                        <select value={swapTo} onChange={(e) => setSwapTo(e.target.value as any)} className="border rounded p-2 bg-background"><option>USD</option><option>SOL</option><option>WEALTH</option></select>
+                        <Button variant="ghost" onClick={() => { const f = swapFrom; setSwapFrom(swapTo); setSwapTo(f) }} title="Flip">↕︎</Button>
+                        <Button onClick={handleSwap} className="bg-green-600 hover:bg-green-700" disabled={swapFrom === swapTo || swapAmount <= 0 || swapBalances()[swapFrom] < swapAmount}>Swap</Button>
+                      </div>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-2 text-xs text-muted-foreground">
+                        <div className="flex-1">{mounted ? `You receive ≈ ${recvOut} ${swapTo} (fee ${swapFrom} ${Math.round((qFee||0)*100)/100})` : '…'}</div>
+                        <div className="flex items-center gap-2"><span>Slippage</span><input type="number" min={0} max={5} value={slippagePct} onChange={(e)=>setSlippagePct(Number(e.target.value))} className="w-16 border rounded p-1 bg-background" /><span>%</span></div>
+                        <div>{mounted ? `Min received: ${minOut} ${swapTo}` : 'Min received: …'}</div>
+                      </div>
+                    </div>
+
+                    {/* Tokenomics & Reserves (desktop) */}
+                    <div className="rounded-lg border border-border p-4">
+                      <div className="font-medium mb-2">Tokenomics</div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                        <div className="rounded border border-border p-3">
+                          <div className="text-muted-foreground">Treasury Reserves (Demo)</div>
+                          <div>Credits: {gameStore.treasuryReserve.credits.toLocaleString()}</div>
+                          <div>$WEALTH: {gameStore.treasuryReserve.wealth.toLocaleString()}</div>
+                        </div>
+                        <div className="rounded border border-border p-3">
+                          <div className="text-muted-foreground">Conversion Policy</div>
+                          <ul className="list-disc pl-5 space-y-1">
+                            <li>Base 100 C → 1 W, 1 W → 50 C</li>
+                            <li>Trading Exchange: 15% better rates when slotted</li>
+                            <li>Marketing Agency: +25% better during active boost</li>
+                          </ul>
+                        </div>
+                        <div className="rounded border border-border p-3">
+                          <div className="text-muted-foreground">DEX Notes</div>
+                          <ul className="list-disc pl-5 space-y-1">
+                            <li>Off-chain demo with fixed prices</li>
+                            <li>Fee {(gameStore as any).dexFeeBps ?? 50} bps applied on input</li>
+                            <li>SOL precision 4 dp, others integer</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -574,7 +851,11 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                 <TabsContent value="overview">
                   <div className="grid gap-4">
                     {gameStore.businesses.map((business) => (
-                      <Card key={business.id} className="hover:shadow-lg transition-shadow">
+                      <Card
+                        key={business.id}
+                        className="hover:shadow-lg transition-shadow cursor-pointer"
+                        onClick={() => openBizDetails(business.id)}
+                      >
                         <CardContent className="p-6">
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex items-start gap-4">
@@ -590,7 +871,7 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                             </div>
                             <div className="shrink-0">
                               <Button
-                                onClick={() => gameStore.buyBusinessOutlet(business.id)}
+                                onClick={(e) => { e.stopPropagation(); gameStore.buyBusinessOutlet(business.id) }}
                                 disabled={!canAfford(calculateBusinessNextCost(business))}
                                 className="bg-green-600 hover:bg-green-700"
                                 size="sm"
@@ -633,7 +914,11 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                         const remaining = Math.max(0, cd - (now - last));
                         const canActivate = owned && remaining === 0;
                         return (
-                          <Card key={eb.id} className={`hover:shadow-lg transition-shadow ${isActive ? 'border-green-600' : ''}`}>
+                          <Card
+                            key={eb.id}
+                            className={`hover:shadow-lg transition-shadow ${isActive ? 'border-green-600' : ''} cursor-pointer`}
+                            onClick={() => openBizDetails(eb.id)}
+                          >
                             <CardContent className="p-5 space-y-3">
                               <div className="flex items-start gap-4">
                                 <div className="text-3xl">{eb.icon}</div>
@@ -658,6 +943,8 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                                     disabled={gameStore.player.wealth < eb.cost}
                                     className="bg-green-600 hover:bg-green-700"
                                     size="sm"
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onClickCapture={(e) => e.stopPropagation()}
                                   >
                                     Buy — {eb.cost} $WEALTH
                                   </Button>
@@ -668,6 +955,8 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                                       onClick={() => gameStore.toggleBusinessSlot(eb.id)}
                                       disabled={!isActive && gameStore.activeSlots.length >= gameStore.maxSlots}
                                       size="sm"
+                                      onMouseDown={(e) => e.stopPropagation()}
+                                      onClickCapture={(e) => e.stopPropagation()}
                                     >
                                       {isActive ? 'Remove from Slot' : 'Activate Slot'}
                                     </Button>
@@ -675,6 +964,8 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                                       onClick={() => gameStore.activateEnhancedBusiness(eb.id)}
                                       disabled={!canActivate}
                                       size="sm"
+                                      onMouseDown={(e) => e.stopPropagation()}
+                                      onClickCapture={(e) => e.stopPropagation()}
                                     >
                                       {canActivate ? 'Activate Ability' : (mounted ? `CD: ${formatTime(remaining)}` : 'CD: …')}
                                     </Button>
@@ -793,6 +1084,9 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
             <TabsContent value="about">
               <AboutTab />
             </TabsContent>
+            <TabsContent value="lottery">
+              <LotteryTab />
+            </TabsContent>
           </Tabs>
         </div>
         
@@ -837,7 +1131,11 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
           {activeTab === 'businesses' && (
             <div className="space-y-4">
               {gameStore.businesses.map((business) => (
-                <Card key={business.id}>
+                <Card
+                  key={business.id}
+                  className="cursor-pointer"
+                  onClick={() => openBizDetails(business.id)}
+                >
                   <CardContent className="p-4">
                     <div className="space-y-3">
                       <div className="flex items-center gap-3">
@@ -852,7 +1150,7 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                       </div>
                       
                       <Button
-                        onClick={() => gameStore.buyBusinessOutlet(business.id)}
+                        onClick={(e) => { e.stopPropagation(); gameStore.buyBusinessOutlet(business.id) }}
                         disabled={!canAfford(calculateBusinessNextCost(business))}
                         className="w-full bg-green-600 hover:bg-green-700"
                         size="sm"
@@ -893,7 +1191,7 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                     const remaining = Math.max(0, cd - (now - last));
                     const canActivate = owned && remaining === 0;
                     return (
-                      <Card key={eb.id}>
+                      <Card key={eb.id} className="cursor-pointer" onClick={() => openBizDetails(eb.id)}>
                         <CardContent className="p-4">
                           <div className="flex items-start gap-3">
                             <div className="text-2xl">{eb.icon}</div>
@@ -917,6 +1215,8 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                                 disabled={gameStore.player.wealth < eb.cost}
                                 className="col-span-2 bg-green-600 hover:bg-green-700"
                                 size="sm"
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onClickCapture={(e) => e.stopPropagation()}
                               >
                                 Buy — {eb.cost} $WEALTH
                               </Button>
@@ -927,6 +1227,8 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                                   onClick={() => gameStore.toggleBusinessSlot(eb.id)}
                                   disabled={!isActive && gameStore.activeSlots.length >= gameStore.maxSlots}
                                   size="sm"
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onClickCapture={(e) => e.stopPropagation()}
                                 >
                                   {isActive ? 'Remove Slot' : 'Activate Slot'}
                                 </Button>
@@ -934,6 +1236,8 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                                   onClick={() => gameStore.activateEnhancedBusiness(eb.id)}
                                   disabled={!canActivate}
                                   size="sm"
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onClickCapture={(e) => e.stopPropagation()}
                                 >
                                   {canActivate ? 'Activate' : (mounted ? `CD: ${formatTime(remaining)}` : 'CD: …')}
                                 </Button>
@@ -960,11 +1264,17 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
             </div>
           )}
           {activeTab === 'progress' && <ProgressTab />}
+          {activeTab === 'lottery' && <LotteryTab />}
         </div>
         
       </main>
 
-      {/* Share Modal */}
+  {/* Business Details Modal (deep-link aware) */}
+  <BusinessDetailsCard businessId={detailsBizId} open={detailsOpen} onClose={closeBizDetails} />
+  {/* Standard Business Asset Details */}
+  <BusinessAssetDetails open={assetOpen} asset={assetDetails} onClose={closeAssetDetails} />
+
+  {/* Share Modal */}
       <ShareModal />
 
       {/* Mobile Navigation */}

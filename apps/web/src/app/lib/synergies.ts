@@ -105,6 +105,29 @@ export function calculateActiveSynergies(ownedBusinessIds: string[]): BusinessSy
     }
   }
 
+  // Ultimate synergy: if the player has filled all 4 enhanced business slots,
+  // grant a strong, general-purpose bonus package. This is independent of
+  // business categories and is intended to reward full-slot engagement.
+  if (ownedBusinessIds.length >= 4) {
+    const ultimateSynergy: BusinessSynergy = {
+      id: 'ultimate_synergy',
+      name: 'Ultimate Synergy',
+      description: 'All four slots are active, unlocking peak operational harmony: stronger work output, defense, and passive income.',
+      emoji: '✨',
+      requiredCategories: [],
+      minBusinesses: 4,
+      effects: {
+        workMultiplierBonus: 20,
+        defenseBonus: 20,
+        dailyWealthBonus: 2
+      },
+      // Slightly below Complete Monopoly (priority 5) so Monopoly overrides
+      // overlapping stats if achieved; still higher than other synergies.
+      priority: 4
+    }
+    activeSynergies.push(ultimateSynergy)
+  }
+
   // Sort by priority (highest first) to ensure proper override behavior
   return activeSynergies.sort((a, b) => b.priority - a.priority);
 }

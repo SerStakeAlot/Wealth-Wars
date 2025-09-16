@@ -362,6 +362,10 @@ const mockClans: Clan[] = [
 ]
 
 const mockWebSocket = new MockWebSocket()
+// Guard to ensure we only register websocket listeners once. In dev/StrictMode
+// effects can run twice causing duplicate listener registration which resulted
+// in multiple (e.g. 4x) identical battle_invite entries per single challenge.
+let wsListenersRegistered = false
 
 // Create the multiplayer store
 export const useMultiplayerStore = create<MultiplayerState>()((set, get) => ({
@@ -406,48 +410,57 @@ export const useMultiplayerStore = create<MultiplayerState>()((set, get) => ({
   
   // Connection actions
   connectToMultiplayer: async () => {
+    // If we're already connected just exit early.
+    if (get().isConnected) return
     set({ connectionStatus: 'connecting' })
-    
-    // Set up WebSocket event listeners
-    mockWebSocket.on('connected', () => {
-      set({ isConnected: true, connectionStatus: 'connected' })
-    })
-    
-    mockWebSocket.on('players_online', (players: MultiplayerPlayer[]) => {
-      set({ onlinePlayers: players })
-    })
-    
-    mockWebSocket.on('trade_offers', (offers: TradeOffer[]) => {
-      set({ activeTradeOffers: offers })
-    })
-    
-    mockWebSocket.on('clan_data', (clans: Clan[]) => {
-      set({ availableClans: clans })
-    })
-    
-    mockWebSocket.on('battle_invite', (battle: BattleSession) => {
-      set(state => ({
-        battleInvites: [...state.battleInvites, battle],
-        notifications: [...state.notifications, {
-          id: `notif_${Date.now()}`,
-          type: 'battle_request',
-          title: 'Battle Challenge!',
-          message: `${battle.attacker} challenges you to battle!`,
-          data: battle,
-          read: false,
-          createdAt: Date.now()
-        }],
-        unreadCount: state.unreadCount + 1
-      }))
-    })
-    
-    mockWebSocket.on('trade_created', (trade: TradeOffer) => {
-      set(state => ({
-        myTradeOffers: [...state.myTradeOffers, trade]
-      }))
-    })
-    
-    // Connect
+
+    if (!wsListenersRegistered) {
+      // Set up WebSocket event listeners (only once)
+      mockWebSocket.on('connected', () => {
+        set({ isConnected: true, connectionStatus: 'connected' })
+      })
+      
+      mockWebSocket.on('players_online', (players: MultiplayerPlayer[]) => {
+        set({ onlinePlayers: players })
+      })
+      
+      mockWebSocket.on('trade_offers', (offers: TradeOffer[]) => {
+        set({ activeTradeOffers: offers })
+      })
+      
+      mockWebSocket.on('clan_data', (clans: Clan[]) => {
+        set({ availableClans: clans })
+      })
+      
+      mockWebSocket.on('battle_invite', (battle: BattleSession) => {
+        set(state => {
+          // Dedupe: skip if invite with same id already exists
+          if (state.battleInvites.some(b => b.id === battle.id)) return state
+          return {
+            battleInvites: [...state.battleInvites, battle],
+            notifications: [...state.notifications, {
+              id: `notif_${Date.now()}`,
+              type: 'battle_request',
+              title: 'Battle Challenge!',
+              message: `${battle.attacker} challenges you to battle!`,
+              data: battle,
+              read: false,
+              createdAt: Date.now()
+            }],
+            unreadCount: state.unreadCount + 1
+          }
+        })
+      })
+      
+      mockWebSocket.on('trade_created', (trade: TradeOffer) => {
+        set(state => ({
+          myTradeOffers: [...state.myTradeOffers, trade]
+        }))
+      })
+      wsListenersRegistered = true
+    }
+
+    // Connect (idempotent)
     mockWebSocket.connect()
   },
   

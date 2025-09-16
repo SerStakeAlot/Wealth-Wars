@@ -3,9 +3,15 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Swords, Coins, Shield, Zap, Users, Crown, Building2, Trophy, BookOpen } from 'lucide-react'
+import { Swords, Coins, Shield, Building2, Trophy, BookOpen, RotateCcw } from 'lucide-react'
+import { useState } from 'react'
+import { useGameStore } from '@/lib/gameStore'
+import { useNotificationStore } from '@/lib/notificationStore'
 
 export default function AboutTab() {
+  const resetGame = useGameStore(s => s.resetGame)
+  const pushNotif = useNotificationStore(s => s.push)
+  const [confirming, setConfirming] = useState(false)
   return (
     <div className="space-y-6">
       <Card>
@@ -112,6 +118,49 @@ export default function AboutTab() {
         <Badge variant="secondary">shadcn/ui</Badge>
         <Badge variant="secondary">Anchor</Badge>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <RotateCcw className="h-5 w-5" />
+            Reset Progress
+          </CardTitle>
+          <CardDescription>Clear all local session data and start fresh at 100 credits / 1000 $WEALTH.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm text-muted-foreground">
+          <p>This only affects your local browser storage (no shared backend). It wipes businesses, enhanced slots, cooldowns, land, manager charges, and notifications.</p>
+          {!confirming && (
+            <Button variant="outline" className="border-red-600 text-red-600 hover:bg-red-600/10" onClick={() => setConfirming(true)}>
+              <RotateCcw className="h-4 w-4 mr-2" /> Reset Progress
+            </Button>
+          )}
+          {confirming && (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                variant="default"
+                className="bg-red-600 hover:bg-red-700"
+                onClick={() => {
+                  resetGame()
+                  try { pushNotif({ type: 'success', title: 'Progress reset', message: 'Game state restored to baseline', showInBanner: true, durationMs: 5000 }) } catch {}
+                  setConfirming(false)
+                }}
+              >
+                Confirm Reset
+              </Button>
+              <Button variant="outline" onClick={() => setConfirming(false)}>Cancel</Button>
+            </div>
+          )}
+          <details className="mt-2">
+            <summary className="cursor-pointer text-xs text-muted-foreground">Manual clear (advanced)</summary>
+            <div className="mt-2 text-xs space-y-1">
+              <p>If something seems stuck you can also run this in your browser console:</p>
+              <pre className="rounded bg-muted p-2 overflow-auto"><code>{`localStorage.removeItem('wealth-wars-store');
+localStorage.removeItem('wwars-notifications');
+location.reload();`}</code></pre>
+            </div>
+          </details>
+        </CardContent>
+      </Card>
     </div>
   )
 }

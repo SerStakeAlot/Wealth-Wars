@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Orbitron, Inter } from 'next/font/google';
 import { useGame } from '../app/lib/store';
 import { calculateOutletCost, getNextMilestone, DEFAULT_CYCLE_MS } from '../app/lib/balance';
+import BusinessAssetDetails from '@/components/BusinessAssetDetails';
 
 const inter = Inter({ subsets: ['latin'] });
 const orbitron = Orbitron({ subsets: ['latin'], weight: ['600', '800'] });
@@ -13,6 +14,7 @@ interface BusinessRowProps {
 }
 
 export function BusinessRow({ asset }: BusinessRowProps) {
+  const [open, setOpen] = useState(false)
   const { wealth, buyOutlet, toggleManager, collect } = useGame();
   const outlets = asset.outlets || 1;
   const multiplier = asset.multiplier || 1;
@@ -37,7 +39,8 @@ export function BusinessRow({ asset }: BusinessRowProps) {
   };
 
   return (
-    <div className="businessRow" style={{
+    <>
+    <div className="businessRow" onClick={() => setOpen(true)} style={{
       display: 'grid',
       gridTemplateColumns: '1fr 1fr 1fr',
       gap: '16px',
@@ -124,7 +127,7 @@ export function BusinessRow({ asset }: BusinessRowProps) {
       }}>
         <button
           className="btn primary large collectBtn"
-          onClick={() => collect(asset.id)}
+          onClick={(e) => { e.stopPropagation(); collect(asset.id) }}
           disabled={!isReady}
           style={{
             padding: '12px 10px',
@@ -143,7 +146,7 @@ export function BusinessRow({ asset }: BusinessRowProps) {
 
         <button
           className="btn dark large upgradeBtn"
-          onClick={() => buyOutlet(asset.id, 1)}
+          onClick={(e) => { e.stopPropagation(); buyOutlet(asset.id, 1) }}
           disabled={!canAffordOutlet}
           style={{
             padding: '12px 10px',
@@ -162,7 +165,7 @@ export function BusinessRow({ asset }: BusinessRowProps) {
 
         <button
           className="btn ghost large defendBtn"
-          onClick={() => toggleManager(asset.id, !asset.managerHired)}
+          onClick={(e) => { e.stopPropagation(); toggleManager(asset.id, !asset.managerHired) }}
           style={{
             padding: '12px 10px',
             fontSize: '14px',
@@ -193,6 +196,8 @@ export function BusinessRow({ asset }: BusinessRowProps) {
         </div>
       )}
     </div>
+    <BusinessAssetDetails open={open} asset={asset} onClose={() => setOpen(false)} />
+    </>
   );
 }
 

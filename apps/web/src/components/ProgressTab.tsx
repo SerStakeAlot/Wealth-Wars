@@ -5,6 +5,7 @@ import { Award, Trophy } from 'lucide-react'
 import { AchievementSystem } from '@/components/AchievementSystem'
 import { EnhancedLeaderboards } from '@/components/EnhancedLeaderboards'
 import { useGameStore } from '@/lib/gameStore'
+import SynergyGuide from '@/components/SynergyGuide'
 
 export default function ProgressTab() {
   const { activeSlots, maxSlots } = useGameStore()
@@ -24,6 +25,15 @@ export default function ProgressTab() {
               {ultimateActive ? 'Ultimate synergy active' : 'Fill all 4 slots to unlock ultimate synergy'}
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Synergy Guide</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SynergyGuide />
         </CardContent>
       </Card>
 

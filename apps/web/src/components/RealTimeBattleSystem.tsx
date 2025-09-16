@@ -1,14 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from 'react'
+import { toast } from 'sonner'
+import { useNotificationStore } from '@/lib/notificationStore'
 import { useMultiplayerStore } from '@/lib/multiplayerStore'
 import { useGameStore } from '@/lib/gameStore'
 import { Button } from '@/components/ui/button'
+import Tooltip from '@/components/ui/tooltip'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
-import { toast } from 'sonner'
 import {
   Swords,
   Shield,
@@ -29,6 +31,7 @@ import {
 export function RealTimeBattleSystem() {
   const multiplayerStore = useMultiplayerStore()
   const gameStore = useGameStore()
+  const pushNotif = useNotificationStore((s) => s.push)
   const [selectedOpponent, setSelectedOpponent] = useState<string>('')
   const [battleType, setBattleType] = useState<string>('standard')
   const [stakeAmount, setStakeAmount] = useState<number>(0)
@@ -48,6 +51,21 @@ export function RealTimeBattleSystem() {
     player.username.toLowerCase().includes(searchQuery.toLowerCase()) &&
     player.id !== gameStore.player.id
   )
+
+  // Battle type options: central definition so UI and logic use consistent labels
+  const battleOptions: Array<{
+    value: 'standard' | 'wealth_assault' | 'land_siege' | 'business_sabotage'
+    label: string
+    short: string
+    icon: React.ReactNode
+    cost: { amount: number; currency: 'credits' | 'wealth' }
+    description: string
+  }> = [
+    { value: 'standard', label: 'Standard (15 Credits)', short: 'Std 15C', icon: <Swords className="h-4 w-4" />, cost: { amount: 15, currency: 'credits' }, description: 'Basic attack with 10% max theft' },
+    { value: 'wealth_assault', label: 'Wealth Assault (10 $WEALTH)', short: 'Assault 10W', icon: <Coins className="h-4 w-4" />, cost: { amount: 10, currency: 'wealth' }, description: 'High-stakes wealth theft (25% cap)' },
+    { value: 'land_siege', label: 'Land Siege (25 $WEALTH)', short: 'Siege 25W', icon: <Crown className="h-4 w-4" />, cost: { amount: 25, currency: 'wealth' }, description: 'Siege to capture or plunder land (35% cap)' },
+    { value: 'business_sabotage', label: 'Sabotage (25 Credits)', short: 'Sabot 25C', icon: <AlertTriangle className="h-4 w-4" />, cost: { amount: 25, currency: 'credits' }, description: 'Damage opponent\'s businesses' },
+  ]
 
   const formatTimeRemaining = (endTime: number) => {
     const remaining = Math.max(0, endTime - currentTime)
@@ -136,30 +154,55 @@ export function RealTimeBattleSystem() {
       return
     }
 
-    // Enforce attack costs based on type
-    const info = getBattleTypeInfo(active.attackType)
-    const cost = (info as any).cost as { amount: number; currency: 'credits' | 'wealth' } | undefined
-    if (cost && cost.amount > 0) {
-      if (cost.currency === 'credits') {
-        if (gameStore.player.credits < cost.amount) {
-          toast.error(`Need ${cost.amount} credits for this attack`)
-          return
-        }
-        useGameStore.setState(s => ({ player: { ...s.player, credits: s.player.credits - cost.amount } }))
-      } else {
-        if (gameStore.player.wealth < cost.amount) {
-          toast.error(`Need ${cost.amount} $WEALTH for this attack`)
-          return
-        }
-        useGameStore.setState(s => ({ player: { ...s.player, wealth: Math.max(0, s.player.wealth - cost.amount) } }))
-      }
-    }
-
     // Determine roles and opponent
     const youId = gameStore.player.id || 'current_player'
     const attackerIsYou = active.attacker === youId || active.attacker === 'current_player'
     const opponentId = attackerIsYou ? active.defender : active.attacker
     const opponent = ms.onlinePlayers.find(p => p.id === opponentId)
+
+    // Enforce attack costs based on type — attacker always pays (fix)
+    const info = getBattleTypeInfo(active.attackType)
+    const cost = (info as any).cost as { amount: number; currency: 'credits' | 'wealth' } | undefined
+    if (cost && cost.amount > 0) {
+      if (attackerIsYou) {
+        if (cost.currency === 'credits') {
+          if (useGameStore.getState().player.credits < cost.amount) {
+            toast.error(`Need ${cost.amount} credits for this attack`)
+            return
+          }
+          useGameStore.setState(s => ({ player: { ...s.player, credits: Math.max(0, s.player.credits - cost.amount) } }))
+        } else {
+          if (useGameStore.getState().player.wealth < cost.amount) {
+            toast.error(`Need ${cost.amount} $WEALTH for this attack`)
+            return
+          }
+          useGameStore.setState(s => ({ player: { ...s.player, wealth: Math.max(0, s.player.wealth - cost.amount) } }))
+        }
+      } else {
+        // Opponent pays from mock balances; clamp to available so we don't go negative
+        if (cost.currency === 'credits') {
+          try {
+            useMultiplayerStore.setState((msAny: any) => ({
+              onlinePlayers: msAny.onlinePlayers.map((p: any) =>
+                p.id === active.attacker
+                  ? { ...p, credits: Math.max(0, (p.credits ?? 0) - Math.min(cost.amount, p.credits ?? 0)) }
+                  : p
+              )
+            }))
+          } catch {}
+        } else {
+          try {
+            useMultiplayerStore.setState((msAny: any) => ({
+              onlinePlayers: msAny.onlinePlayers.map((p: any) =>
+                p.id === active.attacker
+                  ? { ...p, wealth: Math.max(0, (p.wealth ?? 0) - Math.min(cost.amount, p.wealth ?? 0)) }
+                  : p
+              )
+            }))
+          } catch {}
+        }
+      }
+    }
 
     // Offense/Defense scores
     const yourWAR = (() => { try { return gameStore.calculateWAR() } catch { return 1000 } })()
@@ -214,6 +257,7 @@ export function RealTimeBattleSystem() {
 
     // Wealth transfer on successful wealth-related attacks (standard/wealth_assault/land_siege)
     let wealthDeltaForYou = 0
+    let wealthDeltaForAttacker = 0
     const isWealthTheft = active.attackType === 'standard' || active.attackType === 'wealth_assault' || active.attackType === 'land_siege'
     if (attackerWins && isWealthTheft) {
       const cap = active.attackType === 'standard' ? 0.10 : (active.attackType === 'wealth_assault' ? 0.25 : 0.35)
@@ -232,6 +276,7 @@ export function RealTimeBattleSystem() {
             }))
           } catch {}
           wealthDeltaForYou = stolen
+          wealthDeltaForAttacker = stolen
         } else {
           // You lose, opponent gains
           useGameStore.setState(s => ({ player: { ...s.player, wealth: Math.max(0, s.player.wealth - stolen) } }))
@@ -241,11 +286,44 @@ export function RealTimeBattleSystem() {
             }))
           } catch {}
           wealthDeltaForYou = -stolen
+          wealthDeltaForAttacker = stolen
         }
       }
     }
 
-    // Apply sabotage effects on defender when attacker wins
+    // Fail penalties on wealth-related attacks: counter-plunder from attacker to defender
+    if (!attackerWins && isWealthTheft) {
+      const failCap = active.attackType === 'standard' ? 0.05 : (active.attackType === 'wealth_assault' ? 0.10 : 0.15)
+      const attackerWealth = attackerIsYou ? useGameStore.getState().player.wealth : (opponent?.wealth ?? 0)
+      let penalty = Math.floor(attackerWealth * failCap)
+      if (penalty < 0) penalty = 0
+      if (penalty > attackerWealth) penalty = attackerWealth
+      if (penalty > 0) {
+        if (attackerIsYou) {
+          // You are attacker and lost: you pay penalty to defender
+          useGameStore.setState(s => ({ player: { ...s.player, wealth: Math.max(0, s.player.wealth - penalty) } }))
+          try {
+            useMultiplayerStore.setState((ms: any) => ({
+              onlinePlayers: ms.onlinePlayers.map((p: any) => p.id === opponentId ? { ...p, wealth: (p.wealth ?? 0) + penalty } : p)
+            }))
+          } catch {}
+          wealthDeltaForYou -= penalty
+          wealthDeltaForAttacker = -penalty
+        } else {
+          // Opponent was attacker and lost: you receive penalty
+          useGameStore.setState(s => ({ player: { ...s.player, wealth: s.player.wealth + penalty } }))
+          try {
+            useMultiplayerStore.setState((ms: any) => ({
+              onlinePlayers: ms.onlinePlayers.map((p: any) => p.id === opponentId ? { ...p, wealth: Math.max(0, (p.wealth ?? 0) - penalty) } : p)
+            }))
+          } catch {}
+          wealthDeltaForYou += penalty
+          wealthDeltaForAttacker = -penalty
+        }
+      }
+    }
+
+  // Apply sabotage effects on defender when attacker wins
     if (active.attackType === 'business_sabotage' && attackerWins) {
       if (!attackerIsYou) {
         // You are the defender; apply damage to your businesses
@@ -302,6 +380,32 @@ export function RealTimeBattleSystem() {
       }
     }
 
+    // Sabotage fail compensation: attacker pays 10 credits to defender when sabotage fails
+    let sabotageCompForYou = 0
+    if (active.attackType === 'business_sabotage' && !attackerWins) {
+      const comp = 10
+      if (attackerIsYou) {
+        const pay = Math.min(comp, useGameStore.getState().player.credits)
+        useGameStore.setState(s => ({ player: { ...s.player, credits: Math.max(0, s.player.credits - pay) } }))
+        try {
+          useMultiplayerStore.setState((msAny: any) => ({
+            onlinePlayers: msAny.onlinePlayers.map((p: any) => p.id === opponentId ? { ...p, credits: (p.credits ?? 0) + pay } : p)
+          }))
+        } catch {}
+        sabotageCompForYou -= pay
+      } else {
+        const oppCredits = opponent?.credits ?? 0
+        const pay = Math.min(comp, oppCredits)
+        useGameStore.setState(s => ({ player: { ...s.player, credits: s.player.credits + pay } }))
+        try {
+          useMultiplayerStore.setState((msAny: any) => ({
+            onlinePlayers: msAny.onlinePlayers.map((p: any) => p.id === opponentId ? { ...p, credits: Math.max(0, (p.credits ?? 0) - pay) } : p)
+          }))
+        } catch {}
+        sabotageCompForYou += pay
+      }
+    }
+
     // Record result into history and clear from active
     const winnerId = attackerWins ? active.attacker : active.defender
     useMultiplayerStore.setState(state => ({
@@ -315,30 +419,46 @@ export function RealTimeBattleSystem() {
             damage: active.attackType === 'business_sabotage' ? (attackerWins ? 30 : 0) : 0,
             loot: actualStakePaid,
             reputation: attackerWins ? 10 : 2,
-            wealthDeltaAttacker: isWealthTheft ? (attackerWins ? Math.abs(wealthDeltaForYou) : 0) : 0
+            wealthDeltaAttacker: isWealthTheft ? wealthDeltaForAttacker : 0
           }
         },
         ...state.battleHistory
       ]
     }))
 
-    // Toast + modal like the Arena sim
-    const creditNote = creditDeltaForYou !== 0 ? ` ${creditDeltaForYou > 0 ? '+' : ''}${creditDeltaForYou} credits` : ''
+      // Update player battle counters for achievements
+      try {
+        useGameStore.setState(s => ({
+          player: {
+            ...s.player,
+            battlesWon: (s.player.battlesWon || 0) + (youWin ? 1 : 0),
+            battlesLost: (s.player.battlesLost || 0) + (youWin ? 0 : 1),
+          }
+        }))
+      } catch {}
+
+      // Toast + global banner like the Arena sim
+    const totalCreditDelta = creditDeltaForYou + sabotageCompForYou
+    const creditNote = totalCreditDelta !== 0 ? `${totalCreditDelta > 0 ? ' +' : ' '}${totalCreditDelta} credits` : ''
     if (youWin) {
       const wealthNote = wealthDeltaForYou > 0 ? ` • +${wealthDeltaForYou} $WEALTH` : ''
-      toast.success(`Victory!${creditNote}${wealthNote}`)
+      const details = `${creditNote}${wealthNote}`.trim()
+      toast.success(`Victory!${details}`)
+      try { pushNotif({ type: 'success', title: 'Victory 🏆', message: details || 'Battle won', showInBanner: true, durationMs: 4000 }) } catch {}
     } else {
       const wealthNote = wealthDeltaForYou < 0 ? ` • ${wealthDeltaForYou} $WEALTH` : ''
-      toast.error(`Defeat!${creditNote}${wealthNote}`)
+      const details = `${creditNote}${wealthNote}`.trim()
+      toast.error(`Defeat!${details}`)
+      try { pushNotif({ type: 'error', title: 'Defeat 💔', message: details || 'Battle lost', showInBanner: true, durationMs: 4000 }) } catch {}
     }
-    
+
     // Show modal for more prominent feedback
     setResultModal({
       won: youWin,
       title: youWin ? 'Victory!' : 'Defeat',
       description: youWin
-        ? `You won the challenge.${creditDeltaForYou > 0 ? ` You received ${creditDeltaForYou} credits.` : ''}${wealthDeltaForYou > 0 ? ` You also stole ${wealthDeltaForYou} $WEALTH.` : ''}`
-        : `You lost the challenge.${creditDeltaForYou < 0 ? ` You paid ${Math.abs(creditDeltaForYou)} credits.` : ''}${wealthDeltaForYou < 0 ? ` You also lost ${Math.abs(wealthDeltaForYou)} $WEALTH.` : ''}`
+        ? `You won the challenge.${totalCreditDelta > 0 ? ` You received ${totalCreditDelta} credits.` : ''}${wealthDeltaForYou > 0 ? ` You also stole ${wealthDeltaForYou} $WEALTH.` : ''}`
+        : `You lost the challenge.${totalCreditDelta < 0 ? ` You paid ${Math.abs(totalCreditDelta)} credits.` : ''}${wealthDeltaForYou < 0 ? ` You also lost ${Math.abs(wealthDeltaForYou)} $WEALTH.` : ''}`
     })
   }
 
@@ -418,71 +538,85 @@ export function RealTimeBattleSystem() {
           <CardContent className="space-y-4">
             {multiplayerStore.battleInvites.map((battle, idx) => {
               // Guard against malformed invites to avoid render-time crashes
-              if (!battle || !battle.id && (!battle.attacker || !battle.defender || !battle.attackType)) {
-                console.warn('Skipping malformed battle invite', battle)
+              if (!battle || typeof battle !== 'object') {
+                console.warn('Skipping malformed battle invite (not object)', battle)
                 return null
               }
+              if (!battle.attacker || !battle.defender || !battle.attackType) {
+                console.warn('Skipping malformed battle invite (missing fields)', battle)
+                return null
+              }
+              if (typeof battle.attacker !== 'string' || typeof battle.defender !== 'string' || typeof battle.attackType !== 'string') {
+                console.warn('Skipping malformed battle invite (bad field types)', battle)
+                return null
+              }
+              try {
+                const challenger = multiplayerStore.onlinePlayers.find(p => p.id === battle.attacker)
+                const battleInfo = getBattleTypeInfo(battle.attackType)
+                // Estimate success chance breakdown (attacker vs defender)
+                const youId = gameStore.player.id || 'current_player'
+                const attackerIsYou = battle.attacker === youId || battle.attacker === 'current_player'
+                const opponentId = attackerIsYou ? battle.defender : battle.attacker
+                const opponent = multiplayerStore.onlinePlayers.find(p => p.id === opponentId)
+                const yourWAR = (() => { try { return gameStore.calculateWAR() } catch { return 1000 } })()
+                const oppScore = opponent?.battlePower ?? 1200
+                const defenderDefenseRating = attackerIsYou
+                  ? Math.min(100, Math.floor((opponent?.battlePower ?? 1200) / 20))
+                  : gameStore.getDefenseRating()
+                const attackerScore = attackerIsYou ? yourWAR : oppScore
+                const defenderScore = attackerIsYou ? oppScore : yourWAR
+                let est = 0.6 + ((attackerScore - defenderScore) / 2000) - (defenderDefenseRating / 200)
+                est = Math.max(0.1, Math.min(0.9, est))
 
-              const challenger = multiplayerStore.onlinePlayers.find(p => p.id === battle.attacker)
-              const battleInfo = getBattleTypeInfo(battle.attackType)
-              // Estimate success chance breakdown (attacker vs defender)
-              const youId = gameStore.player.id || 'current_player'
-              const attackerIsYou = battle.attacker === youId || battle.attacker === 'current_player'
-              const opponentId = attackerIsYou ? battle.defender : battle.attacker
-              const opponent = multiplayerStore.onlinePlayers.find(p => p.id === opponentId)
-              const yourWAR = (() => { try { return gameStore.calculateWAR() } catch { return 1000 } })()
-              const oppScore = opponent?.battlePower ?? 1200
-              const defenderDefenseRating = attackerIsYou
-                ? Math.min(100, Math.floor((opponent?.battlePower ?? 1200) / 20))
-                : gameStore.getDefenseRating()
-              const attackerScore = attackerIsYou ? yourWAR : oppScore
-              const defenderScore = attackerIsYou ? oppScore : yourWAR
-              let est = 0.6 + ((attackerScore - defenderScore) / 2000) - (defenderDefenseRating / 200)
-              est = Math.max(0.1, Math.min(0.9, est))
+                // Stable key: prefer id if string/number, otherwise fallback to idx
+                const inviteKey = (typeof (battle as any).id === 'string' || typeof (battle as any).id === 'number')
+                  ? String((battle as any).id)
+                  : `invite-${idx}`
 
-              // Stable composite key with nullish fallbacks to prevent runtime errors
-              const safe = (v: any, fb: string = 'unknown') => (v ?? fb)
-              const inviteKey = battle.id ?? `invite-${safe(battle.attacker)}-${safe(battle.defender)}-${safe(battle.attackType)}-${battle.startTime ?? idx}`
-              return (
-                <div key={inviteKey} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {battleInfo.icon}
-                      <div>
-                        <h3 className="font-semibold">Challenge from {challenger?.username}</h3>
-                        <p className="text-sm text-muted-foreground">{battleInfo.description}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Offense: {attackerScore} • Defense: {defenderDefenseRating} • Est. Success: {Math.round(est * 100)}%
-                        </p>
-                        {battleInfo.cost && (
-                          <p className="text-xs text-muted-foreground">Cost: {battleInfo.cost.amount} {battleInfo.cost.currency === 'wealth' ? '$WEALTH' : 'Credits'}</p>
-                        )}
+                return (
+                  <div key={inviteKey} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {battleInfo.icon}
+                        <div>
+                          <h3 className="font-semibold">Challenge from {challenger?.username || 'Unknown'}</h3>
+                          <p className="text-sm text-muted-foreground">{battleInfo.description}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Offense: {attackerScore} • Defense: {defenderDefenseRating} • Est. Success: {Math.round(est * 100)}%
+                          </p>
+                          {battleInfo.cost && (
+                            <p className="text-xs text-muted-foreground">Cost: {battleInfo.cost.amount} {battleInfo.cost.currency === 'wealth' ? '$WEALTH' : 'Credits'}</p>
+                          )}
+                        </div>
                       </div>
+                      <Badge variant="outline">
+                        Stakes: {battle.stakes?.amount ?? 0} Credits
+                      </Badge>
                     </div>
-                    <Badge variant="outline">
-                      Stakes: {battle.stakes?.amount ?? 0} Credits
-                    </Badge>
+                    
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => acceptBattle((battle as any).id)}
+                        className="flex-1 bg-success hover:bg-success/90"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Accept
+                      </Button>
+                      <Button
+                        onClick={() => declineBattle((battle as any).id)}
+                        variant="outline"
+                        className="flex-1 text-destructive border-destructive hover:bg-destructive/10"
+                      >
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Decline
+                      </Button>
+                    </div>
                   </div>
-                  
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => acceptBattle(battle.id)}
-                      className="flex-1 bg-success hover:bg-success/90"
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Accept
-                    </Button>
-                    <Button
-                      onClick={() => declineBattle(battle.id)}
-                      variant="outline"
-                      className="flex-1 text-destructive border-destructive hover:bg-destructive/10"
-                    >
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Decline
-                    </Button>
-                  </div>
-                </div>
-              )
+                )
+              } catch (err) {
+                console.error('Error rendering battle invite; skipping', { err, battle, idx })
+                return null
+              }
             })}
           </CardContent>
         </Card>
@@ -512,14 +646,31 @@ export function RealTimeBattleSystem() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium">Battle Type</label>
-              <select value={battleType} onChange={(e) => setBattleType(e.target.value)}>
-                <option value="standard">Standard Attack (15 Credits)</option>
-                <option value="wealth_assault">Wealth Assault (10 $WEALTH)</option>
-                <option value="land_siege">Land Siege (25 $WEALTH)</option>
-                <option value="business_sabotage">Business Sabotage (25 Credits)</option>
-              </select>
+              <div className="mt-2">
+                <div role="radiogroup" className="flex gap-2 overflow-x-auto no-scrollbar md:grid md:grid-cols-4 md:overflow-x-visible">
+                  {battleOptions.map((opt) => {
+                    const selected = battleType === opt.value
+                    const tooltip = `${opt.label} • ${opt.description} • Cost: ${opt.cost.amount} ${opt.cost.currency === 'wealth' ? '$WEALTH' : 'Credits'}`
+                    return (
+                      <Tooltip key={opt.value} content={tooltip}>
+                        <Button
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          onClick={() => setBattleType(opt.value)}
+                          variant={selected ? 'default' : 'outline'}
+                          className={`flex items-center justify-center flex-none cursor-pointer select-none w-10 h-10 md:w-12 md:h-12 p-0 ${selected ? '' : ''}`}
+                        >
+                          {opt.icon}
+                        </Button>
+                      </Tooltip>
+                    )
+                  })}
+                </div>
+                {/* Details row removed per request: rely on tooltips over icons */}
+              </div>
             </div>
-            
+
             <div>
               <label className="text-sm font-medium">Stakes (Credits)</label>
               <input
@@ -528,6 +679,7 @@ export function RealTimeBattleSystem() {
                 max={gameStore.player.credits}
                 value={stakeAmount}
                 onChange={(e) => setStakeAmount(Number(e.target.value))}
+                className="w-full h-10 px-3 py-2 rounded-md bg-card text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>
