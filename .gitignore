@@ -1,3 +1,24 @@
+# General
+node_modules/
+*.log
+.DS_Store
+
+# App build artifacts
+apps/web/.next/
+apps/web/out/
+
+# Env files
+apps/web/.env.local
+apps/web/.env*
+
+# AWS SAM build artifacts
+infra/aws/.aws-sam/
+infra/aws/src/node_modules/
+infra/aws/src/package-lock.json
+
+# Editor/OS
+.vscode/
+.idea/
 # Logs
 logs
 *.log

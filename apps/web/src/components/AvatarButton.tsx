@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Orbitron, Inter } from 'next/font/google';
 import { useGame } from '../app/lib/store';
@@ -17,6 +17,19 @@ export function AvatarButton({ onClick }: AvatarButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { username, walletAddress, setWalletAddress } = useGame();
   const presenceMode = useMultiplayerStore(s => s.presenceMode)
+  const presenceUrl = useMultiplayerStore(s => s.presenceUrl)
+  const lastPresenceError = useMultiplayerStore(s => s.lastPresenceError)
+  const connectToMultiplayer = useMultiplayerStore(s => s.connectToMultiplayer)
+  const isConnected = useMultiplayerStore(s => s.isConnected)
+  const connectionStatus = useMultiplayerStore(s => s.connectionStatus)
+
+  // Ensure realtime client attempts to connect whenever the header is visible
+  useEffect(() => {
+    if (!isConnected && connectionStatus === 'disconnected') {
+      try { connectToMultiplayer() } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleClick = () => {
     setIsOpen(!isOpen);
@@ -80,7 +93,16 @@ export function AvatarButton({ onClick }: AvatarButtonProps) {
                   <div className="menuSub">{walletAddress}</div>
                 </div>
               </div>
-              <div className={`presenceBadge ${presenceMode}`} title={presenceMode === 'live' ? 'Connected to realtime server' : presenceMode === 'fallback' ? 'Offline demo mode' : 'Disconnected'}>
+              <div
+                className={`presenceBadge ${presenceMode}`}
+                title={
+                  presenceMode === 'live'
+                    ? `Connected to realtime server\n${presenceUrl || ''}`.trim()
+                    : presenceMode === 'fallback'
+                      ? `Demo mode (fallback)\nTried: ${presenceUrl || 'n/a'}\n${lastPresenceError ? `Last error: ${lastPresenceError}` : ''}`.trim()
+                      : `Disconnected\n${lastPresenceError ? `Last error: ${lastPresenceError}` : ''}`.trim()
+                }
+              >
                 {presenceMode === 'live' ? 'Live' : presenceMode === 'fallback' ? 'Fallback' : 'Offline'}
               </div>
             </div>

@@ -111,6 +111,8 @@ export interface MultiplayerState {
   connectionStatus: 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
   presenceMode: 'live' | 'fallback' | 'disconnected'
   myPresenceId?: string
+  presenceUrl?: string
+  lastPresenceError?: string
   onlinePlayers: MultiplayerPlayer[]
   playerSearch: string
   friends: string[]
@@ -406,13 +408,14 @@ class PresenceClient {
         this.emit(type, payload)
       } catch {}
     }
-    this.ws.onclose = () => {
+    this.ws.onclose = (ev) => {
       this.connected = false
       if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
-      this.emit('disconnected', {})
+      this.emit('disconnected', { code: (ev as any)?.code, reason: (ev as any)?.reason, wasClean: (ev as any)?.wasClean })
     }
-    this.ws.onerror = () => {
-      // Let caller decide to fallback
+    this.ws.onerror = (e) => {
+      // Surface an error event with minimal info (browsers limit details)
+      this.emit('error', { message: 'WebSocket error', event: e })
     }
   }
 
@@ -453,6 +456,8 @@ export const useMultiplayerStore = create<MultiplayerState>()((set, get) => ({
   connectionStatus: 'disconnected',
   presenceMode: 'disconnected',
   myPresenceId: undefined,
+  presenceUrl: undefined,
+  lastPresenceError: undefined,
   
   onlinePlayers: [],
   playerSearch: '',
@@ -581,9 +586,8 @@ export const useMultiplayerStore = create<MultiplayerState>()((set, get) => ({
         const url = (process.env.NEXT_PUBLIC_PRESENCE_WS_URL || '').trim()
         if (url) {
           presenceClient = new PresenceClient(url, guest.id, guest.username || guest.id.replace('guest_', 'Guest_'))
-          presenceClient.connect()
-          // Re-register presence listeners in case they were not attached yet
-          presenceClient.on('connected', () => set({ isConnected: true, connectionStatus: 'connected', presenceMode: 'live' }))
+          // Attach listeners BEFORE connecting to avoid missing early onopen events
+          presenceClient.on('connected', () => set({ isConnected: true, connectionStatus: 'connected', presenceMode: 'live', lastPresenceError: undefined }))
           presenceClient.on('presence:update', (list: any[]) => {
             const mapped: MultiplayerPlayer[] = list.map((p: any) => ({
               id: p.id,
@@ -599,9 +603,26 @@ export const useMultiplayerStore = create<MultiplayerState>()((set, get) => ({
               achievements: [],
               avatar: '👤'
             }))
-            set({ onlinePlayers: mapped })
+            // Receiving a presence snapshot implies the live connection is active
+            set({ onlinePlayers: mapped, presenceMode: 'live', connectionStatus: 'connected', isConnected: true, lastPresenceError: undefined })
           })
-          presenceClient.on('disconnected', () => set({ isConnected: false, connectionStatus: 'disconnected', presenceMode: 'disconnected' }))
+          presenceClient.on('disconnected', (info: any) => set({ isConnected: false, connectionStatus: 'disconnected', presenceMode: 'disconnected', lastPresenceError: info ? `Closed ${info.code || ''} ${info.reason || ''}`.trim() : 'Closed' }))
+          // Bubble raw error events
+          // @ts-ignore
+          presenceClient.on('error', (_info: any) => set({ lastPresenceError: 'WebSocket error' }))
+          // Now open the socket
+          presenceClient.connect()
+          set({ presenceUrl: url })
+          // If connection doesn't establish quickly, fall back to mock so the app isn't stuck "Offline".
+          // Keep the live socket open so we can flip to Live later if it connects.
+          setTimeout(() => {
+            const { isConnected } = get()
+            if (!isConnected) {
+              // Do NOT disconnect presenceClient here; allow late connect
+              set({ presenceMode: 'fallback', connectionStatus: 'connected', isConnected: true })
+              mockWebSocket.connect()
+            }
+          }, 8000)
           return
         }
       }

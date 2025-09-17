@@ -35,7 +35,7 @@ async function scanConnections() {
 
 async function broadcast(event, message) {
   const mgmt = new AWS.ApiGatewayManagementApi({
-    endpoint: `${event.requestContext.domainName}/${event.requestContext.stage}`
+    endpoint: `https://${event.requestContext.domainName}/${event.requestContext.stage}`
   })
   const conns = await scanConnections()
   const payload = JSON.stringify(message)
@@ -62,6 +62,7 @@ async function sendPresenceSnapshot(event) {
 exports.main = async (event) => {
   const { routeKey, connectionId } = event.requestContext
   try {
+    console.log('WS event', { routeKey, connectionId, body: event.body })
     if (routeKey === '$connect') {
       // Initial put with connection only; playerId/username set after hello
       await putConnection({ connectionId })
