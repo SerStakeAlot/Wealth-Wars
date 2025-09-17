@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Orbitron, Inter } from 'next/font/google';
 import { useGame } from '../app/lib/store';
 import { UsernameInput } from './UsernameInput';
+import { useMultiplayerStore } from '../lib/multiplayerStore';
 const inter = Inter({ subsets: ['latin'] });
 const orbitron = Orbitron({ subsets: ['latin'], weight: ['600', '800'] });
 
@@ -15,13 +16,14 @@ interface AvatarButtonProps {
 export function AvatarButton({ onClick }: AvatarButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { username, walletAddress, setWalletAddress } = useGame();
+  const presenceMode = useMultiplayerStore(s => s.presenceMode)
 
   const handleClick = () => {
     setIsOpen(!isOpen);
     onClick?.();
   };
 
-  const displayName = walletAddress && username ? username : 'Player';
+  const displayName = username?.trim() ? username : 'Player';
 
   // Minimal Phantom provider helpers
   const getPhantomProvider = () => {
@@ -77,6 +79,9 @@ export function AvatarButton({ onClick }: AvatarButtonProps) {
                   <div className="menuName">{displayName}</div>
                   <div className="menuSub">{walletAddress}</div>
                 </div>
+              </div>
+              <div className={`presenceBadge ${presenceMode}`} title={presenceMode === 'live' ? 'Connected to realtime server' : presenceMode === 'fallback' ? 'Offline demo mode' : 'Disconnected'}>
+                {presenceMode === 'live' ? 'Live' : presenceMode === 'fallback' ? 'Fallback' : 'Offline'}
               </div>
             </div>
 
@@ -170,6 +175,16 @@ export function AvatarButton({ onClick }: AvatarButtonProps) {
           align-items: center;
           justify-content: space-between;
         }
+        .presenceBadge {
+          font-size: 11px;
+          padding: 4px 8px;
+          border-radius: 999px;
+          border: 1px solid rgba(255,255,255,0.14);
+          background: rgba(255,255,255,0.06);
+        }
+        .presenceBadge.live { color: #22c55e; border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.08); }
+        .presenceBadge.fallback { color: #f59e0b; border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.08); }
+        .presenceBadge.disconnected { color: #ef4444; border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.08); }
 
         .menuProfile {
           display: flex;

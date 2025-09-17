@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useGame } from '../app/lib/store';
+import { useMultiplayerStore } from '../lib/multiplayerStore';
 
 interface UsernameInputProps {
   onClose?: () => void;
@@ -9,6 +10,9 @@ interface UsernameInputProps {
 
 export function UsernameInput({ onClose }: UsernameInputProps) {
   const { username, setUsername, walletAddress } = useGame();
+  const setPresenceUsername = useMultiplayerStore(s => s.setPresenceUsername)
+  const onlinePlayers = useMultiplayerStore(s => s.onlinePlayers)
+  const myPresenceId = useMultiplayerStore(s => s.myPresenceId)
   const [inputValue, setInputValue] = useState(username);
   const [isEditing, setIsEditing] = useState(!username);
   const [isLoading, setIsLoading] = useState(false);
@@ -26,10 +30,20 @@ export function UsernameInput({ onClose }: UsernameInputProps) {
     setIsLoading(true);
     setError(null);
 
-    const result = await setUsername(inputValue.trim());
+    const newName = inputValue.trim();
+    // Enforce live online uniqueness (case-insensitive), excluding self
+    const lower = newName.toLowerCase();
+    const taken = onlinePlayers.some(p => p.username.toLowerCase() === lower && (!myPresenceId || p.id !== myPresenceId));
+    if (taken) {
+      setError('This username is already used by someone online');
+      setIsLoading(false);
+      return;
+    }
+    const result = await setUsername(newName);
     
     if (result.success) {
       setIsEditing(false);
+      try { setPresenceUsername(newName) } catch {}
       onClose?.();
     } else {
       setError(result.error || 'Failed to set username');
@@ -51,13 +65,7 @@ export function UsernameInput({ onClose }: UsernameInputProps) {
 
   return (
     <div className="usernameSection">
-      {!isWalletConnected ? (
-        <div className="walletRequired">
-          <div className="walletMessage">
-            Connect your wallet to set a username
-          </div>
-        </div>
-      ) : isEditing ? (
+      {isEditing ? (
         <form onSubmit={handleSubmit} className="usernameForm">
           <div className="inputGroup">
             <label htmlFor="username" className="inputLabel">Username</label>
@@ -255,21 +263,7 @@ export function UsernameInput({ onClose }: UsernameInputProps) {
           font-style: italic;
         }
 
-        .walletRequired {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 16px;
-          background: rgba(255,255,255,0.06);
-          border: 1px solid rgba(255,255,255,0.12);
-          border-radius: 8px;
-        }
-
-        .walletMessage {
-          font-size: 14px;
-          color: #9aa7bd;
-          text-align: center;
-        }
+        /* Wallet gating removed for guests */
       `}</style>
     </div>
   );

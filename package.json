@@ -6,9 +6,7 @@
     "build:program": "anchor build",
     "test:program": "anchor test",
     "dev:validator": "solana-test-validator -r --reset",
-    "realtime": "npm --prefix apps/web run realtime-server",
-    "dev:web": "npm --prefix apps/web run dev",
-    "dev:with-realtime": "sh -c 'npm --prefix apps/web run realtime-server & npm --prefix apps/web run dev'"
+    "dev:web": "npm --prefix apps/web run dev"
   },
   "workspaces": [
     "apps/web"

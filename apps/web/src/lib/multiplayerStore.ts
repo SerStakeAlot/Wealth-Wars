@@ -109,6 +109,8 @@ export interface WorldEvent {
 export interface MultiplayerState {
   isConnected: boolean
   connectionStatus: 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
+  presenceMode: 'live' | 'fallback' | 'disconnected'
+  myPresenceId?: string
   onlinePlayers: MultiplayerPlayer[]
   playerSearch: string
   friends: string[]
@@ -163,6 +165,8 @@ export interface MultiplayerState {
   setShowBattleModal: (show: boolean) => void
   setShowClanModal: (show: boolean) => void
   setActiveTab: (tab: string) => void
+  // Presence helpers
+  setPresenceUsername: (name: string) => void
 }
 
 // Mock WebSocket connection for demonstration and fallback
@@ -447,6 +451,8 @@ export const useMultiplayerStore = create<MultiplayerState>()((set, get) => ({
   // Initial state
   isConnected: false,
   connectionStatus: 'disconnected',
+  presenceMode: 'disconnected',
+  myPresenceId: undefined,
   
   onlinePlayers: [],
   playerSearch: '',
@@ -570,35 +576,39 @@ export const useMultiplayerStore = create<MultiplayerState>()((set, get) => ({
           guest = { id: `guest_${Math.random().toString(36).slice(2,10)}`, username: '' }
           window.localStorage.setItem('ww-guest', JSON.stringify(guest))
         }
-        const baseUrl = (typeof location !== 'undefined' && location.hostname) ? location.hostname : 'localhost'
-        const port = 8080
-        const url = `ws://${baseUrl}:${port}`
-        presenceClient = new PresenceClient(url, guest.id, guest.username || guest.id.replace('guest_', 'Guest_'))
-        presenceClient.connect()
-        // Re-register presence listeners in case they were not attached yet
-        presenceClient.on('connected', () => set({ isConnected: true, connectionStatus: 'connected' }))
-        presenceClient.on('presence:update', (list: any[]) => {
-          const mapped: MultiplayerPlayer[] = list.map((p: any) => ({
-            id: p.id,
-            username: p.username || `Guest_${String(p.id).slice(-4)}`,
-            level: 1,
-            wealth: 0,
-            credits: 0,
-            walletAddress: '',
-            isOnline: true,
-            lastSeen: p.lastSeen || Date.now(),
-            battlePower: 0,
-            reputation: 0,
-            achievements: [],
-            avatar: '👤'
-          }))
-          set({ onlinePlayers: mapped })
-        })
-        return
+        set({ myPresenceId: guest.id })
+        // Only connect if cloud endpoint provided
+        const url = (process.env.NEXT_PUBLIC_PRESENCE_WS_URL || '').trim()
+        if (url) {
+          presenceClient = new PresenceClient(url, guest.id, guest.username || guest.id.replace('guest_', 'Guest_'))
+          presenceClient.connect()
+          // Re-register presence listeners in case they were not attached yet
+          presenceClient.on('connected', () => set({ isConnected: true, connectionStatus: 'connected', presenceMode: 'live' }))
+          presenceClient.on('presence:update', (list: any[]) => {
+            const mapped: MultiplayerPlayer[] = list.map((p: any) => ({
+              id: p.id,
+              username: p.username || `Guest_${String(p.id).slice(-4)}`,
+              level: 1,
+              wealth: 0,
+              credits: 0,
+              walletAddress: '',
+              isOnline: true,
+              lastSeen: p.lastSeen || Date.now(),
+              battlePower: 0,
+              reputation: 0,
+              achievements: [],
+              avatar: '👤'
+            }))
+            set({ onlinePlayers: mapped })
+          })
+          presenceClient.on('disconnected', () => set({ isConnected: false, connectionStatus: 'disconnected', presenceMode: 'disconnected' }))
+          return
+        }
       }
     } catch {}
 
     // Fallback to mock
+    set({ presenceMode: 'fallback' })
     mockWebSocket.connect()
   },
   
@@ -608,6 +618,8 @@ export const useMultiplayerStore = create<MultiplayerState>()((set, get) => ({
     set({ 
       isConnected: false, 
       connectionStatus: 'disconnected',
+      presenceMode: 'disconnected',
+      myPresenceId: undefined,
       onlinePlayers: [],
       activeTradeOffers: [],
       activeBattles: []
@@ -791,6 +803,26 @@ export const useMultiplayerStore = create<MultiplayerState>()((set, get) => ({
   
   setActiveTab: (tab) => {
     set({ activeTab: tab })
+  },
+  
+  // Presence helpers
+  setPresenceUsername: (name: string) => {
+    try { presenceClient?.setUsername(name) } catch {}
+    // Persist to guest record for future sessions
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('ww-guest')
+        const guest = raw ? JSON.parse(raw) : { id: 'guest_local' }
+        localStorage.setItem('ww-guest', JSON.stringify({ ...guest, username: name }))
+      } catch {}
+    }
+    // Optimistically update our entry in onlinePlayers when live
+    const { myPresenceId, presenceMode } = get()
+    if (presenceMode === 'live' && myPresenceId) {
+      set(state => ({
+        onlinePlayers: state.onlinePlayers.map(p => p.id === myPresenceId ? { ...p, username: name } : p)
+      }))
+    }
   }
 }))
 

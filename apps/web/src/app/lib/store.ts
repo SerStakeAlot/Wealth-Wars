@@ -207,20 +207,20 @@ const saveUserProfiles = (profiles: Record<string, string>) => {
   }
 };
 
-const isUsernameAvailable = (username: string, walletAddress: string): boolean => {
+const isUsernameAvailable = (username: string, profileKey: string): boolean => {
   const profiles = getUserProfiles();
   const lowerUsername = username.toLowerCase();
   for (const [addr, uname] of Object.entries(profiles)) {
-    if (addr !== walletAddress && uname.toLowerCase() === lowerUsername) {
+    if (addr !== profileKey && uname.toLowerCase() === lowerUsername) {
       return false;
     }
   }
   return true;
 };
 
-const reserveUsername = (walletAddress: string, username: string): boolean => {
+const reserveUsername = (profileKey: string, username: string): boolean => {
   const profiles = getUserProfiles();
-  profiles[walletAddress] = username;
+  profiles[profileKey] = username;
   saveUserProfiles(profiles);
   return true;
 };
@@ -228,6 +228,26 @@ const reserveUsername = (walletAddress: string, username: string): boolean => {
 const getUsernameForWallet = (walletAddress: string): string => {
   const profiles = getUserProfiles();
   return profiles[walletAddress] || '';
+};
+
+// Guest helpers
+const getGuestRecord = (): { id: string; username?: string } | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('ww-guest');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const setGuestUsername = (username: string) => {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = getGuestRecord() || { id: 'guest_local' };
+    const updated = { ...current, username };
+    localStorage.setItem('ww-guest', JSON.stringify(updated));
+  } catch {}
 };
 
 const validateUsername = (username: string): { valid: boolean; error?: string } => {
@@ -254,7 +274,7 @@ export const useGame = create<GameState>((set, get) => ({
   liquidity: 0.22,
   prestige: 0,
   clanEligible: false,
-  username: '',
+  username: (typeof window !== 'undefined' ? (getGuestRecord()?.username || '') : ''),
   walletAddress: '',
   
   // Daily Work System state
@@ -657,19 +677,20 @@ export const useGame = create<GameState>((set, get) => ({
 
     const currentState = get();
     const walletAddress = currentState.walletAddress;
-    
-    if (!walletAddress) {
-      return { success: false, error: 'Please connect your wallet first' };
-    }
+    // Determine identity key for username reservations: wallet address if connected, else guest id
+    const guest = getGuestRecord();
+    const profileKey = walletAddress || (guest?.id ?? 'guest_local');
 
     const oldUsername = currentState.username;
 
-    if (!isUsernameAvailable(username, walletAddress) && username.toLowerCase() !== oldUsername.toLowerCase()) {
+    if (!isUsernameAvailable(username, profileKey) && username.toLowerCase() !== oldUsername.toLowerCase()) {
       return { success: false, error: 'Username is already taken' };
     }
 
-    if (reserveUsername(walletAddress, username)) {
+    if (reserveUsername(profileKey, username)) {
       set({ username });
+      // Persist for guests as well for future sessions
+      if (!walletAddress) setGuestUsername(username);
       return { success: true };
     } else {
       return { success: false, error: 'Failed to reserve username' };
@@ -677,8 +698,16 @@ export const useGame = create<GameState>((set, get) => ({
   },
 
   setWalletAddress: (address: string) => {
-    const username = address ? getUsernameForWallet(address) : '';
-    set({ walletAddress: address, username });
+    // If connecting a wallet, load username reserved for that wallet.
+    // If clearing wallet, restore guest username if present.
+    let nextUsername = '';
+    if (address) {
+      nextUsername = getUsernameForWallet(address);
+    } else {
+      const guest = getGuestRecord();
+      nextUsername = guest?.username || '';
+    }
+    set({ walletAddress: address, username: nextUsername });
   },
 
   // Enhanced Daily Work System with Strategic $WEALTH Conversion
