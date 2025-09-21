@@ -10,6 +10,7 @@ Build your financial empire through engaging daily work mechanics that naturally
 - 💰 **[Tokenomics Analysis](./TOKENOMICS.md)** - Economic model and revenue projections  
 - 🛣️ **[Technical Roadmap](./wiki-content/Development-Roadmap.md)** - Development phases and implementation strategy
 - 📋 **[Session Summary](./SESSION_SUMMARY.md)** - Development history and feature evolution
+- 🎨 **[Art & Motion Bible](./ART_MOTION_BIBLE.md)** - Neo‑Pixel visual + animation standards, tokens, FX roadmap
 
 ### **Quick Links**
 - 🎮 **Game**: `/game` - Daily work system with business empire building
@@ -317,3 +318,83 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Hot Reload Development**: Turbopack-powered development server for instant updates
 - **Type Safety**: Full TypeScript integration with proper type definitions
 - **Clean Architecture**: Well-organized components, hooks, and state management
+
+## 🟩 Pixel UI Migration (Feature Flag)
+
+The new pixel-styled interface (quests, achievements, battle feed, clans, chat) originally available at `/pixel` can now replace the legacy Spark UI at `/game` when you set:
+
+```
+NEXT_PUBLIC_PIXEL_UI=1
+```
+
+When enabled, `/game` renders `PixelWrapper` which composes:
+- `PixelProfileHeader`: Player stats, clan tag, wallet connect placeholder, LIVE status badge.
+- `WealthWarsPixelApp`: Core pixel gameplay panels & floating dock.
+
+### LIVE Status Endpoint (Optional)
+Add an AWS (or any) health endpoint via:
+```
+NEXT_PUBLIC_LIVE_STATUS_URL=https://status.example.com/health
+```
+The header polls every 15s and derives a status:
+| Latency/Result | Status |
+| -------------- | ------ |
+| < 400ms 200 OK | ONLINE |
+| < 1500ms or !OK | DEGRADED |
+| Timeout / error | OFFLINE |
+| No endpoint set | UNKNOWN |
+
+### Wallet Connect Placeholder
+`PixelProfileHeader` currently simulates a wallet connect. Replace the stub with your real Solana wallet adapter (e.g. Phantom) inside `apps/web/src/pixel/components/PixelProfileHeader.tsx`.
+
+### Stability Note (React 19)
+All pixel selectors are constrained to primitive outputs to satisfy React 19 `getSnapshot` caching. When adding new panels or store slices, avoid returning fresh arrays/objects directly from `useGameStore` selectors—either return a primitive (length, boolean, numeric counter) or derive arrays locally after reading state once.
+
+### Keyboard Shortcuts (Pixel UI)
+When the Pixel UI is active, you can toggle panels instantly:
+
+| Key | Panel | Description |
+| --- | ----- | ----------- |
+| Q | Quests | View active quests & claim rewards |
+| A | Achievements | View tiered achievements |
+| B | Battle | Open battle feed / attack info |
+| C | Clans | Clan panel (invites, membership) |
+| T | Chat | Global + clan chat panel |
+| H | Help (placeholder) | Shows a toast with shortcut reminder |
+
+Shortcuts are disabled while typing inside inputs / textareas / contenteditable regions and ignore modifier keys.
+
+### Chat Unread Badges & Persistence
+Unread counts are tracked for both global and clan chat:
+* Store fields: `lastSeenGlobalChatCount` and `lastSeenClanChatCounts[clanId]`.
+* Opening the Chat panel marks messages read (post-render effect to avoid mid-render store updates).
+* Dock badges display aggregate unread counts; counts derived as primitives to keep React 19 selectors stable.
+* Chat, invites, and unread counters are persisted via Zustand's persist middleware (length-capped lists for memory safety).
+
+### Automatic Clan XP Gain
+If a player is in a clan, certain personal progression events contribute to clan XP:
+* Manual Work Action: clan gains 20% of the personal XP awarded (minimum 1). Automated manager ticks do not contribute.
+* Quest Claim: clan gains 50% of quest XP reward; if XP is 0 but credits awarded, clan gains `max(1, floor(credits / 50))`.
+* Leveling & Expansion: Clan leveling threshold = `level * 500` XP; XP rolls over. Every 5 clan levels increases max members by 5 and triggers a notification.
+
+### Live Status Pulse & Health Endpoint
+The LIVE badge now includes a pulsing colored indicator:
+* Green (ONLINE) < 400ms
+* Amber (DEGRADED) < 1500ms or non-200 HTTP
+* Red (OFFLINE) timeout / fetch error
+* Gray (UNKNOWN) no endpoint configured
+
+Add a quick internal health endpoint (already included):
+```
+NEXT_PUBLIC_LIVE_STATUS_URL=/api/live-status
+```
+Or point to an external status service. If left unset you'll see `LIVE UNKNOWN` plus a hint to set the env var.
+
+### Wallet Adapter Integration Notes
+`PixelProfileHeader` uses the Solana wallet adapter UI (`WalletMultiButton`). To support more wallets, ensure you configure the providers in `SolanaProviders.tsx` (Phantom, Solflare, Backpack, etc.). Player initialization updates the in-game identity when the public key changes.
+
+### Persistence Overview
+Key persisted slices include player core stats, chat, clan invites, unread counters, enhanced businesses, and NPC bots. Avoid persisting transient animation flags to keep local storage light. When adding new state, ensure serializable primitives or concise objects.
+
+### Lint & Type Safety Status
+TypeScript passes (`npm run typecheck`). ESLint currently reports a large number of `any` and unused variable warnings from legacy/experimental files; critical new Pixel UI additions (shortcuts, pulse, clan XP) do not introduce type errors. Future cleanup: gradually replace `any` with domain types and remove unused scaffolding.
