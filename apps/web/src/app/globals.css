@@ -59,6 +59,27 @@ body {
   min-height: 100vh;
 }
 
+/* Pixel business image rendering */
+.image-pixelate {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Fallback placeholder icon style when image missing */
+.pixel-image-fallback {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 2px;
+  color: #ffd54a;
+  box-shadow: 0 0 0 1px #222 inset;
+}
+
 /* Golden gradient utility: use on text to give a gold metallic look */
 .gold-gradient {
   background: linear-gradient(

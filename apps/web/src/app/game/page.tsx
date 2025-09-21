@@ -4,6 +4,8 @@ import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { isDemoSite } from '../lib/demo-site-config';
 import { SparkGameUI } from '../../components/SparkGameUI';
+import dynamic from 'next/dynamic'
+const PixelWrapper = dynamic(() => import('../../pixel/PixelWrapper').then(m => m.PixelWrapper), { ssr: false })
 
 function SparkGamePage() {
   const router = useRouter();
@@ -40,9 +42,11 @@ function SparkGamePage() {
     router.push('/');
   };
 
+  // If user explicitly requests legacy UI via ?legacy=1 show it, else default to Pixel UI.
+  const legacy = searchParams.get('legacy') === '1'
   return (
     <div className="min-h-screen">
-      <SparkGameUI onReturnHome={handleReturnHome} />
+      {legacy ? <SparkGameUI onReturnHome={handleReturnHome} /> : <PixelWrapper />}
     </div>
   );
 }

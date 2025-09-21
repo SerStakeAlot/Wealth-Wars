@@ -106,14 +106,56 @@ export interface Clan {
   name: string
   tag: string
   level: number
-  members: number
+  members: number // deprecated counter (kept for legacy UI) – authoritative list in membersList
   maxMembers: number
   leader: string
   description: string
   totalWealth: number
   trophies: number
   rank: number
+  xp?: number
+  membersList?: Array<{ id: string; role: 'member' | 'elder' | 'co-leader' | 'leader'; joinedAt: number }>
 }
+// Quest System Types
+type QuestType = 'daily' | 'weekly' | 'chain'
+type QuestObjectiveType = 'work_clicks' | 'credits_earned' | 'battles_won' | 'wealth_minted' | 'shields_purchased' | 'business_outlets'
+
+interface QuestDefinition {
+  id: string
+  type: QuestType
+  objective: QuestObjectiveType
+  target: number
+  reward: { credits?: number; wealth?: number; xp?: number; shieldHours?: number }
+  chainOrder?: number // for chain type ordering
+  description: string
+}
+
+interface QuestInstance extends QuestDefinition {
+  progress: number
+  complete: boolean
+  claimed: boolean
+  expiresAt?: number
+}
+
+const DAILY_QUEST_POOL: QuestDefinition[] = [
+  { id: 'dq_work_100', type: 'daily', objective: 'work_clicks', target: 10, reward: { credits: 150, xp: 100 }, description: 'Perform 10 Work actions today' },
+  { id: 'dq_convert_wealth', type: 'daily', objective: 'wealth_minted', target: 5, reward: { xp: 150, credits: 75 }, description: 'Mint 5 $WEALTH via Exchange Pool' },
+  { id: 'dq_attack_3', type: 'daily', objective: 'battles_won', target: 3, reward: { credits: 120, xp: 120 }, description: 'Win 3 attacks' },
+  { id: 'dq_shield_buy', type: 'daily', objective: 'shields_purchased', target: 1, reward: { xp: 80 }, description: 'Purchase a shield' }
+]
+
+const WEEKLY_QUEST_POOL: QuestDefinition[] = [
+  { id: 'wq_work_70', type: 'weekly', objective: 'work_clicks', target: 70, reward: { credits: 1000, wealth: 5, xp: 800 }, description: 'Perform 70 Work actions this week' },
+  { id: 'wq_convert_100', type: 'weekly', objective: 'wealth_minted', target: 100, reward: { wealth: 15, xp: 1200 }, description: 'Mint 100 $WEALTH this week' },
+  { id: 'wq_battles_25', type: 'weekly', objective: 'battles_won', target: 25, reward: { credits: 1500, xp: 1500 }, description: 'Win 25 successful attacks' }
+]
+
+// Simple chain (progressive) example
+const CHAIN_QUESTS: QuestDefinition[] = [
+  { id: 'chain_builder_1', type: 'chain', chainOrder: 0, objective: 'business_outlets', target: 10, reward: { credits: 200, xp: 200 }, description: 'Own 10 total business outlets' },
+  { id: 'chain_builder_2', type: 'chain', chainOrder: 1, objective: 'business_outlets', target: 25, reward: { credits: 400, xp: 400 }, description: 'Own 25 total business outlets' },
+  { id: 'chain_builder_3', type: 'chain', chainOrder: 2, objective: 'business_outlets', target: 50, reward: { credits: 800, xp: 900, wealth: 10 }, description: 'Own 50 total business outlets' }
+]
 
 interface GameState {
   // Player state
@@ -123,10 +165,26 @@ interface GameState {
   businesses: Business[]
   enhancedBusinesses: EnhancedBusiness[]
   activeSlots: string[] // IDs of active enhanced businesses
+  // maxSlots is now derived from level thresholds; we keep a persisted value for backward compat
   maxSlots: number
+  // Helper to compute how many slots are currently unlocked from player level
+  getUnlockedSlots?: () => number
+  recalcExchangeCaps?: () => void
+  // Quest system
+  questsActive?: QuestInstance[]
+  questLastInit?: number
+  questDailyResetAt?: number
+  questWeeklyResetAt?: number
+  initQuests?: () => void
+  incrementQuestProgress?: (kind: QuestObjectiveType, amount?: number) => void
+  claimQuest?: (id: string) => { success: boolean; rewards?: string; reason?: string }
+  refreshQuestRotations?: () => void
 
   // Achievements
   achievementsClaimed: string[]
+  // (Optional) future: persisted achievement meta if we allow user-generated
+  getAchievementTiers?: () => Array<AchievementTier>
+  getActiveAchievementStages?: () => Array<AchievementTier & { progress: number; unlocked: boolean; claimed: boolean }>
 
   // Battle system
   battleState: BattleState
@@ -143,11 +201,45 @@ interface GameState {
 
   // Clan system
   currentClan?: Clan
+  clans?: Clan[]
+  createClan?: (name: string, tag: string, description?: string) => { success: boolean; reason?: string }
+  joinClan?: (clanId: string) => { success: boolean; reason?: string }
+  leaveClan?: () => { success: boolean; reason?: string }
+  getClanById?: (id: string) => Clan | undefined
+  // Clan role & management additions
+  promoteMember?: (clanId: string, memberId: string) => { success: boolean; reason?: string }
+  demoteMember?: (clanId: string, memberId: string) => { success: boolean; reason?: string }
+  kickMember?: (clanId: string, memberId: string) => { success: boolean; reason?: string }
+  requestClanInvite?: (clanId: string) => { success: boolean; reason?: string }
+  acceptClanInvite?: (inviteId: string) => { success: boolean; reason?: string }
+  declineClanInvite?: (inviteId: string) => { success: boolean; reason?: string }
+  addClanXp?: (amount: number) => void
+
+  clanInvites?: Array<{ id: string; clanId: string; clanName: string; tag: string; created: number }>
+  globalChat?: Array<{ id: string; from: string; text: string; ts: number }>
+  clanChat?: Record<string, Array<{ id: string; from: string; text: string; ts: number }>>
+  postGlobalMessage?: (text: string) => { success: boolean; reason?: string }
+  postClanMessage?: (text: string) => { success: boolean; reason?: string }
+  // Unread chat tracking (primitive counters only for stable selectors)
+  lastSeenGlobalChatCount?: number
+  lastSeenClanChatCounts?: Record<string, number>
+  markGlobalChatRead?: () => void
+  markClanChatRead?: (clanId: string) => void
 
   // Treasury/AMM system
   treasuryReserve: {
     credits: number
     wealth: number
+  }
+  // Exchange Pool: one-way Credits -> $WEALTH with daily caps
+  exchangePool: {
+    rateCreditsPerWealth: number // how many credits per 1 WEALTH
+    feeBps: number // basis points fee applied on input credits
+    globalDailyCapWealth: number // max WEALTH minted per day globally
+    userDailyCapWealth: number // max WEALTH minted per user per day
+    redeemedTodayWealth: number // total minted today globally
+    perUserRedeemedToday: Record<string, number> // minted per user today
+    resetAt: number // timestamp (ms) when counters reset (typically next UTC midnight)
   }
   conversionRate: number // credits to $WEALTH ratio
   // Reverse rate: how many credits you receive per 1 $WEALTH when converting back
@@ -304,6 +396,7 @@ interface GameState {
   performAttack: (targetId: string, attackType: 'standard' | 'wealth_assault' | 'land_siege' | 'business_sabotage') => { success: boolean; message?: string; stolen?: number; damage?: number }
   purchaseShield: (type: 'basic' | 'advanced' | 'elite') => void
   repairBusinessDamage: () => void
+  claimAchievement: (id: string) => { success: boolean; reason?: string }
 
   // Land NFT actions
   mintLandNFT: () => void
@@ -334,6 +427,9 @@ interface GameState {
   tickEffects: () => void
   // Reset all local progress
   resetGame: () => void
+  // NPC Bots (local-only attackable targets when real players scarce)
+  npcBots?: Array<{ id: string; name: string; wealth: number; warScore: number; shielded?: boolean; lastUpdated: number }>
+  regenerateBots?: () => void
 }
 
 // Mock businesses data based on comprehensive mechanics document
@@ -615,6 +711,88 @@ const mockEnhancedBusinesses: EnhancedBusiness[] = [
 ]
 
 // Create the comprehensive game store
+// ------------------------------
+// Dynamic Achievement System (tiered)
+// ------------------------------
+// Each chain reveals the next tier only after claiming the current one.
+// IDs intentionally keep original first generation IDs for backward compatibility.
+type AchievementTier = {
+  id: string
+  chain: 'business_owned' | 'credits_earned' | 'battles_won'
+  order: number // sequence within chain
+  category: 'Business' | 'Wealth' | 'Combat'
+  name: string
+  description: string
+  thresholdType: 'enhancedOwned' | 'creditsEarned' | 'battlesWon'
+  threshold: number
+  reward: { credits?: number; wealth?: number; xp?: number; shieldHours?: number }
+}
+
+// Flattened tier list; keep original IDs for first tier of each chain
+const ACHIEVEMENT_TIERS: AchievementTier[] = [
+  // Business ownership chain
+  {
+    id: 'first_business', chain: 'business_owned', order: 0, category: 'Business',
+    name: 'Entrepreneur', description: 'Purchase your first enhanced business',
+    thresholdType: 'enhancedOwned', threshold: 1, reward: { credits: 50 }
+  },
+  {
+    id: 'business_tycoon_5', chain: 'business_owned', order: 1, category: 'Business',
+    name: 'Business Tycoon', description: 'Own 5 enhanced businesses',
+    thresholdType: 'enhancedOwned', threshold: 5, reward: { credits: 150, xp: 200 }
+  },
+  {
+    id: 'business_empire', chain: 'business_owned', order: 2, category: 'Business',
+    name: 'Business Empire', description: 'Own 10 enhanced businesses',
+    thresholdType: 'enhancedOwned', threshold: 10, reward: { credits: 500, wealth: 5 }
+  },
+  {
+    id: 'business_conglomerate_25', chain: 'business_owned', order: 3, category: 'Business',
+    name: 'Conglomerate', description: 'Own 25 enhanced businesses',
+    thresholdType: 'enhancedOwned', threshold: 25, reward: { credits: 2000, wealth: 20, xp: 5000 }
+  },
+  // Credits earned chain
+  {
+    id: 'wealthy_worker_1k', chain: 'credits_earned', order: 0, category: 'Wealth',
+    name: 'Wealthy Worker', description: 'Earn 1,000 credits from work',
+    thresholdType: 'creditsEarned', threshold: 1000, reward: { credits: 100, xp: 200 }
+  },
+  {
+    id: 'wealthy_worker_10k', chain: 'credits_earned', order: 1, category: 'Wealth',
+    name: 'Industrious Earner', description: 'Earn 10,000 credits from work',
+    thresholdType: 'creditsEarned', threshold: 10_000, reward: { credits: 500, xp: 500 }
+  },
+  {
+    id: 'wealthy_worker_100k', chain: 'credits_earned', order: 2, category: 'Wealth',
+    name: 'Credit Mogul', description: 'Earn 100,000 credits from work',
+    thresholdType: 'creditsEarned', threshold: 100_000, reward: { credits: 2500, wealth: 10, xp: 2000 }
+  },
+  {
+    id: 'wealthy_worker_1m', chain: 'credits_earned', order: 3, category: 'Wealth',
+    name: 'Credit Billionaire', description: 'Earn 1,000,000 credits from work',
+    thresholdType: 'creditsEarned', threshold: 1_000_000, reward: { credits: 10_000, wealth: 50, xp: 10_000 }
+  },
+  // Battle wins chain
+  {
+    id: 'battle_master', chain: 'battles_won', order: 0, category: 'Combat',
+    name: 'Battle Master', description: 'Win 50 battles',
+    thresholdType: 'battlesWon', threshold: 50, reward: { credits: 250, shieldHours: 1 }
+  },
+  {
+    id: 'battle_champion_200', chain: 'battles_won', order: 1, category: 'Combat',
+    name: 'Battle Champion', description: 'Win 200 battles',
+    thresholdType: 'battlesWon', threshold: 200, reward: { credits: 1000, wealth: 10, shieldHours: 4 }
+  },
+  {
+    id: 'war_legend_1000', chain: 'battles_won', order: 2, category: 'Combat',
+    name: 'WAR Legend', description: 'Win 1,000 battles',
+    thresholdType: 'battlesWon', threshold: 1000, reward: { credits: 5000, wealth: 100, shieldHours: 12 }
+  }
+]
+
+// Utility helpers for achievements
+const getTierById = (id: string) => ACHIEVEMENT_TIERS.find(t => t.id === id)
+
 export const useGameStore = create<GameState>()(persist((set, get) => ({
   // Player state
   player: {
@@ -641,10 +819,165 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
   businesses: mockBusinesses,
   enhancedBusinesses: mockEnhancedBusinesses,
   activeSlots: [],
-  maxSlots: 4,
+  // Start with 1 unlocked slot at level 1; migration will upgrade legacy saves
+  maxSlots: 1,
+  getUnlockedSlots: () => {
+    const level = get().player.level || 1
+    // Slot unlock thresholds (inclusive): slot2 @5, slot3 @10, slot4 @15
+    let unlocked = 1
+    if (level >= 5) unlocked = 2
+    if (level >= 10) unlocked = 3
+    if (level >= 15) unlocked = 4
+    return unlocked
+  },
+  recalcExchangeCaps: () => {
+    const state = get()
+    const lvl = state.player.level || 1
+    // Base user cap 10 (existing) scales: +1 per 2 levels up to +20 at level 40, then slower +1 per 5 levels
+    const linear = Math.min(40, Math.max(0, lvl - 1)) // levels beyond 1 in linear region
+    const addLinear = Math.floor(linear / 2)
+    const extra = Math.max(0, lvl - 40)
+    const addExtra = Math.floor(extra / 5)
+    const newUserCap = 10 + addLinear + addExtra
+    // Global cap gentle growth: start 1000 then + (lvl*10)
+    const newGlobal = 1000 + (lvl * 10)
+    set(s => ({ exchangePool: { ...s.exchangePool, userDailyCapWealth: newUserCap, globalDailyCapWealth: newGlobal } }))
+  },
+  // Quest system state initialization values
+  questsActive: [],
+  questLastInit: 0,
+  questDailyResetAt: 0,
+  questWeeklyResetAt: 0,
+  initQuests: () => {
+    const state = get()
+    const now = Date.now()
+    // Determine today/this week boundaries (UTC)
+    const todayUTC = new Date()
+    const dayStart = Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), todayUTC.getUTCDate(), 0, 0, 0)
+    const nextDay = dayStart + 24 * 60 * 60 * 1000
+    // Week start (Monday) UTC
+    const dayOfWeek = (new Date(dayStart)).getUTCDay() // 0=Sun
+    const mondayOffset = (dayOfWeek + 6) % 7
+    const weekStart = dayStart - mondayOffset * 24 * 60 * 60 * 1000
+    const nextWeek = weekStart + 7 * 24 * 60 * 60 * 1000
+    const existing = state.questsActive || []
+    const stillValid = existing.filter(q => q.expiresAt ? q.expiresAt > now : true)
+    const haveDaily = stillValid.filter(q => q.type === 'daily')
+    const haveWeekly = stillValid.filter(q => q.type === 'weekly')
+    // If no current dailies or expired
+    const dailies: QuestInstance[] = haveDaily.length === 0 ? DAILY_QUEST_POOL.slice(0, 3).map(def => ({ ...def, progress: 0, complete: false, claimed: false, expiresAt: nextDay })) : haveDaily
+    const weeklies: QuestInstance[] = haveWeekly.length === 0 ? WEEKLY_QUEST_POOL.slice(0, 2).map(def => ({ ...def, progress: 0, complete: false, claimed: false, expiresAt: nextWeek })) : haveWeekly
+    // Chain quest: take first incomplete in order
+    const chainProgress = stillValid.filter(q => q.type === 'chain')
+    let chainQuest: QuestInstance[] = chainProgress
+    if (chainProgress.length === 0) {
+      const first = CHAIN_QUESTS[0]
+      chainQuest = first ? [{ ...first, progress: 0, complete: false, claimed: false }] : []
+    }
+    const merged = [...dailies, ...weeklies, ...chainQuest]
+    set({
+      questsActive: merged,
+      questDailyResetAt: nextDay,
+      questWeeklyResetAt: nextWeek,
+      questLastInit: now
+    })
+  },
+  refreshQuestRotations: () => {
+    const state = get()
+    const now = Date.now()
+    if ((state.questDailyResetAt || 0) <= now || (state.questWeeklyResetAt || 0) <= now) {
+      const initFn = get().initQuests
+      if (initFn) initFn()
+    }
+  },
+  incrementQuestProgress: (kind, amount = 1) => {
+    const state = get()
+    if (!state.questsActive || state.questsActive.length === 0) return
+    let changed = false
+    const updated = state.questsActive.map(q => {
+      if (q.complete || q.objective !== kind) return q
+      const nextProgress = Math.min(q.target, q.progress + amount)
+      const justCompleted = nextProgress >= q.target && !q.complete
+      if (justCompleted) {
+        try { useNotificationStore.getState().push({ type: 'success', title: 'Quest Complete', message: q.description, showInBanner: true }) } catch {}
+      }
+      if (nextProgress !== q.progress) changed = true
+      return { ...q, progress: nextProgress, complete: nextProgress >= q.target }
+    })
+    if (changed) set({ questsActive: updated })
+  },
+  claimQuest: (id: string) => {
+    const state = get()
+    const quest = state.questsActive?.find(q => q.id === id)
+    if (!quest) return { success: false, reason: 'Not found' }
+    if (!quest.complete) return { success: false, reason: 'Not complete' }
+    if (quest.claimed) return { success: false, reason: 'Already claimed' }
+    const { credits = 0, wealth = 0, xp = 0, shieldHours = 0 } = quest.reward || {}
+    if (credits || wealth || xp) {
+      set(s => ({ player: { ...s.player, credits: s.player.credits + credits, wealth: s.player.wealth + wealth, xp: s.player.xp + xp, level: Math.floor((s.player.xp + xp) / 1000) + 1 } }))
+    }
+    if (shieldHours > 0) {
+      set(s => ({ battleState: { ...s.battleState, activeShield: { type: 'basic', expires: Date.now() + shieldHours * 3600_000 } } }))
+    }
+    set(s => ({ questsActive: s.questsActive?.map(q => q.id === id ? { ...q, claimed: true } : q) }))
+    try { useNotificationStore.getState().push({ type: 'success', title: 'Quest Claimed', message: `+${credits}C ${wealth?`+${wealth}W `:''}${xp?`+${xp}XP `:''}${shieldHours?`Shield ${shieldHours}h`:''}`, showInBanner: false }) } catch {}
+    // Clan XP: award a portion of quest rewards to the clan (prioritize quest XP, fallback to credits)
+    try {
+      const addClanXp = get().addClanXp
+      if (addClanXp) {
+        let clanXp = 0
+        if (xp > 0) {
+          clanXp = Math.max(1, Math.floor(xp * 0.5)) // 50% of quest XP
+        } else if (credits > 0) {
+          clanXp = Math.max(1, Math.floor(credits / 50)) // Scale credits -> clan XP (simple divisor)
+        }
+        if (clanXp > 0) addClanXp(clanXp)
+      }
+    } catch {}
+    // If chain quest claimed and complete, spawn next
+    if (quest.type === 'chain') {
+      const nextDef = CHAIN_QUESTS.find(d => (d.chainOrder ?? -1) === ((quest.chainOrder ?? 0) + 1))
+      if (nextDef) {
+        set(s => ({ questsActive: [...(s.questsActive || []).filter(q => q.id !== quest.id), { ...nextDef, progress: 0, complete: false, claimed: false }] }))
+      }
+    }
+    return { success: true, rewards: 'claimed' }
+  },
 
   // Achievements
   achievementsClaimed: [],
+  getAchievementTiers: () => ACHIEVEMENT_TIERS,
+  getActiveAchievementStages: () => {
+    const state = get()
+    const claimed = state.achievementsClaimed || []
+    // For each chain select the first unclaimed tier, plus include already claimed tiers for history (optional)
+    const chains = ['business_owned','credits_earned','battles_won'] as const
+    const enhancedOwned = state.enhancedBusinesses.filter(b=>b.owned).length
+    const creditsEarned = state.player.totalCreditsEarned || 0
+    const battlesWon = state.player.battlesWon || 0
+    const progressMetrics = { enhancedOwned, creditsEarned, battlesWon }
+    const rows: Array<AchievementTier & { progress: number; unlocked: boolean; claimed: boolean }> = []
+    chains.forEach(chain => {
+      const tiers = ACHIEVEMENT_TIERS.filter(t=>t.chain === chain).sort((a,b)=>a.order-b.order)
+      tiers.forEach(tier => {
+        const metricValue = progressMetrics[tier.thresholdType]
+        const progress = Math.min(100, Math.floor((metricValue / tier.threshold) * 100))
+        const unlocked = metricValue >= tier.threshold
+        const claimedFlag = claimed.includes(tier.id)
+        // Always include claimed tiers; include first unclaimed tier only
+        if (claimedFlag) {
+          rows.push({ ...tier, progress, unlocked, claimed: true })
+        } else {
+          // If no earlier unclaimed tier already pushed for this chain
+          const chainHasUnclaimed = rows.some(r=>r.chain===chain && !r.claimed && !claimed.includes(r.id))
+          if (!chainHasUnclaimed) {
+            rows.push({ ...tier, progress, unlocked, claimed: false })
+          }
+        }
+      })
+    })
+    return rows
+  },
 
   // Battle system
   battleState: {
@@ -664,14 +997,259 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
   // Land NFT system
   landNFTs: [],
 
+  // Clan system implementation
+  currentClan: undefined,
+  clans: [],
+  createClan: (name: string, tag: string, description?: string) => {
+    name = name.trim(); tag = tag.trim().toUpperCase()
+    if (!name || !tag) return { success: false, reason: 'Name and tag required' }
+    if (tag.length > 5) return { success: false, reason: 'Tag too long' }
+    const state = get()
+    if (state.player.clanId) return { success: false, reason: 'Already in a clan' }
+    const exists = (state.clans || []).some(c => c.tag === tag || c.name.toLowerCase() === name.toLowerCase())
+    if (exists) return { success: false, reason: 'Clan exists' }
+    const id = 'clan_' + Date.now().toString(36)
+    const clan: Clan = { id, name, tag, level: 1, members: 1, maxMembers: 25, leader: state.player.id, description: description || '', totalWealth: state.player.wealth, trophies: 0, rank: (state.clans?.length || 0) + 1, xp: 0, membersList: [{ id: state.player.id, role: 'leader', joinedAt: Date.now() }] }
+    set(s => ({ clans: [...(s.clans || []), clan], player: { ...s.player, clanId: id, clanRole: 'leader' }, currentClan: clan }))
+    try { useNotificationStore.getState().push({ type: 'success', title: 'Clan Created', message: `${name} [${tag}]`, showInBanner: true }) } catch {}
+    return { success: true }
+  },
+  joinClan: (clanId: string) => {
+    const state = get()
+    if (state.player.clanId) return { success: false, reason: 'Already in a clan' }
+    const clan = (state.clans || []).find(c => c.id === clanId)
+    if (!clan) return { success: false, reason: 'Not found' }
+    if (clan.members >= clan.maxMembers) return { success: false, reason: 'Clan full' }
+    const now = Date.now()
+    set(s => ({
+      clans: (s.clans || []).map(c => c.id === clanId ? { ...c, members: c.members + 1, totalWealth: c.totalWealth + s.player.wealth, membersList: [...(c.membersList||[]), { id: s.player.id, role: 'member', joinedAt: now }] } : c),
+      player: { ...s.player, clanId: clanId, clanRole: 'member' },
+      currentClan: { ...clan, members: clan.members + 1, totalWealth: clan.totalWealth + s.player.wealth, membersList: [...(clan.membersList||[]), { id: s.player.id, role: 'member', joinedAt: now }] }
+    }))
+    try { useNotificationStore.getState().push({ type: 'info', title: 'Joined Clan', message: clan.name, showInBanner: true }) } catch {}
+    return { success: true }
+  },
+  leaveClan: () => {
+    const state = get()
+    const clanId = state.player.clanId
+    if (!clanId) return { success: false, reason: 'Not in clan' }
+    const clan = (state.clans || []).find(c => c.id === clanId)
+    if (!clan) return { success: false, reason: 'Clan missing' }
+    if (state.player.clanRole === 'leader' && clan.members > 1) return { success: false, reason: 'Transfer leadership first' }
+    let updatedClans = (state.clans || []).map(c => c.id === clanId ? { ...c, members: c.members - 1, totalWealth: Math.max(0, c.totalWealth - state.player.wealth), membersList: (c.membersList||[]).filter(m => m.id !== state.player.id) } : c)
+    updatedClans = updatedClans.filter(c => !(c.id === clanId && c.members <= 0))
+    set(s => ({ clans: updatedClans, player: { ...s.player, clanId: undefined, clanRole: undefined }, currentClan: undefined }))
+    try { useNotificationStore.getState().push({ type: 'warning', title: 'Left Clan', message: clan.name, showInBanner: false }) } catch {}
+    return { success: true }
+  },
+  getClanById: (id: string) => {
+    return get().clans?.find(c => c.id === id)
+  },
+  promoteMember: (clanId: string, memberId: string) => {
+    const state = get()
+    if (!state.player.clanId || state.player.clanId !== clanId) return { success: false, reason: 'Not in clan' }
+    if (state.player.clanRole !== 'leader') return { success: false, reason: 'No permission' }
+    const clan = state.clans?.find(c => c.id === clanId)
+    if (!clan) return { success: false, reason: 'Clan missing' }
+    type ClanRole = 'member' | 'elder' | 'co-leader' | 'leader'
+    const roleOrder: ClanRole[] = ['member','elder','co-leader','leader']
+    const membersList = (clan.membersList||[]).map(m => {
+      if (m.id !== memberId) return m
+      const idx = roleOrder.indexOf(m.role as ClanRole)
+      if (idx === -1 || idx === roleOrder.length - 1) return m
+      const nextRole: ClanRole = roleOrder[idx+1]
+      return { ...m, role: nextRole }
+    }) as Array<{ id: string; role: ClanRole; joinedAt: number }>
+    const target = membersList.find(m => m.id === memberId)
+    if (!target) return { success: false, reason: 'Member missing' }
+    let newLeader = clan.leader
+    if (target.role === 'leader' && clan.leader !== memberId) {
+      // demote previous leader to co-leader
+      for (let i=0;i<membersList.length;i++) {
+        if (membersList[i].id === clan.leader) membersList[i] = { ...membersList[i], role: 'co-leader' }
+      }
+      newLeader = memberId
+    }
+    set(s => ({
+      clans: (s.clans||[]).map(c => c.id === clanId ? { ...c, leader: newLeader, membersList } : c),
+      currentClan: s.currentClan && s.currentClan.id === clanId ? { ...s.currentClan, leader: newLeader, membersList } : s.currentClan,
+      player: s.player.id === memberId ? { ...s.player, clanRole: target.role as 'member' | 'elder' | 'co-leader' | 'leader' } : s.player
+    }))
+    return { success: true }
+  },
+  demoteMember: (clanId: string, memberId: string) => {
+    const state = get()
+    if (!state.player.clanId || state.player.clanId !== clanId) return { success: false, reason: 'Not in clan' }
+    if (state.player.clanRole !== 'leader') return { success: false, reason: 'No permission' }
+    const clan = state.clans?.find(c => c.id === clanId)
+    if (!clan) return { success: false, reason: 'Clan missing' }
+    if (memberId === clan.leader) return { success: false, reason: 'Cannot demote leader (transfer instead via promote path)' }
+    type ClanRole = 'member' | 'elder' | 'co-leader' | 'leader'
+    const roleOrder: ClanRole[] = ['member','elder','co-leader','leader']
+    const membersList = (clan.membersList||[]).map(m => {
+      if (m.id !== memberId) return m
+      const idx = roleOrder.indexOf(m.role as ClanRole)
+      if (idx <= 0) return m
+      const newRole: ClanRole = roleOrder[idx-1]
+      return { ...m, role: newRole }
+    }) as Array<{ id: string; role: ClanRole; joinedAt: number }>
+    const target = membersList.find(m => m.id === memberId)
+    if (!target) return { success: false, reason: 'Member missing' }
+    set(s => ({
+      clans: (s.clans||[]).map(c => c.id === clanId ? { ...c, membersList } : c),
+      currentClan: s.currentClan && s.currentClan.id === clanId ? { ...s.currentClan, membersList } : s.currentClan,
+      player: s.player.id === memberId ? { ...s.player, clanRole: target.role as 'member' | 'elder' | 'co-leader' | 'leader' } : s.player
+    }))
+    return { success: true }
+  },
+  kickMember: (clanId: string, memberId: string) => {
+    const state = get()
+    if (!state.player.clanId || state.player.clanId !== clanId) return { success: false, reason: 'Not in clan' }
+    if (state.player.clanRole !== 'leader') return { success: false, reason: 'No permission' }
+    if (memberId === state.player.id) return { success: false, reason: 'Cannot kick self' }
+    const clan = state.clans?.find(c => c.id === clanId)
+    if (!clan) return { success: false, reason: 'Clan missing' }
+    const membersList = (clan.membersList||[]).filter(m => m.id !== memberId)
+    set(s => ({
+      clans: (s.clans||[]).map(c => c.id === clanId ? { ...c, members: Math.max(0, c.members - 1), membersList } : c),
+      currentClan: s.currentClan && s.currentClan.id === clanId ? { ...s.currentClan, members: Math.max(0, clan.members - 1), membersList } : s.currentClan
+    }))
+    return { success: true }
+  },
+  clanInvites: [],
+  requestClanInvite: (clanId: string) => {
+    const state = get()
+    if (state.player.clanId) return { success: false, reason: 'Already in clan' }
+    const clan = state.clans?.find(c => c.id === clanId)
+    if (!clan) return { success: false, reason: 'Clan missing' }
+    const exists = (state.clanInvites||[]).some(i => i.clanId === clanId)
+    if (exists) return { success: false, reason: 'Invite exists' }
+    const invite = { id: 'invite_'+Date.now().toString(36), clanId, clanName: clan.name, tag: clan.tag, created: Date.now() }
+    set(s => ({ clanInvites: [...(s.clanInvites||[]), invite] }))
+    try { useNotificationStore.getState().push({ type: 'info', title: 'Clan Invite Received', message: `${clan.name}`, showInBanner: true }) } catch {}
+    return { success: true }
+  },
+  acceptClanInvite: (inviteId: string) => {
+    const state = get()
+    if (state.player.clanId) return { success: false, reason: 'Already in clan' }
+    const invite = (state.clanInvites||[]).find(i => i.id === inviteId)
+    if (!invite) return { success: false, reason: 'Invite missing' }
+    const join = get().joinClan; if (!join) return { success: false, reason: 'Join missing' }
+    const r = join(invite.clanId)
+    if (r.success) {
+      set(s => ({ clanInvites: (s.clanInvites||[]).filter(i => i.id !== inviteId) }))
+    }
+    return r
+  },
+  declineClanInvite: (inviteId: string) => {
+    const state = get()
+    if (!(state.clanInvites||[]).some(i => i.id === inviteId)) return { success: false, reason: 'Not found' }
+    set(s => ({ clanInvites: (s.clanInvites||[]).filter(i => i.id !== inviteId) }))
+    return { success: true }
+  },
+  addClanXp: (amount: number) => {
+    if (amount <= 0) return
+    const state = get()
+    if (!state.player.clanId) return
+    const clanId = state.player.clanId
+    const clans = state.clans || []
+    const clan = clans.find(c => c.id === clanId)
+    if (!clan) return
+    const xpGain = Math.max(1, Math.floor(amount))
+    let newXp = (clan.xp||0) + xpGain
+    let lvl = clan.level
+    let maxMembers = clan.maxMembers
+    const levelUpThreshold = (lv: number) => lv * 500
+    let leveled = false
+    while (newXp >= levelUpThreshold(lvl)) {
+      newXp -= levelUpThreshold(lvl)
+      lvl++
+      leveled = true
+      if (lvl % 5 === 0) maxMembers += 5
+    }
+    const updated = clans.map(c => c.id === clanId ? { ...c, xp: newXp, level: lvl, maxMembers } : c)
+    set(s => ({ clans: updated, currentClan: s.currentClan && s.currentClan.id === clanId ? { ...s.currentClan, xp: newXp, level: lvl, maxMembers } : s.currentClan }))
+    if (leveled) {
+      try { useNotificationStore.getState().push({ type: 'success', title: 'Clan Level Up', message: `Level ${lvl}`, showInBanner: true }) } catch {}
+    }
+  },
+  globalChat: [],
+  clanChat: {},
+  npcBots: [
+    { id: 'bot_scavenger', name: 'Scavenger Drone', wealth: 800, warScore: 700, shielded: false, lastUpdated: Date.now() },
+    { id: 'bot_raider', name: 'Rogue Raider', wealth: 2500, warScore: 1200, shielded: true, lastUpdated: Date.now() },
+    { id: 'bot_cartel', name: 'Cartel Captain', wealth: 7500, warScore: 1800, shielded: false, lastUpdated: Date.now() },
+    { id: 'bot_tycoon', name: 'Idle Tycoon', wealth: 15000, warScore: 2100, shielded: true, lastUpdated: Date.now() }
+  ],
+  regenerateBots: () => {
+    // Light randomization to keep sessions varied
+    const templates = [
+      { id: 'bot_scavenger', base: 500, spread: 600, war: 700 },
+      { id: 'bot_raider', base: 1800, spread: 1200, war: 1200 },
+      { id: 'bot_cartel', base: 5000, spread: 4000, war: 1800 },
+      { id: 'bot_tycoon', base: 12000, spread: 6000, war: 2100 }
+    ]
+    const bots = templates.map(t => ({
+      id: t.id,
+      name: t.id === 'bot_scavenger' ? 'Scavenger Drone' : t.id === 'bot_raider' ? 'Rogue Raider' : t.id === 'bot_cartel' ? 'Cartel Captain' : 'Idle Tycoon',
+      wealth: t.base + Math.floor(Math.random() * t.spread),
+      warScore: t.war + Math.floor(Math.random() * 300) - 150,
+      shielded: Math.random() < 0.35,
+      lastUpdated: Date.now()
+    }))
+    set({ npcBots: bots })
+  },
+  lastSeenGlobalChatCount: 0,
+  lastSeenClanChatCounts: {},
+  markGlobalChatRead: () => {
+    const total = (get().globalChat || []).length
+    set({ lastSeenGlobalChatCount: total })
+  },
+  markClanChatRead: (clanId: string) => {
+    if (!clanId) return
+    const state = get()
+    const counts = { ...(state.lastSeenClanChatCounts || {}) }
+    const current = (state.clanChat && state.clanChat[clanId]) ? state.clanChat[clanId].length : 0
+    counts[clanId] = current
+    set({ lastSeenClanChatCounts: counts })
+  },
+  postGlobalMessage: (text: string) => {
+    const t = text.trim(); if (!t) return { success: false, reason: 'Empty' }
+    const msg = { id: 'msg_'+Date.now().toString(36), from: get().player.id, text: t, ts: Date.now() }
+    set(s => ({ globalChat: [...(s.globalChat||[]), msg].slice(-200) }))
+    return { success: true }
+  },
+  postClanMessage: (text: string) => {
+    const state = get()
+    if (!state.player.clanId) return { success: false, reason: 'No clan' }
+    const t = text.trim(); if (!t) return { success: false, reason: 'Empty' }
+    const msg = { id: 'cmsg_'+Date.now().toString(36), from: state.player.id, text: t, ts: Date.now() }
+    set(s => ({ clanChat: { ...(s.clanChat||{}), [state.player.clanId!]: [ ...((s.clanChat||{})[state.player.clanId!]||[]), msg ].slice(-200) } }))
+    return { success: true }
+  },
+
   // Treasury system
   treasuryReserve: {
     credits: 1000000,
     wealth: 10000
   },
-  conversionRate: 100, // 100 credits = 1 $WEALTH
-  // When converting back, 1 $WEALTH -> 50 credits
-  wealthToCreditsRate: 50,
+  // Exchange Pool defaults (daily reset at next UTC midnight)
+  exchangePool: {
+    rateCreditsPerWealth: 75, // target: ~3 works (25 C each) ≈ 1 W (pre-fee)
+    feeBps: 100, // 1.0% fee on input credits
+    globalDailyCapWealth: 1000,
+    userDailyCapWealth: 10,
+    redeemedTodayWealth: 0,
+    perUserRedeemedToday: {},
+    resetAt: (() => {
+      const now = new Date()
+      const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0))
+      return next.getTime()
+    })()
+  },
+  conversionRate: 75, // used for WAR valuation and displays
+  // Display-only reverse equivalence (WEALTH -> credits)
+  wealthToCreditsRate: 75,
 
   // Demo market prices + fee
   marketPrices: {
@@ -681,9 +1259,9 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
   dexFeeBps: 50, // 0.50%
   _dexAdapter: null,
 
-  // Lottery initial state: 5 min window, 100 WEALTH entry, 20 players max
+  // Lottery initial state: 5 min window, 25 WEALTH entry, 20 players max
   lottery: {
-    settings: { entryAmount: 100, maxEntries: 20, durationMs: 5 * 60 * 1000 },
+    settings: { entryAmount: 25, maxEntries: 20, durationMs: 5 * 60 * 1000 },
     currentRound: {
       id: 1,
       startedAt: Date.now(),
@@ -920,6 +1498,7 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
   // Internal work application that assumes cooldown eligibility has been validated outside
   _applyWork: (now: number, automated: boolean) => {
     const state = get()
+    const prevLevel = state.player.level || 1
     const workMultiplier = get().getWorkMultiplier()
     const baseCredits = 25
     const bonusCredits = Math.floor(baseCredits * (workMultiplier / 100))
@@ -961,7 +1540,7 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
         lastSessionEnd: now,
         lastWorkTimestamp: now,
         consecutiveWorkClicks: (s.player.consecutiveWorkClicks || 0) + 1,
-        level: Math.floor(s.player.xp / 1000) + 1,
+        level: Math.floor((s.player.xp + xpGained) / 1000) + 1,
         totalCreditsEarned: (s.player.totalCreditsEarned || 0) + totalCredits
       },
       lastWorkReward: totalCredits,
@@ -969,57 +1548,96 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
       // Always offer to share when the user manually clicks Work; never show for automated manager ticks
       showShareModal: automated ? false : true
     }))
+
+    // After applying XP, check for slot unlock progression
+    const post = get()
+    const unlocked = post.getUnlockedSlots ? post.getUnlockedSlots() : post.maxSlots
+    if (unlocked > post.maxSlots) {
+      set({ maxSlots: unlocked })
+      try { useNotificationStore.getState().push({ type: 'success', title: 'New slot unlocked', message: `Enhanced business slot ${unlocked} available`, showInBanner: true }) } catch {}
+    }
+    // Recalculate exchange caps after any level change
+    post.recalcExchangeCaps && post.recalcExchangeCaps()
+
+    // Level-up milestone notification
+    const newLevel = post.player.level || prevLevel
+    if (newLevel > prevLevel) {
+      // Determine which perks improved this level
+      const perks: string[] = []
+      // Slot unlock already notified separately; include summary if threshold hit
+      if (([5,10,15] as number[]).includes(newLevel)) perks.push(`Slot ${unlocked} unlocked`)
+      // Defense breakpoint
+      const prevDefenseBreak = Math.floor(prevLevel / 5) + (prevLevel > 50 ? Math.floor((prevLevel - 50) / 10) : 0)
+      const newDefenseBreak = Math.floor(newLevel / 5) + (newLevel > 50 ? Math.floor((newLevel - 50) / 10) : 0)
+      if (newDefenseBreak > prevDefenseBreak) perks.push('+1 base defense')
+      // Shield discount change
+      const prevDisc = Math.min(30, Math.floor(prevLevel / 5) * 5)
+      const newDisc = Math.min(30, Math.floor(newLevel / 5) * 5)
+      if (newDisc > prevDisc) perks.push(`Shield cost -${newDisc}%`)
+      // Exchange cap summary
+      const calcUserCap = (lvl: number) => {
+        const linear = Math.min(40, Math.max(0, lvl - 1))
+        const addLinear = Math.floor(linear / 2)
+        const extra = Math.max(0, lvl - 40)
+        const addExtra = Math.floor(extra / 5)
+        return 10 + addLinear + addExtra
+      }
+      if (calcUserCap(newLevel) > calcUserCap(prevLevel)) perks.push('Exchange cap increased')
+      // Work multiplier level bonus always grows but avoid spam each level; highlight every 5 levels
+      if (newLevel % 5 === 0) perks.push('Work multiplier bonus increased')
+      try {
+        useNotificationStore.getState().push({
+          type: 'success',
+          title: `Level Up: ${newLevel}`,
+          message: perks.length ? perks.join(' • ') : 'Progression bonuses improved',
+          showInBanner: true
+        })
+      } catch {}
+    }
+    // Quest progress: work click
+    const incQ = get().incrementQuestProgress
+    if (incQ) {
+      incQ('work_clicks', 1)
+      // Also increment credits_earned by the credits just awarded in this work action
+      incQ('credits_earned', totalCredits)
+    }
+    // Clan XP: manual work contributes modest clan progression (skip automated manager ticks)
+    if (!automated) {
+      try {
+        const addClanXp = get().addClanXp
+        if (addClanXp) {
+          const clanXpGain = Math.max(1, Math.floor(xpGained * 0.2)) // 20% of personal XP gained
+          addClanXp(clanXpGain)
+        }
+      } catch {}
+    }
   },
 
-  // Claim an achievement reward if unlocked and not yet claimed
+  // Claim an achievement reward (tiered dynamic system)
   claimAchievement: (id: string) => {
     const state = get()
     const already = state.achievementsClaimed?.includes(id)
     if (already) return { success: false, reason: 'Already claimed' }
+    const tier = getTierById(id)
+    if (!tier) return { success: false, reason: 'Unknown achievement' }
 
-    // Determine unlock conditions based on current state
-    const ownedEnhanced = state.enhancedBusinesses.filter(b => b.owned).length
+    // Current metrics
+    const enhancedOwned = state.enhancedBusinesses.filter(b => b.owned).length
     const creditsEarned = state.player.totalCreditsEarned || 0
     const battlesWon = state.player.battlesWon || 0
+    const metricValue = tier.thresholdType === 'enhancedOwned' ? enhancedOwned : tier.thresholdType === 'creditsEarned' ? creditsEarned : battlesWon
+    if (metricValue < tier.threshold) return { success: false, reason: 'Not unlocked yet' }
 
-    const unlockedById: Record<string, boolean> = {
-      first_business: ownedEnhanced >= 1,
-      wealthy_worker_1k: creditsEarned >= 1000,
-      business_empire: ownedEnhanced >= 10,
-      battle_master: battlesWon >= 50,
-    }
-    if (!unlockedById[id]) return { success: false, reason: 'Not unlocked yet' }
-
-    // Apply rewards per achievement
-    let creditReward = 0
-    let wealthReward = 0
-    let xpReward = 0
-    let shieldApplied = false
-    switch (id) {
-      case 'first_business':
-        creditReward = 50
-        break
-      case 'wealthy_worker_1k':
-        creditReward = 100
-        xpReward = 200
-        break
-      case 'business_empire':
-        creditReward = 500
-        wealthReward = 5
-        break
-      case 'battle_master':
-        creditReward = 250
-        // Grant a 1-hour basic shield
-        set(s => ({
-          battleState: {
-            ...s.battleState,
-            activeShield: { type: 'basic', expires: Date.now() + 3600_000 }
-          }
-        }))
-        shieldApplied = true
-        break
-      default:
-        break
+    const { credits: creditReward = 0, wealth: wealthReward = 0, xp: xpReward = 0, shieldHours } = tier.reward || {}
+    let shieldAppliedHours = 0
+    if (shieldHours && shieldHours > 0) {
+      shieldAppliedHours = shieldHours
+      set(s => ({
+        battleState: {
+          ...s.battleState,
+          activeShield: { type: 'basic', expires: Date.now() + shieldHours * 3600_000 }
+        }
+      }))
     }
 
     if (creditReward || wealthReward || xpReward) {
@@ -1033,13 +1651,13 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
       }))
     }
 
-  set(s => ({ achievementsClaimed: [...(s.achievementsClaimed || []), id] }))
+    set(s => ({ achievementsClaimed: [...(s.achievementsClaimed || []), id] }))
 
     try {
       useNotificationStore.getState().push({
         type: 'success',
         title: 'Achievement claimed',
-        message: `+${creditReward} credits${wealthReward ? ` • +${wealthReward} $WEALTH` : ''}${xpReward ? ` • +${xpReward} XP` : ''}${shieldApplied ? ' • Shield activated (1h)' : ''}`,
+        message: `+${creditReward} credits${wealthReward ? ` • +${wealthReward} $WEALTH` : ''}${xpReward ? ` • +${xpReward} XP` : ''}${shieldAppliedHours ? ` • Shield (${shieldAppliedHours}h)` : ''}`,
         showInBanner: true,
         durationMs: 4000,
       })
@@ -1097,6 +1715,7 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
         )
       };
     });
+    const incQ = get().incrementQuestProgress; if (incQ) incQ('business_outlets', 1)
   },
 
   repairEnhancedBusiness: (businessId: string, repairAmount: number) => {
@@ -1275,6 +1894,13 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
 
     set(state => {
       const isActive = state.activeSlots.includes(businessId)
+      // Recompute unlocked slots dynamically
+      const unlocked = (state.getUnlockedSlots ? state.getUnlockedSlots() : state.maxSlots) || state.maxSlots
+      // Ensure persisted maxSlots reflects unlocked progression (monotonic increase)
+      if (unlocked > state.maxSlots) {
+        state.maxSlots = unlocked
+        try { useNotificationStore.getState().push({ type: 'info', title: 'Slot unlocked', message: `Enhanced slot unlocked (${unlocked}/4)`, showInBanner: true }) } catch {}
+      }
 
       if (isActive) {
         return {
@@ -1283,7 +1909,7 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
             b.id === businessId ? { ...b, active: false } : b
           )
         }
-      } else if (state.activeSlots.length < state.maxSlots) {
+      } else if (state.activeSlots.length < unlocked) {
         return {
           activeSlots: [...state.activeSlots, businessId],
           enhancedBusinesses: state.enhancedBusinesses.map(b =>
@@ -1298,54 +1924,97 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
 
   convertCreditsToWealth: (amount: number) => {
     const state = get()
-    // Base rate: credits per 1 WEALTH
-    let creditsPerWealth = state.conversionRate
-    // Passive: Trading Exchange improves rates by 15%
-    const hasTrading = state.enhancedBusinesses.some(b => b.owned && state.activeSlots.includes(b.id) && b.id === 'trading_exchange')
-    if (hasTrading) creditsPerWealth = Math.floor(creditsPerWealth * 0.85)
-    // Active boost: Marketing Agency +25% better
-    if ((state.conversionBoostUntil || 0) > Date.now()) {
-      creditsPerWealth = Math.floor(creditsPerWealth * 0.75)
+    const now = Date.now()
+    if (amount <= 0) {
+      try { useNotificationStore.getState().push({ type: 'error', title: 'Conversion failed', message: 'Invalid amount', showInBanner: true }) } catch {}
+      return
     }
-    const wealthGained = Math.floor(amount / Math.max(1, creditsPerWealth))
-
-    if (state.player.credits >= amount && amount > 0) {
-      set(state => ({
-        player: {
-          ...state.player,
-          credits: state.player.credits - amount,
-          wealth: state.player.wealth + wealthGained
-        }
-      }))
-      try { useNotificationStore.getState().push({ type: 'success', title: 'Converted Credits → $WEALTH', message: `-${amount} C → +${wealthGained} W`, showInBanner: false }) } catch {}
-    } else {
+    if (state.player.credits < amount) {
       try { useNotificationStore.getState().push({ type: 'error', title: 'Conversion failed', message: `Need ${amount} credits to convert`, showInBanner: true }) } catch {}
+      return
     }
+
+    // Resolve effective rate with passive/active boosts
+    let creditsPerWealth = state.exchangePool.rateCreditsPerWealth
+    const hasTrading = state.enhancedBusinesses.some(b => b.owned && state.activeSlots.includes(b.id) && b.id === 'trading_exchange')
+    if (hasTrading) creditsPerWealth = Math.max(1, Math.floor(creditsPerWealth * 0.85))
+    if ((state.conversionBoostUntil || 0) > now) {
+      creditsPerWealth = Math.max(1, Math.floor(creditsPerWealth * 0.75))
+    }
+
+    // Apply input fee on credits
+    const feeBps = Math.max(0, state.exchangePool.feeBps)
+    const effectiveCredits = Math.floor(amount * (1 - (feeBps / 10000)))
+    let desiredWealth = Math.floor(effectiveCredits / Math.max(1, creditsPerWealth))
+    if (desiredWealth <= 0) {
+      try { useNotificationStore.getState().push({ type: 'error', title: 'Conversion too small', message: 'Increase amount to mint at least 1 $WEALTH', showInBanner: true }) } catch {}
+      return
+    }
+
+    // Enforce pool caps and treasury availability
+    const pool = state.exchangePool
+    const pid = state.player.id
+    const userMinted = pool.perUserRedeemedToday[pid] || 0
+    const globalRemaining = Math.max(0, pool.globalDailyCapWealth - pool.redeemedTodayWealth)
+    const userRemaining = Math.max(0, pool.userDailyCapWealth - userMinted)
+    const treasuryRemaining = Math.max(0, state.treasuryReserve.wealth)
+    const cap = Math.max(0, Math.min(globalRemaining, userRemaining, treasuryRemaining))
+    if (cap <= 0) {
+      try { useNotificationStore.getState().push({ type: 'warning', title: 'Exchange Pool capped', message: 'No $WEALTH available to redeem right now', showInBanner: true }) } catch {}
+      return
+    }
+    if (desiredWealth > cap) {
+      desiredWealth = cap
+    }
+    // Recompute required credits for the clamped wealth (including fee)
+    const creditsRequiredNet = desiredWealth * creditsPerWealth
+    // net = amount * (1 - fee) => amount = ceil(net / (1 - fee))
+    const oneMinusFee = Math.max(0.0001, (1 - (feeBps / 10000)))
+    const creditsRequiredGross = Math.ceil(creditsRequiredNet / oneMinusFee)
+    if (creditsRequiredGross > amount) {
+      // If the provided amount doesn't cover clamped mint, downscale further
+      const effNet = Math.floor(amount * oneMinusFee)
+      const mintable = Math.floor(effNet / Math.max(1, creditsPerWealth))
+      if (mintable <= 0) {
+        try { useNotificationStore.getState().push({ type: 'error', title: 'Conversion too small', message: 'Increase amount to mint at least 1 $WEALTH', showInBanner: true }) } catch {}
+        return
+      }
+      desiredWealth = Math.max(0, Math.min(mintable, cap))
+    }
+
+    const creditsToCharge = Math.min(state.player.credits, Math.max(1, Math.ceil(desiredWealth * creditsPerWealth / oneMinusFee)))
+    const wealthToMint = desiredWealth
+
+    set(s => ({
+      player: {
+        ...s.player,
+        credits: Math.max(0, s.player.credits - creditsToCharge),
+        wealth: s.player.wealth + wealthToMint
+      },
+      // Credit the treasury reserves with consumed credits and deduct WEALTH supply
+      treasuryReserve: {
+        credits: s.treasuryReserve.credits + creditsToCharge,
+        wealth: Math.max(0, s.treasuryReserve.wealth - wealthToMint)
+      },
+      exchangePool: {
+        ...s.exchangePool,
+        redeemedTodayWealth: s.exchangePool.redeemedTodayWealth + wealthToMint,
+        perUserRedeemedToday: {
+          ...s.exchangePool.perUserRedeemedToday,
+          [s.player.id]: (s.exchangePool.perUserRedeemedToday[s.player.id] || 0) + wealthToMint
+        }
+      }
+    }))
+    try {
+      useNotificationStore.getState().push({ type: 'success', title: 'Redeemed Credits → $WEALTH', message: `-${creditsToCharge} C → +${wealthToMint} W`, showInBanner: false })
+    } catch {}
+    const incQ = get().incrementQuestProgress; if (incQ) incQ('wealth_minted', wealthToMint)
   },
 
   convertWealthToCredits: (amount: number) => {
-    const state = get()
-    // Base rate: credits per 1 WEALTH
-    let creditsPerWealth = state.wealthToCreditsRate
-    const hasTrading = state.enhancedBusinesses.some(b => b.owned && state.activeSlots.includes(b.id) && b.id === 'trading_exchange')
-    if (hasTrading) creditsPerWealth = Math.floor(creditsPerWealth * 1.15)
-    if ((state.conversionBoostUntil || 0) > Date.now()) {
-      creditsPerWealth = Math.floor(creditsPerWealth * 1.25)
-    }
-    const creditsGained = Math.floor(amount * creditsPerWealth)
-
-    if (state.player.wealth >= amount && amount > 0) {
-      set(state => ({
-        player: {
-          ...state.player,
-          credits: state.player.credits + creditsGained,
-          wealth: state.player.wealth - amount
-        }
-      }))
-      try { useNotificationStore.getState().push({ type: 'success', title: '$WEALTH → Credits', message: `-${amount} W → +${creditsGained} C`, showInBanner: false }) } catch {}
-    } else {
-      try { useNotificationStore.getState().push({ type: 'error', title: 'Conversion failed', message: `Need ${amount} $WEALTH to convert`, showInBanner: true }) } catch {}
-    }
+    // Disabled under Exchange Pool mechanics (one-way)
+    try { useNotificationStore.getState().push({ type: 'warning', title: 'Conversion disabled', message: '$WEALTH → Credits is disabled. Use Credits → $WEALTH via the Exchange Pool.', showInBanner: true }) } catch {}
+    return
   },
 
   getDexQuote: (from: 'USD' | 'SOL' | 'WEALTH', to: 'USD' | 'SOL' | 'WEALTH', amount: number) => {
@@ -1515,17 +2184,12 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
   if (cost.currency === 'credits' && state.player.credits < cost.amount) { try { useNotificationStore.getState().push({ type: 'error', title: 'Attack failed', message: 'Insufficient credits', showInBanner: true }) } catch {} ; return { success: false, message: 'Insufficient credits' } }
   if (cost.currency === 'wealth' && state.player.wealth < cost.amount) { try { useNotificationStore.getState().push({ type: 'error', title: 'Attack failed', message: 'Insufficient WEALTH', showInBanner: true }) } catch {} ; return { success: false, message: 'Insufficient WEALTH' } }
 
-    // Find target in multiplayer store (demo mode)
+    // Find target in multiplayer store OR npc bots
     let multiplayerStore
-    try {
-      // dynamic import to avoid circular in some setups
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      multiplayerStore = require('./multiplayerStore').useMultiplayerStore
-    } catch (e) {
-      multiplayerStore = undefined
-    }
-
-  const target = multiplayerStore ? multiplayerStore.getState().onlinePlayers.find((p: any) => p.id === targetId) : undefined
+    try { multiplayerStore = require('./multiplayerStore').useMultiplayerStore } catch (e) { multiplayerStore = undefined }
+    const mpTarget = multiplayerStore ? multiplayerStore.getState().onlinePlayers.find((p: any) => p.id === targetId) : undefined
+    const botTarget = (!mpTarget) ? (get().npcBots || []).find(b => b.id === targetId) : undefined
+    const target = mpTarget || botTarget
 
     // Deduct cost from attacker
     if (cost.currency === 'credits') {
@@ -1535,13 +2199,18 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
     }
 
     // compute success chance (base 60% with WAR diff influence)
-    const targetWar = (target && (target as any).warScore) || 1000
-    let successChance = 0.6 + ((state.player.warScore - targetWar) / 2000)
-    successChance = Math.max(0.05, Math.min(0.95, successChance))
+  const targetWar = (target && (target as any).warScore) || (target && (target as any).battlePower) || 1000
+  let successChance = 0.6 + ((state.player.warScore - targetWar) / 2000)
+  // Level differential modifier: +/-0.2% per level difference (capped at +/-10%)
+  const targetLevel = (target && (target as any).level) || 1
+  const levelDiff = (state.player.level || 1) - targetLevel
+  const levelAdj = Math.max(-0.10, Math.min(0.10, levelDiff * 0.002))
+  successChance += levelAdj
+  successChance = Math.max(0.05, Math.min(0.95, successChance))
 
     // Shields and defensive businesses: if the multiplayer store provides
     // per-player battleState, consult it for shields and insurance flags
-    const targetHasShield = !!(target && (target as any).battleState && (target as any).battleState.activeShield && ((target as any).battleState.activeShield.expires || 0) > Date.now())
+  const targetHasShield = !!(mpTarget && (mpTarget as any).battleState && (mpTarget as any).battleState.activeShield && ((mpTarget as any).battleState.activeShield.expires || 0) > Date.now()) || !!(botTarget && botTarget.shielded)
 
   // Determine bypass behavior (wealth/land always bypass; cyber window bypasses too)
   const selfBypass = (state.bypassDefensesUntil || 0) > now
@@ -1581,26 +2250,36 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
         // increase local placeholder battleState businessDamage as well for singleplayer demo
         set(s => ({ battleState: { ...s.battleState, businessDamage: Math.min(100, s.battleState.businessDamage + damage), [lastKey]: now, attacksToday: s.battleState.attacksToday + 1, successfulAttacksToday: s.battleState.successfulAttacksToday + 1 } as BattleState }))
         try { useNotificationStore.getState().push({ type: 'success', title: 'Sabotage successful', message: `Applied ${damage}% damage to target businesses`, showInBanner: false }) } catch {}
-        return { success: true, message: 'Business sabotaged', damage }
+  // Quest progress: battles won
+  const incQ = get().incrementQuestProgress; if (incQ) incQ('battles_won', 1)
+  return { success: true, message: 'Business sabotaged', damage }
       } else {
         // Theft attacks
     const pct = maxTheftPct[attackType]
-    const targetWealth = (target && (target as any).wealth) || 0
+  const targetWealth = (target && (target as any).wealth) || 0
     const stolen = Math.floor(targetWealth * pct)
 
-  if (stolen > 0 && multiplayerStore && target) {
-          // transfer from target to attacker in multiplayer demo store
-          multiplayerStore.setState((state: any) => ({
-            onlinePlayers: state.onlinePlayers.map((p: any) => p.id === targetId ? { ...p, wealth: Math.max(0, (p.wealth || 0) - stolen) } : p)
-          }))
-          // credit attacker
+  if (stolen > 0 && target) {
+          if (mpTarget && multiplayerStore) {
+            // transfer from multiplayer target
+            multiplayerStore.setState((state: any) => ({
+              onlinePlayers: state.onlinePlayers.map((p: any) => p.id === targetId ? { ...p, wealth: Math.max(0, (p.wealth || 0) - stolen) } : p)
+            }))
+          }
+          if (botTarget) {
+            // mutate npc bot wealth locally
+            set(s => ({ npcBots: (s.npcBots || []).map(b => b.id === botTarget.id ? { ...b, wealth: Math.max(0, b.wealth - stolen) } : b) }))
+          }
+          // credit attacker always
           set(s => ({ player: { ...s.player, wealth: s.player.wealth + stolen }, battleState: { ...s.battleState, [lastKey]: now, attacksToday: s.battleState.attacksToday + 1, successfulAttacksToday: s.battleState.successfulAttacksToday + 1 } as BattleState }))
           try { useNotificationStore.getState().push({ type: 'success', title: 'Attack successful', message: `Stole ${stolen} WEALTH`, showInBanner: false }) } catch {}
+          const incQ = get().incrementQuestProgress; if (incQ) incQ('battles_won', 1)
           return { success: true, message: `Stole ${stolen} WEALTH`, stolen }
         } else {
           // nothing to steal
           set(s => ({ battleState: { ...s.battleState, [lastKey]: now, attacksToday: s.battleState.attacksToday + 1, successfulAttacksToday: s.battleState.successfulAttacksToday + 1 } as BattleState }))
           try { useNotificationStore.getState().push({ type: 'info', title: 'Attack successful', message: 'Nothing to steal', showInBanner: false }) } catch {}
+          const incQ = get().incrementQuestProgress; if (incQ) incQ('battles_won', 1)
           return { success: true, message: 'Attack succeeded but nothing to steal' }
         }
       }
@@ -1615,17 +2294,21 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
   },
 
   purchaseShield: (type: 'basic' | 'advanced' | 'elite') => {
-    // Costs now in $WEALTH: 25, 50, 100 respectively
-    const costs = { basic: 25, advanced: 50, elite: 100 }
+    // Tuned costs in $WEALTH: 5, 20, 50 respectively
+    const costs = { basic: 5, advanced: 20, elite: 50 }
     // Durations unchanged: 1h, 24h, 72h
     const durations = { basic: 3600000, advanced: 86400000, elite: 259200000 } // ms
 
     const state = get()
-    if (state.player.wealth >= costs[type]) {
+    // Level-based discount: 5% every 5 levels capped at 30%
+    const lvl = state.player.level || 1
+    const discountPct = Math.min(30, Math.floor(lvl / 5) * 5)
+    const discountedCost = Math.max(1, Math.floor(costs[type] * (1 - discountPct / 100)))
+    if (state.player.wealth >= discountedCost) {
       set(state => ({
         player: {
           ...state.player,
-          wealth: state.player.wealth - costs[type]
+          wealth: state.player.wealth - discountedCost
         },
         battleState: {
           ...state.battleState,
@@ -1635,9 +2318,10 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
           }
         }
       }))
-      try { useNotificationStore.getState().push({ type: 'success', title: 'Shield activated', message: `${type.charAt(0).toUpperCase() + type.slice(1)} shield purchased`, showInBanner: false }) } catch {}
+      try { useNotificationStore.getState().push({ type: 'success', title: 'Shield activated', message: `${type.charAt(0).toUpperCase() + type.slice(1)} shield purchased${discountPct>0?` (-${discountPct}% cost)`:''}`, showInBanner: false }) } catch {}
+      const incQ = get().incrementQuestProgress; if (incQ) incQ('shields_purchased', 1)
     } else {
-      try { useNotificationStore.getState().push({ type: 'error', title: 'Shield purchase failed', message: `Need ${costs[type]} $WEALTH`, showInBanner: true }) } catch {}
+      try { useNotificationStore.getState().push({ type: 'error', title: 'Shield purchase failed', message: `Need ${discountedCost} $WEALTH`, showInBanner: true }) } catch {}
     }
   },
 
@@ -1717,6 +2401,15 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
 
   updateTime: () => {
     set({ currentTime: Date.now() })
+    // One-time hydration sync for legacy saves: ensure maxSlots & exchange caps reflect current level
+    const state = get()
+    const unlocked = state.getUnlockedSlots ? state.getUnlockedSlots() : state.maxSlots
+    if (unlocked > state.maxSlots) {
+      set({ maxSlots: unlocked })
+    }
+    if (state.recalcExchangeCaps) {
+      state.recalcExchangeCaps()
+    }
   },
 
   setShowShareModal: (show: boolean) => {
@@ -1750,6 +2443,7 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
   getWorkMultiplier: () => {
     const state = get()
     let multiplier = 0
+    const breakdown: { baseBasic: number; basicAfterDamage: number; enhanced: number; government: number; synergy: number; level: number } = { baseBasic: 0, basicAfterDamage: 0, enhanced: 0, government: 0, synergy: 0, level: 0 }
 
     // Basic businesses (subject to sabotage damage)
     let basicMult = 0
@@ -1760,6 +2454,8 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
     const damage = Math.max(0, Math.min(100, state.battleState.businessDamage || 0))
     const damagedBasic = Math.floor(basicMult * ((100 - damage) / 100))
     multiplier += damagedBasic
+    breakdown.baseBasic = basicMult
+    breakdown.basicAfterDamage = damagedBasic
 
     // Enhanced businesses (active slots only)
     state.enhancedBusinesses.forEach(business => {
@@ -1767,12 +2463,14 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
         const cond = typeof (business as any).condition === 'number' ? (business as any).condition as number : 100
         const scaled = Math.floor(business.workMultiplier * (cond / 100))
         multiplier += scaled
+        breakdown.enhanced += scaled
       }
     })
 
     // Government Contract passive: +10% multiplier to all businesses when slotted
     if (state.enhancedBusinesses.some(b => b.owned && state.activeSlots.includes(b.id) && b.id === 'government_contract')) {
       multiplier += 10
+      breakdown.government = 10
     }
 
     // Synergy bonuses
@@ -1780,14 +2478,35 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
       const activeSynergies = calculateActiveSynergies(state.activeSlots)
       const effects = calculateSynergyEffects(activeSynergies)
       multiplier += effects.workMultiplierBonus || 0
+      breakdown.synergy = effects.workMultiplierBonus || 0
     } catch {}
 
-    return Math.min(multiplier, 200) // Cap at 200%
+    // Level-based bonus: +0.5% per level, soft-capped via diminishing returns after level 50
+    const level = state.player.level || 1
+    const linearPortion = Math.min(level, 50) * 0.5 // up to +25
+    const extraLevels = Math.max(0, level - 50)
+    // diminishing returns: each extra level adds 0.25% * (0.98^n)
+    let drPortion = 0
+    for (let i = 0; i < Math.min(extraLevels, 100); i++) { // cap loop for safety
+      drPortion += 0.25 * Math.pow(0.98, i)
+    }
+    const levelBonus = Math.floor(linearPortion + drPortion)
+    multiplier += levelBonus
+    breakdown.level = levelBonus
+
+    const capped = Math.min(multiplier, 200) // Cap at 200%
+    // Optionally expose breakdown somewhere (future UI hook)
+    return capped
   },
 
   getDefenseRating: () => {
     const state = get()
     let defense = state.battleState.defenseRating
+    // Level-based baseline: +1 defense per 5 levels (capped +10 at level 50) then +1 every additional 10 levels
+    const lvl = state.player.level || 1
+    let levelDef = Math.min(10, Math.floor(lvl / 5))
+    if (lvl > 50) levelDef += Math.floor((lvl - 50) / 10)
+    defense += levelDef
 
     // Enhanced businesses defensive bonuses
     state.enhancedBusinesses.forEach(business => {
@@ -2001,6 +2720,16 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
         }
       }
     } catch {}
+
+    // Exchange Pool daily reset at resetAt
+    try {
+      const pool = get().exchangePool
+      if ((pool.resetAt || 0) > 0 && now >= pool.resetAt) {
+        const next = new Date()
+        const nextReset = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth(), next.getUTCDate() + 1, 0, 0, 0)).getTime()
+        set(s => ({ exchangePool: { ...s.exchangePool, redeemedTodayWealth: 0, perUserRedeemedToday: {}, resetAt: nextReset } }))
+      }
+    } catch {}
   }
   ,
 
@@ -2027,7 +2756,7 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
       businesses: mockBusinesses.map(b => ({ ...b })),
       enhancedBusinesses: mockEnhancedBusinesses.map(b => ({ ...b })),
       activeSlots: [],
-      maxSlots: 4,
+      maxSlots: 1,
       battleState: {
         lastStandardAttack: 0,
         lastWealthAssault: 0,
@@ -2041,8 +2770,17 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
       activeRaids: [],
       landNFTs: [],
       treasuryReserve: { credits: 1000000, wealth: 10000 },
-      conversionRate: 100,
-      wealthToCreditsRate: 50,
+      exchangePool: {
+        rateCreditsPerWealth: 75,
+        feeBps: 100,
+        globalDailyCapWealth: 1000,
+        userDailyCapWealth: 10,
+        redeemedTodayWealth: 0,
+        perUserRedeemedToday: {},
+        resetAt: (() => { const now = new Date(); const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0)); return next.getTime() })()
+      },
+      conversionRate: 75,
+      wealthToCreditsRate: 75,
       marketPrices: { solUsd: 150, wealthUsd: 1 },
       dexFeeBps: 50,
       showShareModal: false,
@@ -2072,9 +2810,8 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
     if (version < 2 && persistedState) {
       const upgraded = { ...persistedState }
       const currentMax = typeof upgraded.maxSlots === 'number' ? upgraded.maxSlots : 0
-      if (currentMax < 4) {
-        upgraded.maxSlots = 4
-      }
+      // Previous baseline was 4 static; keep their progress but never below 1
+      if (currentMax < 1) upgraded.maxSlots = 1
       // If activeSlots somehow exceeds the new max, trim it
       if (Array.isArray(upgraded.activeSlots) && upgraded.activeSlots.length > (upgraded.maxSlots || 4)) {
         upgraded.activeSlots = upgraded.activeSlots.slice(0, upgraded.maxSlots || 4)
@@ -2101,13 +2838,23 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
     enhancedBusinesses: state.enhancedBusinesses,
     activeSlots: state.activeSlots,
     maxSlots: state.maxSlots,
+    questsActive: state.questsActive,
+    questDailyResetAt: state.questDailyResetAt,
+    questWeeklyResetAt: state.questWeeklyResetAt,
     battleState: state.battleState,
     lottery: state.lottery,
     treasuryReserve: state.treasuryReserve,
+    exchangePool: state.exchangePool,
     conversionRate: state.conversionRate,
     wealthToCreditsRate: state.wealthToCreditsRate,
     marketPrices: state.marketPrices,
     dexFeeBps: state.dexFeeBps,
+  // Chat + unread tracking (cap already enforced on append)
+  globalChat: state.globalChat,
+  clanChat: state.clanChat,
+  lastSeenGlobalChatCount: state.lastSeenGlobalChatCount,
+  lastSeenClanChatCounts: state.lastSeenClanChatCounts,
+  npcBots: state.npcBots,
     rapidProcessingUntil: state.rapidProcessingUntil,
     compoundActiveUntil: state.compoundActiveUntil,
     compoundLastTick: state.compoundLastTick,

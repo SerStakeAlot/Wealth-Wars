@@ -1,0 +1,8 @@
+<svg xmlns='http://www.w3.org/2000/svg' shape-rendering='crispEdges' width='32' height='32'>
+<rect width='32' height='32' fill='#020617'/>
+<rect x='6' y='8' width='20' height='16' fill='#1e293b' stroke='#475569' stroke-width='2'/>
+<rect x='8' y='10' width='16' height='12' fill='#0f172a'/>
+<rect x='10' y='12' width='12' height='2' fill='#38bdf8'/>
+<rect x='10' y='16' width='6' height='2' fill='#38bdf8'/>
+<rect x='18' y='16' width='4' height='2' fill='#f59e0b'/>
+</svg>

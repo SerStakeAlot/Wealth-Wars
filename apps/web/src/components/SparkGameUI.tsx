@@ -149,6 +149,21 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
   }
   // Mobile Treasury tabs (Convert/Swap/Details)
   const [treasuryTab, setTreasuryTab] = useState<'convert' | 'swap' | 'details'>('convert')
+  const pool = (gameStore as any).exchangePool as {
+    rateCreditsPerWealth: number
+    feeBps: number
+    globalDailyCapWealth: number
+    userDailyCapWealth: number
+    redeemedTodayWealth: number
+    perUserRedeemedToday: Record<string, number>
+    resetAt: number
+  }
+  const poolUserMinted = pool?.perUserRedeemedToday?.[gameStore.player.id] || 0
+  const poolGlobalRemaining = Math.max(0, (pool?.globalDailyCapWealth || 0) - (pool?.redeemedTodayWealth || 0))
+  const poolUserRemaining = Math.max(0, (pool?.userDailyCapWealth || 0) - poolUserMinted)
+  const poolTreasuryRemaining = Math.max(0, (gameStore.treasuryReserve.wealth || 0))
+  const poolMaxMintable = Math.max(0, Math.min(poolGlobalRemaining, poolUserRemaining, poolTreasuryRemaining))
+  const poolResetIn = Math.max(0, (pool?.resetAt || 0) - currentTime)
   // Toggle for live price nudges in the demo DEX
   const [liveQuotes, setLiveQuotes] = useState(true)
   
@@ -686,15 +701,21 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                         {/* Credits ⇄ WEALTH Converter (mobile) */}
                         <div className="rounded-lg border border-border p-4">
                           <div className="flex items-center justify-between mb-3">
-                            <div className="font-medium">Credits ⇄ $WEALTH</div>
-                            <div className="text-xs text-muted-foreground">Rates: {gameStore.conversionRate} C = 1 W • 1 W = {gameStore.wealthToCreditsRate} C</div>
+                            <div className="font-medium">Exchange Pool: Credits → $WEALTH</div>
+                            <div className="text-xs text-muted-foreground">Rate: {pool?.rateCreditsPerWealth ?? 100} C = 1 W • Fee {pool?.feeBps ?? 0} bps</div>
                           </div>
                           <div className="flex flex-col sm:flex-row gap-2">
                             <input type="number" min={1} value={convertAmount} onChange={(e) => setConvertAmount(Number(e.target.value))} className="w-full sm:w-40 border rounded p-2 bg-background" />
                             <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              <Button onClick={() => { if (!canConvertCredits(convertAmount)) { toast.error(`Need ${convertAmount} credits`); return } gameStore.convertCreditsToWealth(convertAmount); toast.success(`Converted ${convertAmount} credits → $WEALTH`) }} className="bg-green-600 hover:bg-green-700">Credits → $WEALTH</Button>
-                              <Button variant="outline" onClick={() => { if (!canConvertWealth(convertAmount)) { toast.error(`Need ${convertAmount} $WEALTH`); return } gameStore.convertWealthToCredits(convertAmount); toast.success(`Converted ${convertAmount} $WEALTH → credits`) }}>$WEALTH → Credits</Button>
+                              <Button onClick={() => { if (!canConvertCredits(convertAmount)) { toast.error(`Need ${convertAmount} credits`); return } gameStore.convertCreditsToWealth(convertAmount) }} className="bg-green-600 hover:bg-green-700">Redeem</Button>
+                              <Button variant="outline" disabled title="Disabled under Exchange Pool">$WEALTH → Credits</Button>
                             </div>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-2 space-y-1">
+                            <div>Global remaining today: <span className="font-medium">{poolGlobalRemaining} W</span></div>
+                            <div>Your remaining today: <span className="font-medium">{poolUserRemaining} W</span></div>
+                            <div>Treasury availability: <span className="font-medium">{poolTreasuryRemaining} W</span></div>
+                            <div>Resets in: <span className="font-medium">{formatTime(poolResetIn)}</span></div>
                           </div>
                         </div>
                       </TabsContent>
@@ -762,15 +783,21 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                     {/* Converter (desktop) */}
                     <div className="rounded-lg border border-border p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <div className="font-medium">Credits ⇄ $WEALTH</div>
-                        <div className="text-xs text-muted-foreground">Rates: {gameStore.conversionRate} C = 1 W • 1 W = {gameStore.wealthToCreditsRate} C</div>
+                        <div className="font-medium">Exchange Pool: Credits → $WEALTH</div>
+                        <div className="text-xs text-muted-foreground">Rate: {pool?.rateCreditsPerWealth ?? 100} C = 1 W • Fee {pool?.feeBps ?? 0} bps</div>
                       </div>
                       <div className="flex flex-col sm:flex-row gap-2">
                         <input type="number" min={1} value={convertAmount} onChange={(e) => setConvertAmount(Number(e.target.value))} className="w-full sm:w-40 border rounded p-2 bg-background" />
                         <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <Button onClick={() => { if (!canConvertCredits(convertAmount)) { toast.error(`Need ${convertAmount} credits`); return } gameStore.convertCreditsToWealth(convertAmount); toast.success(`Converted ${convertAmount} credits → $WEALTH`) }} className="bg-green-600 hover:bg-green-700">Credits → $WEALTH</Button>
-                          <Button variant="outline" onClick={() => { if (!canConvertWealth(convertAmount)) { toast.error(`Need ${convertAmount} $WEALTH`); return } gameStore.convertWealthToCredits(convertAmount); toast.success(`Converted ${convertAmount} $WEALTH → credits`) }}>$WEALTH → Credits</Button>
+                          <Button onClick={() => { if (!canConvertCredits(convertAmount)) { toast.error(`Need ${convertAmount} credits`); return } gameStore.convertCreditsToWealth(convertAmount) }} className="bg-green-600 hover:bg-green-700">Redeem</Button>
+                          <Button variant="outline" disabled title="Disabled under Exchange Pool">$WEALTH → Credits</Button>
                         </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-2 grid grid-cols-2 gap-2">
+                        <div>Global remaining: <span className="font-medium">{poolGlobalRemaining} W</span></div>
+                        <div>Your remaining: <span className="font-medium">{poolUserRemaining} W</span></div>
+                        <div>Treasury availability: <span className="font-medium">{poolTreasuryRemaining} W</span></div>
+                        <div>Resets in: <span className="font-medium">{formatTime(poolResetIn)}</span></div>
                       </div>
                     </div>
 
@@ -813,11 +840,12 @@ export function SparkGameUI({ onReturnHome }: SparkGameUIProps) {
                           <div>$WEALTH: {gameStore.treasuryReserve.wealth.toLocaleString()}</div>
                         </div>
                         <div className="rounded border border-border p-3">
-                          <div className="text-muted-foreground">Conversion Policy</div>
+                          <div className="text-muted-foreground">Exchange Pool Policy</div>
                           <ul className="list-disc pl-5 space-y-1">
-                            <li>Base 100 C → 1 W, 1 W → 50 C</li>
-                            <li>Trading Exchange: 15% better rates when slotted</li>
-                            <li>Marketing Agency: +25% better during active boost</li>
+                            <li>One-way: Credits → $WEALTH at pool rate</li>
+                            <li>Fee {pool?.feeBps ?? 0} bps on input credits</li>
+                            <li>Daily caps: Global {pool?.globalDailyCapWealth ?? 0} W, Per-user {pool?.userDailyCapWealth ?? 0} W</li>
+                            <li>Trading Exchange/Marketing Agency can improve effective rate</li>
                           </ul>
                         </div>
                         <div className="rounded border border-border p-3">

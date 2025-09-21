@@ -1,0 +1,1 @@
+Pixel asset placeholder directory. Add 32x32 or 48x48 pixel art PNGs matching mapped filenames (see usePixelGameState.ts image map).
