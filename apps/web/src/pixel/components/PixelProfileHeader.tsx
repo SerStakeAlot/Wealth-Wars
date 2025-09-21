@@ -23,15 +23,12 @@ export const PixelProfileHeader: React.FC = () => {
   const [liveStatus, setLiveStatus] = useState<'online' | 'degraded' | 'offline' | 'unknown'>('unknown')
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
 
-  // Poll an AWS endpoint (stub): uses NEXT_PUBLIC_LIVE_STATUS_URL if provided.
+  // Poll an AWS endpoint (stub): uses NEXT_PUBLIC_LIVE_STATUS_URL if provided, else falls back to internal /api/live-status
   useEffect(() => {
     let active = true
-    const url = process.env.NEXT_PUBLIC_LIVE_STATUS_URL
-    if (!url) {
-      // Remain 'unknown' but retry less frequently in case env injected later (dev hot-reload)
-      const id = setTimeout(() => { if (active) setLiveStatus('unknown') }, 30000)
-      return () => { active = false; clearTimeout(id) }
-    }
+    const configured = process.env.NEXT_PUBLIC_LIVE_STATUS_URL
+    const url = configured && configured.trim().length > 0 ? configured : '/api/live-status'
+
     const poll = async () => {
       const start = performance.now()
       try {
@@ -76,7 +73,7 @@ export const PixelProfileHeader: React.FC = () => {
   const statusLabel = liveStatus.toUpperCase()
   const pulseColor = liveStatus === 'online' ? 'bg-emerald-400' : liveStatus === 'degraded' ? 'bg-amber-400' : liveStatus === 'offline' ? 'bg-red-500' : 'bg-slate-500'
   const ringColor = liveStatus === 'online' ? 'shadow-[0_0_0_3px_rgba(16,185,129,0.25)]' : liveStatus === 'degraded' ? 'shadow-[0_0_0_3px_rgba(245,158,11,0.25)]' : liveStatus === 'offline' ? 'shadow-[0_0_0_3px_rgba(239,68,68,0.25)]' : 'shadow-[0_0_0_3px_rgba(148,163,184,0.25)]'
-  const unknownHint = liveStatus === 'unknown' && !process.env.NEXT_PUBLIC_LIVE_STATUS_URL ? 'Set NEXT_PUBLIC_LIVE_STATUS_URL to enable' : null
+  const unknownHint = liveStatus === 'unknown' ? null : null
 
   const [showLevels, setShowLevels] = useState(false)
   return (
