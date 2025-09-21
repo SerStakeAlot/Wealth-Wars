@@ -31,8 +31,12 @@ export function PixelBusinessList(props: Props) {
       </div>
       <div className="text-[10px] uppercase tracking-wide text-slate-500 mb-1">Core</div>
       <div className="space-y-2 mb-3 max-h-40 overflow-y-auto pr-1">
-        {core.map(b => (
-          <motion.div key={b.id} className={`border-2 p-3 rounded ${tierColor(b.tier)} ${b.owned ? 'opacity-60' : ''}`} variants={pixelMotionVariants.fadeAndRise} initial="initial" animate="animate" transition={{ delay: 0.05 }}>
+        {core.map(b => {
+          const afford = credits >= b.cost
+          const disabled = b.owned || !afford
+          const reason = b.owned ? 'Already owned' : !afford ? `Need ${b.cost - credits} more credits` : ''
+          return (
+          <motion.div key={b.id} className={`relative border-2 p-3 rounded ${tierColor(b.tier)} ${b.owned ? 'opacity-60' : ''}`} variants={pixelMotionVariants.fadeAndRise} initial="initial" animate="animate" transition={{ delay: 0.05 }}>
             <div className="flex items-start justify-between">
               <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
@@ -59,13 +63,20 @@ export function PixelBusinessList(props: Props) {
                 </div>
                 <div className="text-[10px] text-slate-300 mb-2">+{b.creditBoost} credits per clock in</div>
                 <div className="flex items-center justify-between">
-                  <div className="text-amber-300 text-[11px] font-bold">{b.cost.toLocaleString()} credits</div>
-                  {!b.owned && <PixelButton size='sm' onClick={() => onPurchase(b.id)} disabled={credits < b.cost} className='text-[10px]'>BUY</PixelButton>}
+                  <div className="text-amber-300 text-[11px] font-bold" title="Cost to purchase base business">{b.cost.toLocaleString()} credits</div>
+                  {!b.owned && (
+                    <div className="relative group">
+                      <PixelButton size='sm' onClick={() => !disabled && onPurchase(b.id)} disabled={disabled} className='text-[10px]'>BUY</PixelButton>
+                      {disabled && reason && (
+                        <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-900 border border-slate-600 text-[9px] px-2 py-1 rounded shadow opacity-0 group-hover:opacity-100 transition">{reason}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          </motion.div>
-        ))}
+          </motion.div>)
+        })}
         {core.length===0 && <div className="text-xs text-slate-500 italic">None</div>}
       </div>
       <div className="text-[10px] uppercase tracking-wide text-slate-500 mb-1 flex items-center gap-2">Enhanced <span className="text-purple-400 text-[9px] border border-purple-600 px-1 py-0.5 rounded">ADV</span></div>
@@ -83,6 +94,9 @@ export function PixelBusinessList(props: Props) {
               const h = Math.floor(m/60)
               return h + 'h'
             }
+            const afford = wealth >= b.cost
+            const buyDisabled = b.owned || !afford
+            const buyReason = b.owned ? 'Already owned' : !afford ? `Need ${b.cost - wealth} more $WEALTH` : ''
             return (
             <motion.div key={b.id} className={`border-2 p-3 rounded ${tierColor(b.tier)} ${b.owned ? '' : 'opacity-60'} ${active ? 'ring-2 ring-purple-400' : ''}`} variants={pixelMotionVariants.fadeAndRise} initial="initial" animate="animate" transition={{ delay: 0.05 }}>
               <div className="flex items-start justify-between gap-2">
@@ -126,7 +140,12 @@ export function PixelBusinessList(props: Props) {
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="text-purple-300 text-[11px] font-bold whitespace-nowrap">{b.cost.toLocaleString()} $WEALTH</div>
                     {!b.owned && (
-                      <PixelButton size='sm' onClick={() => (onPurchaseEnhanced ? onPurchaseEnhanced(b.id) : onPurchase(b.id))} disabled={wealth < b.cost} className='text-[10px]'>BUY</PixelButton>
+                      <div className="relative group">
+                        <PixelButton size='sm' onClick={() => !buyDisabled && (onPurchaseEnhanced ? onPurchaseEnhanced(b.id) : onPurchase(b.id))} disabled={buyDisabled} className='text-[10px]'>BUY</PixelButton>
+                        {buyDisabled && buyReason && (
+                          <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-900 border border-slate-600 text-[9px] px-2 py-1 rounded shadow opacity-0 group-hover:opacity-100 transition">{buyReason}</span>
+                        )}
+                      </div>
                     )}
                     {b.owned && onToggleSlot && <PixelButton size='sm' variant={active? 'secondary':'primary'} onClick={() => onToggleSlot(b.id)} className='text-[10px]'>{active? 'UNSLOT':'SLOT'}</PixelButton>}
                     {b.owned && onActivateAbility && <PixelButton size='sm' variant='wealth' onClick={() => onActivateAbility(b.id)} disabled={!abilityReady} className='text-[10px]'>{abilityReady? 'ABILITY':'CD'}</PixelButton>}

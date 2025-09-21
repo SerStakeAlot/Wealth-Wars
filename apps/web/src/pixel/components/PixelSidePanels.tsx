@@ -73,14 +73,14 @@ export const PixelSidePanel: React.FC<PixelSidePanelProps> = ({ id, title, icon,
             role="dialog"
             aria-modal
             aria-label={title}
-            className={`absolute top-0 ${side === 'right' ? 'right-0' : 'left-0'} h-full flex flex-col bg-slate-900/95 border-${side === 'right' ? 'l' : 'r'}-2 border-indigo-600 shadow-xl pointer-events-auto max-sm:w-full max-sm:border-l-0 max-sm:border-r-0`} style={{ width }}
+            className={`absolute top-0 ${side === 'right' ? 'right-0' : 'left-0'} h-full flex flex-col bg-slate-900/95 border-${side === 'right' ? 'l' : 'r'}-2 border-indigo-600 shadow-xl pointer-events-auto max-sm:w-full max-sm:border-l-0 max-sm:border-r-0 max-sm:rounded-none max-sm:px-1`} style={{ width }}
           >
             <div className="p-3 pt-safe border-b border-slate-700 flex items-center gap-2">
               {icon && <span className="w-5 h-5 flex items-center justify-center text-indigo-300">{icon}</span>}
               <h2 className="text-sm font-bold tracking-wide text-indigo-200 flex-1 truncate">{title}</h2>
               <button onClick={onClose} className="text-[10px] px-2 py-1 rounded border border-slate-600 hover:bg-slate-700/50 text-slate-300">ESC</button>
             </div>
-            <div className="flex-1 overflow-y-auto px-3 py-4 pb-safe custom-scrollbar text-[11px]">
+            <div className="flex-1 overflow-y-auto px-3 py-4 pb-safe custom-scrollbar text-[11px] max-sm:px-2">
               {children}
             </div>
           </motion.aside>

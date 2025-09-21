@@ -99,6 +99,11 @@ export function usePixelGameAdapter() {
   const convertCredits = (creditsAmount: number) => { store.convertCreditsToWealth(creditsAmount) }
   const buyBusiness = (id: string) => {
     const anyStore: any = store as any
+    // Prefer dedicated outlet purchase for core businesses
+    if (anyStore.buyBusinessOutlet) {
+      try { anyStore.buyBusinessOutlet(id) } catch {}
+      return
+    }
     if (anyStore.purchaseBusiness) { try { anyStore.purchaseBusiness(id) } catch {} }
   }
   const buyEnhancedBusiness = (id: string) => {
