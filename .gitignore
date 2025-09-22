@@ -159,3 +159,17 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vercel
+
+# Unity (scaffold)
+unity-client/[Ll]ibrary/
+unity-client/[Tt]emp/
+unity-client/[Oo]bj/
+unity-client/[Bb]uilds/
+unity-client/[Bb]uild/
+unity-client/[Ll]ogs/
+unity-client/[Uu]ser[Ss]ettings/
+unity-client/*.csproj
+unity-client/*.sln
+unity-client/*.userprefs
+unity-client/[Pp]ackages/com.unity.collab-proxy*/
+unity-client/[Aa]ssets/StreamingAssets/aa/*/*.bundle

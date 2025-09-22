@@ -6,7 +6,8 @@
     "build:program": "anchor build",
     "test:program": "anchor test",
     "dev:validator": "solana-test-validator -r --reset",
-    "dev:web": "npm --prefix apps/web run dev"
+    "dev:web": "npm --prefix apps/web run dev",
+    "generate:tokens": "npm --prefix apps/web run export:tokens"
   },
   "workspaces": [
     "apps/web"

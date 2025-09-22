@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:activate": "tsx scripts/test-activate.ts"
+    "test:activate": "tsx scripts/test-activate.ts",
+    "export:tokens": "tsx scripts/export-design-tokens.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
