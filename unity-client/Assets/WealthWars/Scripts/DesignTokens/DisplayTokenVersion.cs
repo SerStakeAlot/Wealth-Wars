@@ -54,4 +54,15 @@ public class DisplayTokenVersion : MonoBehaviour
         GUI.Label(new Rect(r.x + shadowOffset.x, r.y + shadowOffset.y, r.width, r.height), value, _shadowStyle);
         GUI.Label(r, value, _style);
     }
+
+    /// <summary>
+    /// Allows external bootstrap code to inject the TokenRegistry at runtime without using editor-only APIs.
+    /// </summary>
+    public void SetTokenRegistry(TokenRegistry reg)
+    {
+        if (reg != null && tokenRegistry == null)
+        {
+            tokenRegistry = reg;
+        }
+    }
 }
