@@ -1,0 +1,29 @@
+# Unity project ignores (local to this client)
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+UserSettings/
+MemoryCaptures/
+
+# Plastic SCM
+.plastic/
+
+# IDE / Generated
+*.csproj
+*.sln
+*.pidb
+*.user
+*.userprefs
+*.unityproj
+*.booproj
+
+# Crash / Reports
+sysinfo.txt
+*.stacktrace
+
+# Misc
+.DS_Store
+Thumbs.db
