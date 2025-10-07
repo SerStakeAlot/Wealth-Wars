@@ -232,6 +232,16 @@ export default function Home() {
         <WalletAvatar connected={connected} onClick={handleAvatarClick} pubkey={pubkey} />
       )}
       
+      {/* Top-left nav link to Demo Info / Event page */}
+      {isClient && (
+        <div className="topNav" role="navigation" aria-label="Primary">
+          <Link href="/demo-info" className="demoInfoLink" aria-label="Demo Event Information (Coming Soon)">
+            <span className="demoInfoText">DEMO EVENT</span>
+            <span className="soonBadge" aria-hidden="true">COMING SOON</span>
+          </Link>
+        </div>
+      )}
+      
       {/* Demo site indicator */}
       {isClient && demoSiteMode && (
         <div className="demoSiteIndicator">
@@ -278,6 +288,41 @@ export default function Home() {
         .page {
           position: relative; width: 100%; height: 100svh; overflow: hidden; color: #e6edf5;
         }
+        .topNav { position: absolute; top: 14px; left: 14px; z-index: 10; display: flex; gap: 14px; align-items: center; }
+        .demoInfoLink {
+          position: relative;
+          display: inline-flex; align-items: center; gap: 10px;
+          padding: 10px 18px 10px 16px;
+          border-radius: 14px;
+          font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-decoration: none;
+          background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.05));
+          border: 1px solid rgba(59,130,246,0.35);
+          color: #bfdbfe;
+          backdrop-filter: blur(6px) saturate(1.4);
+          box-shadow: 0 4px 14px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.06);
+          transition: box-shadow 140ms, transform 140ms, background 160ms;
+        }
+        .demoInfoLink:hover {
+          transform: translateY(-2px);
+          background: linear-gradient(135deg, rgba(59,130,246,0.25), rgba(59,130,246,0.08));
+          box-shadow: 0 6px 18px rgba(59,130,246,0.35), inset 0 0 0 1px rgba(255,255,255,0.08);
+        }
+        .demoInfoLink:active { transform: translateY(1px); box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+        .demoInfoText { background: linear-gradient(180deg,#bfdbfe,#60a5fa); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .soonBadge {
+          font-size: 10px; font-weight: 800; letter-spacing: 0.14em; padding: 4px 8px; border-radius: 8px;
+          background: linear-gradient(180deg,#fbbf24,#b45309);
+          color: #1f1300;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.25);
+          text-shadow: none;
+          position: relative;
+        }
+        .soonBadge::after {
+          content: ""; position: absolute; inset: 0; border-radius: 8px; pointer-events: none;
+          background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.55) 18%, transparent 36%);
+          mix-blend-mode: overlay; opacity: 0.65; animation: shine 3.6s ease-in-out infinite;
+        }
+        @keyframes shine { to { transform: translateX(160%); } }
         .content {
           position: relative; z-index: 5;
           height: 100%; display: grid; place-items: center; text-align: center;
